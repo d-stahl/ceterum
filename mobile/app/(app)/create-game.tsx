@@ -10,6 +10,7 @@ export default function CreateGameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [gameName, setGameName] = useState(generateCrisisName());
+  const [playerCount, setPlayerCount] = useState(3);
   const [loading, setLoading] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [gameId, setGameId] = useState<string | null>(null);
@@ -24,7 +25,7 @@ export default function CreateGameScreen() {
     setLoading(true);
     setError(null);
     try {
-      const { id, inviteCode } = await createGame(gameName.trim());
+      const { id, inviteCode } = await createGame(gameName.trim(), playerCount);
       setGameId(id);
       setInviteCode(inviteCode);
     } catch (e: any) {
@@ -56,6 +57,25 @@ export default function CreateGameScreen() {
             placeholderTextColor="rgba(224, 192, 151, 0.3)"
             autoCorrect={false}
           />
+
+          <Text style={styles.label}>Max Players</Text>
+          <View style={styles.counterRow}>
+            <Pressable
+              style={[styles.counterButton, playerCount <= 3 && styles.counterButtonDisabled]}
+              onPress={() => setPlayerCount(c => Math.max(3, c - 1))}
+              disabled={playerCount <= 3}
+            >
+              <Text style={[styles.counterButtonText, playerCount <= 3 && styles.counterButtonTextDisabled]}>−</Text>
+            </Pressable>
+            <Text style={styles.counterValue}>{playerCount}</Text>
+            <Pressable
+              style={[styles.counterButton, playerCount >= 8 && styles.counterButtonDisabled]}
+              onPress={() => setPlayerCount(c => Math.min(8, c + 1))}
+              disabled={playerCount >= 8}
+            >
+              <Text style={[styles.counterButtonText, playerCount >= 8 && styles.counterButtonTextDisabled]}>+</Text>
+            </Pressable>
+          </View>
 
           {loading ? (
             <ActivityIndicator size="large" color="#e0c097" />
@@ -125,6 +145,39 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 14,
     backgroundColor: 'rgba(224, 192, 151, 0.08)',
+  },
+  counterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+  },
+  counterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#e0c097',
+    backgroundColor: 'rgba(224, 192, 151, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  counterButtonDisabled: {
+    opacity: 0.3,
+  },
+  counterButtonText: {
+    color: '#e0c097',
+    fontSize: 22,
+    fontWeight: '600',
+  },
+  counterButtonTextDisabled: {
+    opacity: 0.5,
+  },
+  counterValue: {
+    color: '#e0c097',
+    fontSize: 28,
+    fontWeight: 'bold',
+    minWidth: 40,
+    textAlign: 'center',
   },
   button: {
     backgroundColor: 'rgba(224, 192, 151, 0.15)',
