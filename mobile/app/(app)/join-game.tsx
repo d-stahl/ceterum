@@ -1,7 +1,9 @@
-import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, ImageBackground } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { joinGame } from '../../lib/games';
+
+const joinGameBg = require('../../assets/images/join-game-bg.png');
 
 export default function JoinGameScreen() {
   const router = useRouter();
@@ -27,6 +29,7 @@ export default function JoinGameScreen() {
   }
 
   return (
+    <ImageBackground source={joinGameBg} style={styles.background} resizeMode="cover">
     <View style={styles.container}>
       <Text style={styles.heading}>Join Game</Text>
 
@@ -55,15 +58,17 @@ export default function JoinGameScreen() {
         <Text style={styles.backText}>Back</Text>
       </Pressable>
     </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  background: { flex: 1 },
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: 'rgba(26, 26, 46, 0.7)',
     paddingHorizontal: 32,
   },
   heading: {

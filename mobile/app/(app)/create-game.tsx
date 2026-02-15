@@ -1,10 +1,12 @@
-import { View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator, ImageBackground } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { createGame } from '../../lib/games';
 import { generateCrisisName } from '../../lib/crisis-names';
+
+const createGameBg = require('../../assets/images/create-game-bg.png');
 
 export default function CreateGameScreen() {
   const router = useRouter();
@@ -44,6 +46,7 @@ export default function CreateGameScreen() {
   }
 
   return (
+    <ImageBackground source={createGameBg} style={styles.background} resizeMode="cover">
     <View style={[styles.container, { paddingBottom: insets.bottom + 16 }]}>
       <Text style={styles.heading}>Create Game</Text>
 
@@ -107,15 +110,17 @@ export default function CreateGameScreen() {
         <Text style={styles.backText}>Back</Text>
       </Pressable>
     </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  background: { flex: 1 },
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: 'rgba(26, 26, 46, 0.7)',
     paddingHorizontal: 32,
   },
   heading: {

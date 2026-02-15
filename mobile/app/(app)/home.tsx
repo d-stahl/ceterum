@@ -7,7 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { UserProfileIcon, NotificationBellIcon } from '../../lib/icons';
 import { getUnreadCount } from '../../lib/events';
 
-const catoBg = require('../../assets/images/cato-bg.png');
+const homeBg = require('../../assets/images/home-bg.png');
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -53,7 +53,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <ImageBackground source={catoBg} style={styles.background} resizeMode="cover">
+    <ImageBackground source={homeBg} style={styles.background} resizeMode="cover">
       <View style={[styles.overlay, { paddingTop: insets.top }]}>
         <View style={styles.headerRow}>
           <Pressable

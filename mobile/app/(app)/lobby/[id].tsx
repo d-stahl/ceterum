@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator, Alert, Modal, ImageBackground } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,6 +6,8 @@ import * as Clipboard from 'expo-clipboard';
 import { getGamePlayers, leaveGame, kickPlayer, deleteGame } from '../../../lib/games';
 import { supabase } from '../../../lib/supabase';
 import { PLAYER_COLORS, getColorHex } from '../../../lib/player-colors';
+
+const lobbyBg = require('../../../assets/images/lobby-bg.png');
 
 type Player = {
   id: string;
@@ -147,13 +149,16 @@ export default function LobbyScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#e0c097" />
-      </View>
+      <ImageBackground source={lobbyBg} style={styles.background} resizeMode="cover">
+        <View style={styles.container}>
+          <ActivityIndicator size="large" color="#e0c097" />
+        </View>
+      </ImageBackground>
     );
   }
 
   return (
+    <ImageBackground source={lobbyBg} style={styles.background} resizeMode="cover">
     <View style={[styles.container, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
       <Text style={styles.gameName}>{gameName}</Text>
 
@@ -250,13 +255,15 @@ export default function LobbyScreen() {
         </Pressable>
       </View>
     </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  background: { flex: 1 },
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: 'rgba(26, 26, 46, 0.7)',
     paddingHorizontal: 32,
     paddingTop: 16,
   },

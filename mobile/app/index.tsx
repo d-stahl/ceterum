@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet, ImageBackground } from 'react-native';
 
-const catoBg = require('../assets/images/cato-bg.png');
+const homeBg = require('../assets/images/home-bg.png');
 
 export default function SplashScreen() {
   return (
-    <ImageBackground source={catoBg} style={styles.background} resizeMode="cover">
+    <ImageBackground source={homeBg} style={styles.background} resizeMode="cover">
       <View style={styles.overlay}>
         <Text style={styles.title}>CETERUM</Text>
         <Text style={styles.subtitle}>Entering the Senate...</Text>

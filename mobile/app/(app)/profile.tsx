@@ -1,8 +1,10 @@
-import { View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator, ImageBackground } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
+
+const profileBg = require('../../assets/images/profile-bg.png');
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -59,13 +61,16 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#e0c097" />
-      </View>
+      <ImageBackground source={profileBg} style={styles.background} resizeMode="cover">
+        <View style={styles.container}>
+          <ActivityIndicator size="large" color="#e0c097" />
+        </View>
+      </ImageBackground>
     );
   }
 
   return (
+    <ImageBackground source={profileBg} style={styles.background} resizeMode="cover">
     <View style={[styles.container, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
       <Text style={styles.heading}>Profile</Text>
 
@@ -111,13 +116,15 @@ export default function ProfileScreen() {
         <Text style={styles.backText}>Back</Text>
       </Pressable>
     </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  background: { flex: 1 },
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: 'rgba(26, 26, 46, 0.7)',
     paddingHorizontal: 32,
     paddingTop: 16,
   },
