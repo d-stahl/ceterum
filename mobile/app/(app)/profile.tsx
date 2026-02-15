@@ -79,6 +79,7 @@ export default function ProfileScreen() {
             autoCorrect={false}
             maxLength={28}
           />
+          <Text style={styles.hint}>Name changes do not affect games in progress.</Text>
         </View>
 
         <View style={styles.field}>
