@@ -11,7 +11,7 @@ function generateInviteCode(): string {
   return code;
 }
 
-export async function createGame(name: string): Promise<{ id: string; inviteCode: string; name: string }> {
+export async function createGame(name: string, maxPlayers: number = 3): Promise<{ id: string; inviteCode: string; name: string }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
@@ -19,7 +19,7 @@ export async function createGame(name: string): Promise<{ id: string; inviteCode
 
   const { data: game, error: gameError } = await supabase
     .from('games')
-    .insert({ invite_code: inviteCode, created_by: user.id, name })
+    .insert({ invite_code: inviteCode, created_by: user.id, name, max_players: maxPlayers })
     .select()
     .single();
 
