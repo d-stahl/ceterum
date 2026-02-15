@@ -24,6 +24,7 @@ export default function LobbyScreen() {
   const [loading, setLoading] = useState(true);
   const [creatorId, setCreatorId] = useState('');
   const [currentUserId, setCurrentUserId] = useState('');
+  const [maxPlayers, setMaxPlayers] = useState(3);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const currentUserIdRef = useRef('');
 
@@ -72,7 +73,7 @@ export default function LobbyScreen() {
     try {
       const { data: game } = await supabase
         .from('games')
-        .select('invite_code, name, created_by')
+        .select('invite_code, name, created_by, max_players')
         .eq('id', gameId)
         .single();
 
@@ -80,6 +81,7 @@ export default function LobbyScreen() {
         setInviteCode(game.invite_code);
         setGameName(game.name);
         setCreatorId(game.created_by);
+        setMaxPlayers(game.max_players);
       }
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -162,7 +164,7 @@ export default function LobbyScreen() {
       </Pressable>
 
       <Text style={styles.playersLabel}>
-        Players ({players.length})
+        Players ({players.length}/{maxPlayers})
       </Text>
 
       <FlatList
@@ -191,6 +193,15 @@ export default function LobbyScreen() {
         }}
         style={styles.list}
         contentContainerStyle={styles.listContent}
+        ListFooterComponent={
+          <>
+            {Array.from({ length: maxPlayers - players.length }).map((_, i) => (
+              <View key={`empty-${i}`} style={styles.emptySlot}>
+                <Text style={styles.emptySlotText}>Waiting for player...</Text>
+              </View>
+            ))}
+          </>
+        }
       />
 
       <Modal
@@ -303,6 +314,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  emptySlot: {
+    borderRadius: 8,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(224, 192, 151, 0.2)',
+  },
+  emptySlotText: {
+    color: '#e0c097',
+    opacity: 0.3,
+    fontSize: 14,
+    fontStyle: 'italic',
   },
   playerColorDot: {
     width: 12,
