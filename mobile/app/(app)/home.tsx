@@ -1,10 +1,11 @@
 import { View, Text, StyleSheet, ImageBackground, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
-import { UserProfileIcon } from '../../lib/icons';
+import { UserProfileIcon, NotificationBellIcon } from '../../lib/icons';
+import { getUnreadCount } from '../../lib/events';
 
 const catoBg = require('../../assets/images/cato-bg.png');
 
@@ -12,12 +13,32 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [displayName, setDisplayName] = useState('');
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
       loadProfile();
+      loadUnreadCount();
     }, [])
   );
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('home-events')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'events' },
+        () => { loadUnreadCount(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  async function loadUnreadCount() {
+    const count = await getUnreadCount();
+    setUnreadCount(count);
+  }
 
   async function loadProfile() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -34,12 +55,27 @@ export default function HomeScreen() {
   return (
     <ImageBackground source={catoBg} style={styles.background} resizeMode="cover">
       <View style={[styles.overlay, { paddingTop: insets.top }]}>
-        <Pressable
-          style={styles.profileButton}
-          onPress={() => router.push('/(app)/profile')}
-        >
-          <UserProfileIcon size={28} />
-        </Pressable>
+        <View style={styles.headerRow}>
+          <Pressable
+            style={styles.headerButton}
+            onPress={() => router.push('/(app)/events')}
+          >
+            <NotificationBellIcon size={28} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+          <Pressable
+            style={styles.headerButton}
+            onPress={() => router.push('/(app)/profile')}
+          >
+            <UserProfileIcon size={28} />
+          </Pressable>
+        </View>
 
         <View style={styles.content}>
           <Text style={styles.title}>CETERUM</Text>
@@ -71,9 +107,31 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(26, 26, 46, 0.7)',
     paddingHorizontal: 32,
   },
-  profileButton: {
-    alignSelf: 'flex-end',
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerButton: {
     padding: 12,
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: '#ff6b6b',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
   content: {
     flex: 1,
