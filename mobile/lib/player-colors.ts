@@ -6,7 +6,7 @@ export const PLAYER_COLORS = [
   { id: 'emerald', label: 'Emerald', hex: '#2E8B57' },
   { id: 'purple',  label: 'Purple',  hex: '#7B2D8E' },
   { id: 'gold',    label: 'Gold',    hex: '#DAA520' },
-  { id: 'amber',   label: 'Amber',   hex: '#FFBF00' },
+  { id: 'burnt_orange', label: 'Burnt Orange', hex: '#C65A1E' },
   { id: 'rose',    label: 'Rose',    hex: '#E8909C' },
   { id: 'teal',    label: 'Teal',    hex: '#2E8B8B' },
 ] as const;
