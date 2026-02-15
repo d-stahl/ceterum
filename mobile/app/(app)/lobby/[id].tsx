@@ -180,13 +180,11 @@ export default function LobbyScreen() {
           })),
         ]}
         keyExtractor={(item) => item.key}
-        numColumns={2}
-        columnWrapperStyle={styles.columnWrapper}
         renderItem={({ item }) => {
           if (item.type === 'empty') {
             return (
               <View style={styles.emptySlot}>
-                <Text style={styles.emptySlotText}>Waiting...</Text>
+                <Text style={styles.emptySlotText}>Waiting for player...</Text>
               </View>
             );
           }
@@ -209,9 +207,9 @@ export default function LobbyScreen() {
             </View>
           );
           if (isMe) {
-            return <Pressable style={styles.columnItem} onPress={() => setColorPickerOpen(true)}>{card}</Pressable>;
+            return <Pressable onPress={() => setColorPickerOpen(true)}>{card}</Pressable>;
           }
-          return <View style={styles.columnItem}>{card}</View>;
+          return card;
         }}
         style={styles.list}
         contentContainerStyle={styles.listContent}
@@ -334,14 +332,7 @@ const styles = StyleSheet.create({
   listContent: {
     gap: 8,
   },
-  columnWrapper: {
-    gap: 8,
-  },
-  columnItem: {
-    flex: 1,
-  },
   playerCard: {
-    flex: 1,
     backgroundColor: 'rgba(224, 192, 151, 0.08)',
     borderRadius: 8,
     padding: 14,
@@ -349,7 +340,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptySlot: {
-    flex: 1,
     borderRadius: 8,
     padding: 14,
     flexDirection: 'row',
