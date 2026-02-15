@@ -27,7 +27,7 @@ export async function createGame(name: string): Promise<{ id: string; inviteCode
 
   const { error: joinError } = await supabase
     .from('game_players')
-    .insert({ game_id: game.id, player_id: user.id, color: 'ivory' });
+    .insert({ game_id: game.id, player_id: user.id, color: PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)].id });
 
   if (joinError) throw joinError;
 
