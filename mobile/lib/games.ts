@@ -40,19 +40,22 @@ export async function joinGame(inviteCode: string): Promise<string> {
 
   const { data: game, error: findError } = await supabase
     .from('games')
-    .select('id, status')
+    .select('id, status, max_players')
     .eq('invite_code', inviteCode.toUpperCase())
     .single();
 
   if (findError || !game) throw new Error('Game not found');
   if (game.status !== 'lobby') throw new Error('Game is no longer accepting players');
 
-  // Pick first available color
+  // Check if game is full
   const { data: existing } = await supabase
     .from('game_players')
     .select('color')
     .eq('game_id', game.id);
 
+  if ((existing ?? []).length >= game.max_players) throw new Error('Game is full');
+
+  // Pick first available color
   const takenColors = new Set((existing ?? []).map((r: any) => r.color));
   const availableColor = PLAYER_COLORS.find(c => !takenColors.has(c.id))?.id ?? 'ivory';
 
