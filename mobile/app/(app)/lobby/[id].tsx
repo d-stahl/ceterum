@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { getGamePlayers, leaveGame, kickPlayer, deleteGame } from '../../../lib/games';
@@ -22,6 +22,7 @@ export default function LobbyScreen() {
   const [loading, setLoading] = useState(true);
   const [creatorId, setCreatorId] = useState('');
   const [currentUserId, setCurrentUserId] = useState('');
+  const currentUserIdRef = useRef('');
 
   useEffect(() => {
     loadLobby();
@@ -36,8 +37,24 @@ export default function LobbyScreen() {
           table: 'game_players',
           filter: `game_id=eq.${gameId}`,
         },
-        () => {
+        (payload: any) => {
+          if (payload.eventType === 'DELETE' && payload.old?.player_id === currentUserIdRef.current) {
+            router.replace('/(app)/home');
+            return;
+          }
           loadPlayers();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'games',
+          filter: `id=eq.${gameId}`,
+        },
+        () => {
+          router.replace('/(app)/home');
         }
       )
       .subscribe();
@@ -63,7 +80,10 @@ export default function LobbyScreen() {
       }
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) setCurrentUserId(user.id);
+      if (user) {
+        setCurrentUserId(user.id);
+        currentUserIdRef.current = user.id;
+      }
 
       await loadPlayers();
     } finally {
