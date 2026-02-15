@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { generateCrisisName } from './crisis-names';
+import { PLAYER_COLORS } from './player-colors';
 
 function generateInviteCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I/1/O/0 confusion
@@ -26,7 +27,7 @@ export async function createGame(name: string): Promise<{ id: string; inviteCode
 
   const { error: joinError } = await supabase
     .from('game_players')
-    .insert({ game_id: game.id, player_id: user.id });
+    .insert({ game_id: game.id, player_id: user.id, color: 'ivory' });
 
   if (joinError) throw joinError;
 
@@ -46,9 +47,18 @@ export async function joinGame(inviteCode: string): Promise<string> {
   if (findError || !game) throw new Error('Game not found');
   if (game.status !== 'lobby') throw new Error('Game is no longer accepting players');
 
+  // Pick first available color
+  const { data: existing } = await supabase
+    .from('game_players')
+    .select('color')
+    .eq('game_id', game.id);
+
+  const takenColors = new Set((existing ?? []).map((r: any) => r.color));
+  const availableColor = PLAYER_COLORS.find(c => !takenColors.has(c.id))?.id ?? 'ivory';
+
   const { error: joinError } = await supabase
     .from('game_players')
-    .insert({ game_id: game.id, player_id: user.id });
+    .insert({ game_id: game.id, player_id: user.id, color: availableColor });
 
   if (joinError) {
     if (joinError.code === '23505') throw new Error('Already in this game');
@@ -176,6 +186,7 @@ export async function getGamePlayers(gameId: string) {
     .from('game_players')
     .select(`
       player_id,
+      color,
       profiles (
         id,
         display_name
@@ -184,5 +195,5 @@ export async function getGamePlayers(gameId: string) {
     .eq('game_id', gameId);
 
   if (error) throw error;
-  return (data ?? []).map((row: any) => row.profiles);
+  return (data ?? []).map((row: any) => ({ ...row.profiles, color: row.color }));
 }
