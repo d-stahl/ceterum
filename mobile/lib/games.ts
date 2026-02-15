@@ -69,6 +69,86 @@ export async function leaveGame(gameId: string): Promise<void> {
     .eq('player_id', user.id);
 }
 
+export async function kickPlayer(gameId: string, playerId: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Verify caller is the game creator
+  const { data: game } = await supabase
+    .from('games')
+    .select('created_by, name')
+    .eq('id', gameId)
+    .single();
+
+  if (!game || game.created_by !== user.id) throw new Error('Only the game creator can kick players');
+
+  // Get creator's display name for the event message
+  const { data: creatorProfile } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('id', user.id)
+    .single();
+
+  // Remove the player
+  await supabase
+    .from('game_players')
+    .delete()
+    .eq('game_id', gameId)
+    .eq('player_id', playerId);
+
+  // Create event for the kicked player
+  await supabase.from('events').insert({
+    user_id: playerId,
+    type: 'kicked',
+    title: 'Removed from game',
+    body: `You were removed from "${game.name}" by ${creatorProfile?.display_name ?? 'the host'}.`,
+    data: { game_id: gameId },
+  });
+}
+
+export async function deleteGame(gameId: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data: game } = await supabase
+    .from('games')
+    .select('created_by, name')
+    .eq('id', gameId)
+    .single();
+
+  if (!game || game.created_by !== user.id) throw new Error('Only the game creator can delete games');
+
+  // Get creator name
+  const { data: creatorProfile } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('id', user.id)
+    .single();
+
+  // Get all other players to notify them
+  const { data: players } = await supabase
+    .from('game_players')
+    .select('player_id')
+    .eq('game_id', gameId)
+    .neq('player_id', user.id);
+
+  // Create events for all other players
+  if (players && players.length > 0) {
+    await supabase.from('events').insert(
+      players.map((p) => ({
+        user_id: p.player_id,
+        type: 'game_deleted',
+        title: 'Game closed',
+        body: `"${game.name}" was closed by ${creatorProfile?.display_name ?? 'the host'}.`,
+        data: { game_id: gameId },
+      }))
+    );
+  }
+
+  // Delete the game (CASCADE will remove game_players)
+  await supabase.from('games').delete().eq('id', gameId);
+}
+
 export async function getMyGames() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
