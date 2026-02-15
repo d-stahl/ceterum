@@ -1,9 +1,11 @@
-import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator, ImageBackground } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getMyGames } from '../../lib/games';
+
+const myGamesBg = require('../../assets/images/my-games-bg.png');
 
 type Game = {
   id: string;
@@ -73,6 +75,7 @@ export default function MyGamesScreen() {
   }
 
   return (
+    <ImageBackground source={myGamesBg} style={styles.background} resizeMode="cover">
     <View style={[styles.container, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
       <Text style={styles.heading}>My Games</Text>
 
@@ -94,13 +97,15 @@ export default function MyGamesScreen() {
         <Text style={styles.backText}>Back</Text>
       </Pressable>
     </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  background: { flex: 1 },
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: 'rgba(26, 26, 46, 0.7)',
     paddingHorizontal: 32,
     paddingTop: 16,
   },
