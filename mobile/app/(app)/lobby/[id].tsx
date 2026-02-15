@@ -1,9 +1,9 @@
-import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { getGamePlayers, leaveGame } from '../../../lib/games';
+import { getGamePlayers, leaveGame, kickPlayer, deleteGame } from '../../../lib/games';
 import { supabase } from '../../../lib/supabase';
 
 type Player = {
@@ -20,6 +20,8 @@ export default function LobbyScreen() {
   const [gameName, setGameName] = useState('');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [creatorId, setCreatorId] = useState('');
+  const [currentUserId, setCurrentUserId] = useState('');
 
   useEffect(() => {
     loadLobby();
@@ -50,14 +52,19 @@ export default function LobbyScreen() {
     try {
       const { data: game } = await supabase
         .from('games')
-        .select('invite_code, name')
+        .select('invite_code, name, created_by')
         .eq('id', gameId)
         .single();
 
       if (game) {
         setInviteCode(game.invite_code);
         setGameName(game.name);
+        setCreatorId(game.created_by);
       }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setCurrentUserId(user.id);
+
       await loadPlayers();
     } finally {
       setLoading(false);
@@ -75,8 +82,31 @@ export default function LobbyScreen() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  async function handleKick(playerId: string) {
+    await kickPlayer(gameId!, playerId);
+  }
+
   async function handleLeave() {
-    await leaveGame(gameId!);
+    if (currentUserId === creatorId) {
+      const otherPlayers = players.filter(p => p.id !== currentUserId);
+      if (otherPlayers.length > 0) {
+        Alert.alert(
+          'Close Game?',
+          'Are you sure? This will close the game for all players.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Close Game', style: 'destructive', onPress: async () => {
+              await deleteGame(gameId!);
+              router.replace('/(app)/home');
+            }},
+          ]
+        );
+        return;
+      }
+      await deleteGame(gameId!);
+    } else {
+      await leaveGame(gameId!);
+    }
     router.replace('/(app)/home');
   }
 
@@ -108,6 +138,11 @@ export default function LobbyScreen() {
         renderItem={({ item }) => (
           <View style={styles.playerCard}>
             <Text style={styles.playerName}>{item.display_name}</Text>
+            {currentUserId === creatorId && item.id !== creatorId && (
+              <Pressable onPress={() => handleKick(item.id)} hitSlop={8}>
+                <Text style={styles.kickIcon}>✕</Text>
+              </Pressable>
+            )}
           </View>
         )}
         style={styles.list}
@@ -184,10 +219,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(224, 192, 151, 0.08)',
     borderRadius: 8,
     padding: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   playerName: {
     color: '#e0c097',
     fontSize: 16,
+  },
+  kickIcon: {
+    color: '#ff6b6b',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   footer: {
     flexDirection: 'row',
