@@ -5,9 +5,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ensureAuthenticated } from '../lib/auth';
+import * as Notifications from 'expo-notifications';
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const segments = useSegments();
@@ -15,7 +17,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     ensureAuthenticated()
-      .then((session) => setSession(session))
+      .then((session) => {
+        setSession(session);
+        setUserId(session.user.id);
+      })
       .catch((e) => {
         console.error('Auth error:', e);
         setError(String(e?.message ?? e));
@@ -42,6 +47,42 @@ export default function RootLayout() {
       router.replace('/');
     }
   }, [session, loading, segments]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+
+    const channel = supabase
+      .channel('events-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'events',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload: any) => {
+          Notifications.scheduleNotificationAsync({
+            content: {
+              title: payload.new.title,
+              body: payload.new.body,
+            },
+            trigger: null,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [userId]);
 
   if (loading) {
     return (
