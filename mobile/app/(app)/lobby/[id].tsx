@@ -5,10 +5,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { getGamePlayers, leaveGame, kickPlayer, deleteGame } from '../../../lib/games';
 import { supabase } from '../../../lib/supabase';
+import { PLAYER_COLORS, getColorHex } from '../../../lib/player-colors';
 
 type Player = {
   id: string;
   display_name: string;
+  color: string;
 };
 
 export default function LobbyScreen() {
@@ -106,6 +108,15 @@ export default function LobbyScreen() {
     await kickPlayer(gameId!, playerId);
   }
 
+  async function handleColorChange(newColor: string) {
+    await supabase
+      .from('game_players')
+      .update({ color: newColor })
+      .eq('game_id', gameId)
+      .eq('player_id', currentUserId);
+    await loadPlayers();
+  }
+
   async function handleLeave() {
     if (currentUserId === creatorId) {
       const otherPlayers = players.filter(p => p.id !== currentUserId);
@@ -148,6 +159,28 @@ export default function LobbyScreen() {
         <Text style={styles.copyHint}>{copied ? 'Copied!' : 'Tap to copy'}</Text>
       </Pressable>
 
+      <View style={styles.colorPickerSection}>
+        <Text style={styles.colorPickerLabel}>Your Color</Text>
+        <View style={styles.colorPickerRow}>
+          {PLAYER_COLORS.map((c) => {
+            const taken = players.some(p => p.color === c.id && p.id !== currentUserId);
+            const isSelected = players.find(p => p.id === currentUserId)?.color === c.id;
+            return (
+              <Pressable
+                key={c.id}
+                onPress={() => !taken && handleColorChange(c.id)}
+                style={[
+                  styles.colorDot,
+                  { backgroundColor: c.hex },
+                  isSelected && styles.colorDotSelected,
+                  taken && styles.colorDotTaken,
+                ]}
+              />
+            );
+          })}
+        </View>
+      </View>
+
       <Text style={styles.playersLabel}>
         Players ({players.length})
       </Text>
@@ -157,6 +190,7 @@ export default function LobbyScreen() {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.playerCard}>
+            <View style={[styles.playerColorDot, { backgroundColor: getColorHex(item.color) }]} />
             <Text style={styles.playerName}>{item.display_name}</Text>
             {currentUserId === creatorId && item.id !== creatorId && (
               <Pressable onPress={() => handleKick(item.id)} hitSlop={8}>
@@ -243,9 +277,42 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  playerColorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 10,
+  },
   playerName: {
     color: '#e0c097',
     fontSize: 16,
+    flex: 1,
+  },
+  colorPickerSection: {
+    marginBottom: 24,
+  },
+  colorPickerLabel: {
+    color: '#e0c097',
+    opacity: 0.6,
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  colorPickerRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  colorDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  colorDotSelected: {
+    borderWidth: 3,
+    borderColor: '#e0c097',
+  },
+  colorDotTaken: {
+    opacity: 0.2,
   },
   kickIcon: {
     color: '#ff6b6b',
