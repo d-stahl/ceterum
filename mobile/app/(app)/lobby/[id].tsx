@@ -173,40 +173,48 @@ export default function LobbyScreen() {
       </Text>
 
       <FlatList
-        data={players}
-        keyExtractor={(item) => item.id}
+        data={[
+          ...players.map(p => ({ type: 'player' as const, player: p, key: p.id })),
+          ...Array.from({ length: maxPlayers - players.length }, (_, i) => ({
+            type: 'empty' as const, player: null, key: `empty-${i}`,
+          })),
+        ]}
+        keyExtractor={(item) => item.key}
+        numColumns={2}
+        columnWrapperStyle={styles.columnWrapper}
         renderItem={({ item }) => {
-          const isMe = item.id === currentUserId;
+          if (item.type === 'empty') {
+            return (
+              <View style={styles.emptySlot}>
+                <Text style={styles.emptySlotText}>Waiting...</Text>
+              </View>
+            );
+          }
+          const p = item.player!;
+          const isMe = p.id === currentUserId;
+          const isHost = p.id === creatorId;
           const card = (
             <View style={styles.playerCard}>
-              <View style={[styles.playerColorDot, { backgroundColor: getColorHex(item.color) }]} />
+              <View style={[styles.playerColorDot, { backgroundColor: getColorHex(p.color) }]} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.playerName}>{item.display_name}</Text>
+                <Text style={styles.playerName} numberOfLines={1}>{p.display_name}</Text>
                 {isMe && <Text style={styles.changeColorHint}>Tap to change color</Text>}
+                {!isMe && isHost && <Text style={styles.changeColorHint}>Game host</Text>}
               </View>
-              {currentUserId === creatorId && item.id !== creatorId && (
-                <Pressable onPress={() => handleKick(item.id)} hitSlop={8}>
+              {currentUserId === creatorId && p.id !== creatorId && (
+                <Pressable onPress={() => handleKick(p.id)} hitSlop={8}>
                   <Text style={styles.kickIcon}>✕</Text>
                 </Pressable>
               )}
             </View>
           );
           if (isMe) {
-            return <Pressable onPress={() => setColorPickerOpen(true)}>{card}</Pressable>;
+            return <Pressable style={styles.columnItem} onPress={() => setColorPickerOpen(true)}>{card}</Pressable>;
           }
-          return card;
+          return <View style={styles.columnItem}>{card}</View>;
         }}
         style={styles.list}
         contentContainerStyle={styles.listContent}
-        ListFooterComponent={
-          <>
-            {Array.from({ length: maxPlayers - players.length }).map((_, i) => (
-              <View key={`empty-${i}`} style={styles.emptySlot}>
-                <Text style={styles.emptySlotText}>Waiting for player...</Text>
-              </View>
-            ))}
-          </>
-        }
       />
 
       <Modal
@@ -245,6 +253,18 @@ export default function LobbyScreen() {
           </View>
         </View>
       </Modal>
+
+      {currentUserId === creatorId && (
+        <Pressable
+          style={[styles.launchButton, players.length < maxPlayers && styles.launchButtonDisabled]}
+          disabled={players.length < maxPlayers}
+          onPress={() => {}}
+        >
+          <Text style={[styles.launchButtonText, players.length < maxPlayers && styles.launchButtonTextDisabled]}>
+            {players.length < maxPlayers ? `Waiting for ${maxPlayers - players.length} more...` : 'Launch Game'}
+          </Text>
+        </Pressable>
+      )}
 
       <View style={styles.footer}>
         <Pressable onPress={() => router.replace('/(app)/home')}>
@@ -314,15 +334,22 @@ const styles = StyleSheet.create({
   listContent: {
     gap: 8,
   },
+  columnWrapper: {
+    gap: 8,
+  },
+  columnItem: {
+    flex: 1,
+  },
   playerCard: {
+    flex: 1,
     backgroundColor: 'rgba(224, 192, 151, 0.08)',
     borderRadius: 8,
     padding: 14,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
   emptySlot: {
+    flex: 1,
     borderRadius: 8,
     padding: 14,
     flexDirection: 'row',
@@ -418,6 +445,27 @@ const styles = StyleSheet.create({
     color: '#ff6b6b',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  launchButton: {
+    backgroundColor: 'rgba(224, 192, 151, 0.15)',
+    borderWidth: 1,
+    borderColor: '#e0c097',
+    borderRadius: 8,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  launchButtonDisabled: {
+    borderColor: 'rgba(224, 192, 151, 0.2)',
+    backgroundColor: 'rgba(224, 192, 151, 0.05)',
+  },
+  launchButtonText: {
+    color: '#e0c097',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  launchButtonTextDisabled: {
+    opacity: 0.3,
   },
   footer: {
     flexDirection: 'row',
