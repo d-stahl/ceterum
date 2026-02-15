@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator, Alert, Modal } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +24,7 @@ export default function LobbyScreen() {
   const [loading, setLoading] = useState(true);
   const [creatorId, setCreatorId] = useState('');
   const [currentUserId, setCurrentUserId] = useState('');
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const currentUserIdRef = useRef('');
 
   useEffect(() => {
@@ -114,6 +115,7 @@ export default function LobbyScreen() {
       .update({ color: newColor })
       .eq('game_id', gameId)
       .eq('player_id', currentUserId);
+    setColorPickerOpen(false);
     await loadPlayers();
   }
 
@@ -159,28 +161,6 @@ export default function LobbyScreen() {
         <Text style={styles.copyHint}>{copied ? 'Copied!' : 'Tap to copy'}</Text>
       </Pressable>
 
-      <View style={styles.colorPickerSection}>
-        <Text style={styles.colorPickerLabel}>Your Color</Text>
-        <View style={styles.colorPickerRow}>
-          {PLAYER_COLORS.map((c) => {
-            const taken = players.some(p => p.color === c.id && p.id !== currentUserId);
-            const isSelected = players.find(p => p.id === currentUserId)?.color === c.id;
-            return (
-              <Pressable
-                key={c.id}
-                onPress={() => !taken && handleColorChange(c.id)}
-                style={[
-                  styles.colorDot,
-                  { backgroundColor: c.hex },
-                  isSelected && styles.colorDotSelected,
-                  taken && styles.colorDotTaken,
-                ]}
-              />
-            );
-          })}
-        </View>
-      </View>
-
       <Text style={styles.playersLabel}>
         Players ({players.length})
       </Text>
@@ -188,20 +168,67 @@ export default function LobbyScreen() {
       <FlatList
         data={players}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.playerCard}>
-            <View style={[styles.playerColorDot, { backgroundColor: getColorHex(item.color) }]} />
-            <Text style={styles.playerName}>{item.display_name}</Text>
-            {currentUserId === creatorId && item.id !== creatorId && (
-              <Pressable onPress={() => handleKick(item.id)} hitSlop={8}>
-                <Text style={styles.kickIcon}>✕</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
+        renderItem={({ item }) => {
+          const isMe = item.id === currentUserId;
+          const card = (
+            <View style={styles.playerCard}>
+              <View style={[styles.playerColorDot, { backgroundColor: getColorHex(item.color) }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.playerName}>{item.display_name}</Text>
+                {isMe && <Text style={styles.changeColorHint}>Tap to change color</Text>}
+              </View>
+              {currentUserId === creatorId && item.id !== creatorId && (
+                <Pressable onPress={() => handleKick(item.id)} hitSlop={8}>
+                  <Text style={styles.kickIcon}>✕</Text>
+                </Pressable>
+              )}
+            </View>
+          );
+          if (isMe) {
+            return <Pressable onPress={() => setColorPickerOpen(true)}>{card}</Pressable>;
+          }
+          return card;
+        }}
         style={styles.list}
         contentContainerStyle={styles.listContent}
       />
+
+      <Modal
+        visible={colorPickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setColorPickerOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Choose Your Color</Text>
+            <View style={styles.colorGrid}>
+              {PLAYER_COLORS.map((c) => {
+                const taken = players.some(p => p.color === c.id && p.id !== currentUserId);
+                const isSelected = players.find(p => p.id === currentUserId)?.color === c.id;
+                return (
+                  <Pressable
+                    key={c.id}
+                    onPress={() => !taken && handleColorChange(c.id)}
+                    disabled={taken}
+                    style={[
+                      styles.colorOption,
+                      taken && styles.colorOptionTaken,
+                      isSelected && styles.colorOptionSelected,
+                    ]}
+                  >
+                    <View style={[styles.colorSwatch, { backgroundColor: c.hex }]} />
+                    <Text style={[styles.colorLabel, taken && { opacity: 0.3 }]}>{c.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Pressable style={styles.modalDismiss} onPress={() => setColorPickerOpen(false)}>
+              <Text style={styles.modalDismissText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       <View style={styles.footer}>
         <Pressable onPress={() => router.replace('/(app)/home')}>
@@ -286,33 +313,73 @@ const styles = StyleSheet.create({
   playerName: {
     color: '#e0c097',
     fontSize: 16,
-    flex: 1,
   },
-  colorPickerSection: {
-    marginBottom: 24,
-  },
-  colorPickerLabel: {
+  changeColorHint: {
     color: '#e0c097',
-    opacity: 0.6,
-    fontSize: 14,
-    marginBottom: 8,
+    opacity: 0.4,
+    fontSize: 11,
+    marginTop: 2,
   },
-  colorPickerRow: {
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 12,
+    padding: 24,
+    width: '80%',
+    borderWidth: 1,
+    borderColor: 'rgba(224, 192, 151, 0.3)',
+  },
+  modalTitle: {
+    color: '#e0c097',
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  colorGrid: {
     flexDirection: 'row',
-    gap: 8,
     flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
   },
-  colorDot: {
+  colorOption: {
+    alignItems: 'center',
+    width: 60,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  colorOptionTaken: {
+    opacity: 0.3,
+  },
+  colorOptionSelected: {
+    backgroundColor: 'rgba(224, 192, 151, 0.15)',
+    borderWidth: 1,
+    borderColor: '#e0c097',
+  },
+  colorSwatch: {
     width: 28,
     height: 28,
     borderRadius: 14,
+    marginBottom: 4,
   },
-  colorDotSelected: {
-    borderWidth: 3,
-    borderColor: '#e0c097',
+  colorLabel: {
+    color: '#e0c097',
+    fontSize: 10,
   },
-  colorDotTaken: {
-    opacity: 0.2,
+  modalDismiss: {
+    marginTop: 16,
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  modalDismissText: {
+    color: '#e0c097',
+    opacity: 0.6,
+    fontSize: 14,
   },
   kickIcon: {
     color: '#ff6b6b',
