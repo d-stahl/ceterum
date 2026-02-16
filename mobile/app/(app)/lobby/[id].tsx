@@ -3,7 +3,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { getGamePlayers, leaveGame, kickPlayer, deleteGame } from '../../../lib/games';
+import { getGamePlayers, leaveGame, kickPlayer, deleteGame, launchGame } from '../../../lib/games';
 import { supabase } from '../../../lib/supabase';
 import { PLAYER_COLORS, getColorHex } from '../../../lib/player-colors';
 
@@ -28,6 +28,7 @@ export default function LobbyScreen() {
   const [currentUserId, setCurrentUserId] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(3);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [launching, setLaunching] = useState(false);
   const currentUserIdRef = useRef('');
 
   useEffect(() => {
@@ -61,6 +62,20 @@ export default function LobbyScreen() {
         },
         () => {
           router.replace('/(app)/home');
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'games',
+          filter: `id=eq.${gameId}`,
+        },
+        (payload: any) => {
+          if (payload.new?.status === 'in_progress') {
+            router.replace(`/(app)/game/${gameId}` as any);
+          }
         }
       )
       .subscribe();
@@ -121,6 +136,18 @@ export default function LobbyScreen() {
       .eq('player_id', currentUserId);
     setColorPickerOpen(false);
     await loadPlayers();
+  }
+
+  async function handleLaunch() {
+    setLaunching(true);
+    try {
+      await launchGame(gameId!);
+      router.replace(`/(app)/game/${gameId}` as any);
+    } catch (e: any) {
+      Alert.alert('Launch Failed', e.message ?? 'Could not launch game');
+    } finally {
+      setLaunching(false);
+    }
   }
 
   async function handleLeave() {
@@ -255,11 +282,11 @@ export default function LobbyScreen() {
       {currentUserId === creatorId && (
         <Pressable
           style={[styles.launchButton, players.length < maxPlayers && styles.launchButtonDisabled]}
-          disabled={players.length < maxPlayers}
-          onPress={() => {}}
+          disabled={players.length < maxPlayers || launching}
+          onPress={handleLaunch}
         >
           <Text style={[styles.launchButtonText, players.length < maxPlayers && styles.launchButtonTextDisabled]}>
-            {players.length < maxPlayers ? `Waiting for ${maxPlayers - players.length} more...` : 'Launch Game'}
+            {launching ? 'Launching...' : players.length < maxPlayers ? `Waiting for ${maxPlayers - players.length} more...` : 'Launch Game'}
           </Text>
         </Pressable>
       )}

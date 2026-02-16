@@ -63,7 +63,13 @@ export default function MyGamesScreen() {
     return (
       <Pressable
         style={styles.gameCard}
-        onPress={() => router.push(`/(app)/lobby/${item.id}`)}
+        onPress={() => {
+          if (item.status === 'in_progress' || item.status === 'finished') {
+            router.push(`/(app)/game/${item.id}` as any);
+          } else {
+            router.push(`/(app)/lobby/${item.id}`);
+          }
+        }}
       >
         <Text style={styles.gameName}>{item.name}</Text>
         <View style={styles.gameInfo}>

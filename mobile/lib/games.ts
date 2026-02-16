@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { generateCrisisName } from './crisis-names';
 import { PLAYER_COLORS } from './player-colors';
+import { selectAndBalanceFactions } from './game-engine/balance';
 
 function generateInviteCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I/1/O/0 confusion
@@ -182,6 +183,28 @@ export async function getMyGames() {
 
   if (error) throw error;
   return (data ?? []).map((row: any) => row.games);
+}
+
+export async function launchGame(gameId: string): Promise<void> {
+  // Get player count
+  const { data: players, error: playersError } = await supabase
+    .from('game_players')
+    .select('player_id')
+    .eq('game_id', gameId);
+
+  if (playersError) throw playersError;
+  const playerCount = (players ?? []).length;
+
+  // Select and balance factions
+  const factions = selectAndBalanceFactions(playerCount);
+
+  // Call RPC to initialize game state in a single transaction
+  const { error } = await supabase.rpc('launch_game', {
+    p_game_id: gameId,
+    p_factions: factions,
+  });
+
+  if (error) throw error;
 }
 
 export async function getGamePlayers(gameId: string) {
