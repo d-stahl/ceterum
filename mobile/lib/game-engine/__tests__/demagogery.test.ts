@@ -36,9 +36,9 @@ describe('resolveDemagogery (backward compat)', () => {
     expect(result.influenceChanges['p1']).toBe(result.influenceChanges['p2']);
   });
 
-  it('ally with no demagog gets nothing', () => {
+  it('advocate with no demagog gets nothing', () => {
     const placements: Placement[] = [
-      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'ally', subRound: 1 },
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'advocate', subRound: 1 },
     ];
     const result = resolveDemagogery(placements, [testFaction], noAffinity);
     expect(result.influenceChanges['p1'] || 0).toBe(0);
@@ -78,7 +78,7 @@ describe('resolveDemagogeryDetailed', () => {
   it('produces matching summary fields as resolveDemagogery', () => {
     const placements: Placement[] = [
       { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
-      { playerId: 'p2', factionKey: 'legiones', workerType: 'orator', oratorRole: 'ally', subRound: 2 },
+      { playerId: 'p2', factionKey: 'legiones', workerType: 'orator', oratorRole: 'advocate', subRound: 2 },
       { playerId: 'p3', factionKey: 'legiones', workerType: 'promoter', subRound: 3 },
     ];
     const summary = resolveDemagogery(placements, [testFaction], noAffinity);
@@ -111,14 +111,14 @@ describe('resolveDemagogeryDetailed', () => {
     expect(crowdItem!.displayValue).toContain('×');
   });
 
-  it('ally boost line item appears when allies present', () => {
+  it('advocate boost line item appears when advocates present', () => {
     const placements: Placement[] = [
       { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
-      { playerId: 'p2', factionKey: 'legiones', workerType: 'orator', oratorRole: 'ally', subRound: 2 },
+      { playerId: 'p2', factionKey: 'legiones', workerType: 'orator', oratorRole: 'advocate', subRound: 2 },
     ];
     const result = resolveDemagogeryDetailed(placements, [testFaction], noAffinity);
     const demagogEffect = result.workerEffects.find(e => e.oratorRole === 'demagog')!;
-    expect(demagogEffect.lineItems.find(li => li.label === 'Ally boost')).toBeDefined();
+    expect(demagogEffect.lineItems.find(li => li.label === 'Advocate boost')).toBeDefined();
     expect(demagogEffect.totalInfluence).toBe(BASE_INFLUENCE + ALLY_BONUS);
   });
 
@@ -133,9 +133,9 @@ describe('resolveDemagogeryDetailed', () => {
     expect(demagogEffect.totalInfluence).toBe(BASE_INFLUENCE - AGITATOR_PENALTY);
   });
 
-  it('wasted ally shows "No demagog" line item', () => {
+  it('wasted advocate shows "No demagog" line item', () => {
     const placements: Placement[] = [
-      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'ally', subRound: 1 },
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'advocate', subRound: 1 },
     ];
     const result = resolveDemagogeryDetailed(placements, [testFaction], noAffinity);
     const effect = result.workerEffects[0];

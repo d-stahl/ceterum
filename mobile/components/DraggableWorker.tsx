@@ -6,9 +6,8 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Svg, { Polygon } from 'react-native-svg';
 import { WorkerType } from '../lib/game-engine/workers';
-import { getSenatorIcon, getSenatorEmptyIcon, getSaboteurEmptyIcon } from '../lib/worker-icons';
+import { getSenatorIcon, getSenatorEmptyIcon, getSaboteurEmptyIcon, getSaboteurIcon } from '../lib/worker-icons';
 import { getColorHex } from '../lib/player-colors';
 
 type Props = {
@@ -103,14 +102,11 @@ function ColoredIcon({ workerType, playerColor, colorHex, size }: { workerType: 
   }
   if (workerType === 'saboteur') {
     return (
-      <Svg width={size * 0.8} height={size * 0.8} viewBox="0 0 40 40">
-        <Polygon
-          points="20,4 36,36 4,36"
-          fill={colorHex}
-          stroke="rgba(0,0,0,0.3)"
-          strokeWidth="1"
-        />
-      </Svg>
+      <Image
+        source={getSaboteurIcon(playerColor)}
+        style={{ width: size, height: size }}
+        resizeMode="contain"
+      />
     );
   }
   return null;

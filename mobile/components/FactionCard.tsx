@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { getColorHex } from '../lib/player-colors';
-import { getSenatorIcon } from '../lib/worker-icons';
+import { getSenatorIcon, getSaboteurIcon } from '../lib/worker-icons';
 import { useDrag, DropTarget } from './DragContext';
 import ShineEffect from './ShineEffect';
 import DraggableWorker from './DraggableWorker';
@@ -9,7 +9,6 @@ import FactionAffinityTab from './FactionAffinityTab';
 import FactionAlignmentTab from './FactionAlignmentTab';
 import { WorkerType, OratorRole } from '../lib/game-engine/workers';
 import { AxisPreferences } from '../lib/game-engine/axes';
-import Svg, { Polygon, Circle as SvgCircle } from 'react-native-svg';
 
 // Stable array references to prevent useCallback/useEffect churn
 const ACCEPTS_ORATOR: WorkerType[] = ['orator'];
@@ -70,7 +69,7 @@ export default function FactionCard({
   const [activeTab, setActiveTab] = useState<'none' | 'affinity' | 'alignment'>('none');
 
   const demagogs = placements.filter((p) => p.oratorRole === 'demagog');
-  const allies = placements.filter((p) => p.oratorRole === 'ally');
+  const allies = placements.filter((p) => p.oratorRole === 'advocate');
   const agitators = placements.filter((p) => p.oratorRole === 'agitator');
   const promoters = placements.filter((p) => p.workerType === 'promoter');
   const saboteurs = placements.filter((p) => p.workerType === 'saboteur');
@@ -183,16 +182,16 @@ export default function FactionCard({
             />
             <View style={styles.splitRow}>
               <SlotRow
-                label="Allies"
+                label="Advocates"
                 placements={allies}
                 factionKey={factionKey}
-                targetRole="ally"
+                targetRole="advocate"
                 accepts={ACCEPTS_ORATOR}
                 half
                 registerTarget={registerTarget}
                 unregisterTarget={unregisterTarget}
-                highlighted={highlightedTargets.has(`faction:${factionKey}:ally`)}
-                hovered={hoveredTarget === `faction:${factionKey}:ally`}
+                highlighted={highlightedTargets.has(`faction:${factionKey}:advocate`)}
+                hovered={hoveredTarget === `faction:${factionKey}:advocate`}
                 onDragStart={onDragStart}
                 onDragMove={onDragMove}
                 onDragEnd={onDragEnd}
@@ -324,7 +323,7 @@ function SlotRow({
   const viewRef = useRef<View>(null);
   const wasDraggingRef = useRef(false);
   const targetId = `faction:${factionKey}:${targetRole}`;
-  const oratorRole = (['demagog', 'ally', 'agitator'].includes(targetRole)
+  const oratorRole = (['demagog', 'advocate', 'agitator'].includes(targetRole)
     ? targetRole as OratorRole
     : undefined);
 
@@ -463,9 +462,11 @@ function WorkerIcon({ workerType, playerColor, size }: { workerType: string; pla
   }
   if (workerType === 'saboteur') {
     return (
-      <Svg width={size * 0.8} height={size * 0.8} viewBox="0 0 40 40">
-        <Polygon points="20,4 36,36 4,36" fill={colorHex} stroke="rgba(0,0,0,0.3)" strokeWidth="1" />
-      </Svg>
+      <Image
+        source={getSaboteurIcon(playerColor)}
+        style={{ width: size, height: size }}
+        resizeMode="contain"
+      />
     );
   }
   return <View style={{ width: size * 0.5, height: size * 0.5, borderRadius: size * 0.25, backgroundColor: colorHex }} />;

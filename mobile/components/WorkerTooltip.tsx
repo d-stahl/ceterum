@@ -3,9 +3,10 @@ import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
 import { WorkerEffect } from '../lib/game-engine/demagogery';
 import { getColorHex } from '../lib/player-colors';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const TOOLTIP_WIDTH = 240;
 const TOOLTIP_MARGIN = 12;
+const ICON_HEIGHT = 52; // icon (44px) + gap
 
 type Props = {
   effect: WorkerEffect;
@@ -20,7 +21,7 @@ function getRoleLabel(effect: WorkerEffect): string {
   if (effect.workerType === 'promoter') return 'Promoter';
   if (effect.workerType === 'saboteur') return 'Saboteur';
   if (effect.oratorRole === 'demagog') return 'Demagog';
-  if (effect.oratorRole === 'ally') return 'Ally';
+  if (effect.oratorRole === 'advocate') return 'Advocate';
   if (effect.oratorRole === 'agitator') return 'Agitator';
   return 'Senator';
 }
@@ -36,19 +37,22 @@ export default function WorkerTooltip({
   const colorHex = getColorHex(playerColor);
   const roleLabel = getRoleLabel(effect);
 
-  // Position tooltip above the tapped icon, clamped to screen edges
+  // Position tooltip above the icon, or below if near the top of the screen
   let left = position.x - TOOLTIP_WIDTH / 2;
   left = Math.max(TOOLTIP_MARGIN, Math.min(left, SCREEN_WIDTH - TOOLTIP_WIDTH - TOOLTIP_MARGIN));
-  const top = position.y - 16; // anchor above the icon
+  const showBelow = position.y < SCREEN_HEIGHT * 0.4;
+  const tooltipPosition = showBelow
+    ? { top: position.y + ICON_HEIGHT }
+    : { bottom: SCREEN_HEIGHT - position.y + 8 };
 
-  const hasTotalLine = effect.totalInfluence > 0 || effect.totalPowerChange !== 0;
+  const hasTotalLine = effect.workerType === 'orator' || effect.totalPowerChange !== 0;
   const totalLabel = effect.totalPowerChange !== 0
     ? `= Power ${effect.totalPowerChange > 0 ? '+' : ''}${effect.totalPowerChange}`
     : `= ${effect.totalInfluence} influence`;
 
   return (
     <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss}>
-      <View style={[styles.tooltip, { left, bottom: Dimensions.get('window').height - top }]}>
+      <View style={[styles.tooltip, { left, ...tooltipPosition }]}>
         <View style={styles.header}>
           <View style={[styles.colorDot, { backgroundColor: colorHex }]} />
           <Text style={[styles.playerName, { color: colorHex }]} numberOfLines={1}>

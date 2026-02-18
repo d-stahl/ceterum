@@ -71,14 +71,14 @@ export function resolveDemagogeryDetailed(
     if (!faction) continue;
 
     const demagogs = factionPlacements.filter((p) => p.oratorRole === 'demagog');
-    const allies = factionPlacements.filter((p) => p.oratorRole === 'ally');
+    const advocates = factionPlacements.filter((p) => p.oratorRole === 'advocate');
     const agitators = factionPlacements.filter((p) => p.oratorRole === 'agitator');
     const promoters = factionPlacements.filter((p) => p.workerType === 'promoter');
     const saboteurs = factionPlacements.filter((p) => p.workerType === 'saboteur');
 
     const powerMod = Math.max(0.1, faction.power / 3);
     const hasDemagogs = demagogs.length > 0;
-    const hasAllies = allies.length > 0;
+    const hasAdvocates = advocates.length > 0;
     const hasAgitators = agitators.length > 0;
 
     // --- Demagogs ---
@@ -92,20 +92,20 @@ export function resolveDemagogeryDetailed(
         const affinityMod = Math.max(0.1, 1 + affinity * 0.1);
 
         lineItems.push({ label: 'Base influence', value: BASE_INFLUENCE, displayValue: fmt(BASE_INFLUENCE) });
-        lineItems.push({ label: `Faction power (${faction.power}/3)`, value: powerMod, displayValue: fmt(powerMod, '×') });
+        lineItems.push({ label: `Faction power (${faction.power})`, value: powerMod, displayValue: fmt(powerMod, '×') });
         lineItems.push({ label: `Affinity (${fmt(affinity)})`, value: affinityMod, displayValue: fmt(affinityMod, '×') });
         if (demagogs.length > 1) {
           lineItems.push({ label: `Crowd penalty (${demagogs.length} demagogs)`, value: crowdMod, displayValue: fmt(crowdMod, '×') });
         }
-        if (hasAllies) {
-          lineItems.push({ label: 'Ally boost', value: ALLY_BONUS, displayValue: fmt(ALLY_BONUS) });
+        if (hasAdvocates) {
+          lineItems.push({ label: 'Advocate boost', value: ALLY_BONUS, displayValue: fmt(ALLY_BONUS) });
         }
         if (hasAgitators) {
           lineItems.push({ label: 'Agitator penalty', value: -AGITATOR_PENALTY, displayValue: fmt(-AGITATOR_PENALTY) });
         }
 
         let payout = BASE_INFLUENCE * powerMod * affinityMod * crowdMod;
-        if (hasAllies) payout += ALLY_BONUS;
+        if (hasAdvocates) payout += ALLY_BONUS;
         if (hasAgitators) payout -= AGITATOR_PENALTY;
         payout = Math.max(0, Math.round(payout));
 
@@ -121,31 +121,31 @@ export function resolveDemagogeryDetailed(
         });
       }
 
-      // --- Allies ---
-      const allyCrowdMod = allies.length === 1 ? 1.0 :
-        Math.pow(ALLY_CROWD_PENALTY, allies.length - 1);
+      // --- Advocates ---
+      const advocateCrowdMod = advocates.length === 1 ? 1.0 :
+        Math.pow(ALLY_CROWD_PENALTY, advocates.length - 1);
 
-      for (const ally of allies) {
+      for (const advocate of advocates) {
         const lineItems: EffectLineItem[] = [];
-        lineItems.push({ label: 'Ally payout', value: ALLY_SELF_PAY, displayValue: fmt(ALLY_SELF_PAY) });
-        lineItems.push({ label: `Faction power (${faction.power}/3)`, value: powerMod, displayValue: fmt(powerMod, '×') });
-        if (allies.length > 1) {
-          lineItems.push({ label: `Crowd penalty (${allies.length} allies)`, value: allyCrowdMod, displayValue: fmt(allyCrowdMod, '×') });
+        lineItems.push({ label: 'Advocate payout', value: ALLY_SELF_PAY, displayValue: fmt(ALLY_SELF_PAY) });
+        lineItems.push({ label: `Faction power (${faction.power})`, value: powerMod, displayValue: fmt(powerMod, '×') });
+        if (advocates.length > 1) {
+          lineItems.push({ label: `Crowd penalty (${advocates.length} advocates)`, value: advocateCrowdMod, displayValue: fmt(advocateCrowdMod, '×') });
         }
         if (hasAgitators) {
           lineItems.push({ label: 'Agitator penalty', value: -AGITATOR_ALLY_PENALTY, displayValue: fmt(-AGITATOR_ALLY_PENALTY) });
         }
 
-        let payout = ALLY_SELF_PAY * powerMod * allyCrowdMod;
+        let payout = ALLY_SELF_PAY * powerMod * advocateCrowdMod;
         if (hasAgitators) payout -= AGITATOR_ALLY_PENALTY;
         payout = Math.max(0, Math.round(payout));
 
-        influenceChanges[ally.playerId] = (influenceChanges[ally.playerId] || 0) + payout;
+        influenceChanges[advocate.playerId] = (influenceChanges[advocate.playerId] || 0) + payout;
         workerEffects.push({
-          playerId: ally.playerId,
+          playerId: advocate.playerId,
           factionKey,
           workerType: 'orator',
-          oratorRole: 'ally',
+          oratorRole: 'advocate',
           lineItems,
           totalInfluence: payout,
           totalPowerChange: 0,
@@ -159,7 +159,7 @@ export function resolveDemagogeryDetailed(
       for (const agi of agitators) {
         const lineItems: EffectLineItem[] = [];
         lineItems.push({ label: 'Agitator payout', value: AGITATOR_SELF_PAY, displayValue: fmt(AGITATOR_SELF_PAY) });
-        lineItems.push({ label: `Faction power (${faction.power}/3)`, value: powerMod, displayValue: fmt(powerMod, '×') });
+        lineItems.push({ label: `Faction power (${faction.power})`, value: powerMod, displayValue: fmt(powerMod, '×') });
         if (agitators.length > 1) {
           lineItems.push({ label: `Crowd penalty (${agitators.length} agitators)`, value: agitatorCrowdMod, displayValue: fmt(agitatorCrowdMod, '×') });
         }
@@ -179,13 +179,13 @@ export function resolveDemagogeryDetailed(
         });
       }
     } else {
-      // No demagogs — allies and agitators are wasted
-      for (const ally of allies) {
+      // No demagogs — advocates and agitators are wasted
+      for (const advocate of advocates) {
         workerEffects.push({
-          playerId: ally.playerId,
+          playerId: advocate.playerId,
           factionKey,
           workerType: 'orator',
-          oratorRole: 'ally',
+          oratorRole: 'advocate',
           lineItems: [{ label: 'No demagog — wasted', value: 0, displayValue: '+0' }],
           totalInfluence: 0,
           totalPowerChange: 0,

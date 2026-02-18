@@ -1,5 +1,5 @@
 export type WorkerType = 'orator' | 'promoter' | 'saboteur';
-export type OratorRole = 'demagog' | 'ally' | 'agitator';
+export type OratorRole = 'demagog' | 'advocate' | 'agitator';
 
 export interface Worker {
   type: WorkerType;
@@ -65,7 +65,7 @@ export function validatePlacement(
 
   // Orators must have a role
   if (placement.workerType === 'orator' && !placement.oratorRole) {
-    return 'Orators must have a role (demagog, ally, or agitator)';
+    return 'Orators must have a role (demagog, advocate, or agitator)';
   }
 
   // Non-orators must not have a role

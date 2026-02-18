@@ -1,6 +1,6 @@
 import {
   View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator,
-  Alert, ImageBackground, Image,
+  Alert, ImageBackground, Image, BackHandler,
 } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../../lib/supabase';
 import { submitPlacement, resolveCurrentPhase } from '../../../lib/game-actions';
 import { getColorHex } from '../../../lib/player-colors';
-import { getSenatorIcon } from '../../../lib/worker-icons';
+import { getSenatorIcon, getSaboteurIcon } from '../../../lib/worker-icons';
 import { WorkerType, Placement } from '../../../lib/game-engine/workers';
 import { BalancedFaction } from '../../../lib/game-engine/balance';
 import { WorkerEffect } from '../../../lib/game-engine/demagogery';
@@ -19,8 +19,6 @@ import WorkerSelector from '../../../components/WorkerSelector';
 import WorkerTooltip from '../../../components/WorkerTooltip';
 import { DragProvider, useDrag } from '../../../components/DragContext';
 import SubRoundAnnouncement from '../../../components/SubRoundAnnouncement';
-import Svg, { Polygon } from 'react-native-svg';
-
 const gameBg = require('../../../assets/images/demagogery-bg.png');
 
 type Faction = {
@@ -91,7 +89,7 @@ function GameScreenInner() {
   const [playerStates, setPlayerStates] = useState<PlayerState[]>([]);
   const [affinities, setAffinities] = useState<Affinity[]>([]);
   const [currentUserId, setCurrentUserId] = useState('');
-  const [expandedFaction, setExpandedFaction] = useState<string | null>(null);
+  const [expandedFactions, setExpandedFactions] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [hasSubmittedThisSubRound, setHasSubmittedThisSubRound] = useState(false);
   const [resolving, setResolving] = useState(false);
@@ -116,6 +114,16 @@ function GameScreenInner() {
 
   const myPlayer = players.find((p) => p.player_id === currentUserId);
   const playerColor = myPlayer?.color ?? 'ivory';
+
+  // Intercept hardware back button — lobby uses router.replace so the back
+  // stack has Create Game behind Game; send users to home instead.
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      router.replace('/(app)/home');
+      return true;
+    });
+    return () => handler.remove();
+  }, [router]);
 
   useEffect(() => {
     loadGameState();
@@ -672,10 +680,16 @@ function GameScreenInner() {
               displayName={faction.display_name}
               powerLevel={faction.power_level}
               placements={getFactionPlacements(faction.id)}
-              expanded={expandedFaction === faction.faction_key}
-              onToggle={() => setExpandedFaction(
-                expandedFaction === faction.faction_key ? null : faction.faction_key
-              )}
+              expanded={expandedFactions.has(faction.faction_key)}
+              onToggle={() => setExpandedFactions((prev) => {
+                const next = new Set(prev);
+                if (next.has(faction.faction_key)) {
+                  next.delete(faction.faction_key);
+                } else {
+                  next.add(faction.faction_key);
+                }
+                return next;
+              })}
               currentPlayerId={currentUserId}
               playerColor={playerColor}
               allPlayerAffinities={getAllPlayerAffinities(faction.id)}
@@ -760,9 +774,11 @@ function DragOverlayIcon({ workerType, playerColor }: { workerType: WorkerType |
   }
   if (workerType === 'saboteur') {
     return (
-      <Svg width={38} height={38} viewBox="0 0 40 40">
-        <Polygon points="20,4 36,36 4,36" fill={colorHex} stroke="rgba(0,0,0,0.3)" strokeWidth="1" />
-      </Svg>
+      <Image
+        source={getSaboteurIcon(playerColor)}
+        style={{ width: 48, height: 48 }}
+        resizeMode="contain"
+      />
     );
   }
   return null;
