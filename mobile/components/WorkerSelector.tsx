@@ -1,81 +1,126 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkerType, OratorRole } from '../lib/game-engine/workers';
+import DraggableWorker from './DraggableWorker';
 
 export type WorkerSelection = {
   workerType: WorkerType;
   oratorRole?: OratorRole;
 };
 
-// All possible choices a player can make
-const WORKER_CHOICES: { label: string; shortLabel: string; selection: WorkerSelection }[] = [
-  { label: 'Demagog', shortLabel: 'DEM', selection: { workerType: 'orator', oratorRole: 'demagog' } },
-  { label: 'Ally', shortLabel: 'ALY', selection: { workerType: 'orator', oratorRole: 'ally' } },
-  { label: 'Agitator', shortLabel: 'AGT', selection: { workerType: 'orator', oratorRole: 'agitator' } },
-  { label: 'Promoter', shortLabel: 'PRO', selection: { workerType: 'promoter' } },
-  { label: 'Saboteur', shortLabel: 'SAB', selection: { workerType: 'saboteur' } },
+type WorkerSlot = {
+  key: string;
+  workerType: WorkerType;
+  label: string;
+};
+
+// 3 senators (orators), 1 promoter, 1 saboteur — each a distinct piece
+const WORKER_SLOTS: WorkerSlot[] = [
+  { key: 'orator-1', workerType: 'orator', label: 'Senator' },
+  { key: 'orator-2', workerType: 'orator', label: 'Senator' },
+  { key: 'orator-3', workerType: 'orator', label: 'Senator' },
+  { key: 'promoter', workerType: 'promoter', label: 'Promoter' },
+  { key: 'saboteur', workerType: 'saboteur', label: 'Saboteur' },
 ];
+
+const ICON_SIZE = 48;
 
 type Props = {
   usedWorkers: { workerType: WorkerType; oratorRole?: OratorRole }[];
-  selected: WorkerSelection | null;
-  onSelect: (selection: WorkerSelection | null) => void;
+  preliminaryWorkerType?: WorkerType | null;
+  playerColor: string;
   disabled?: boolean;
+  onDragStart?: (workerType: WorkerType, absoluteX: number, absoluteY: number) => void;
+  onDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onDragEnd?: (absoluteX: number, absoluteY: number) => void;
 };
 
-export default function WorkerSelector({ usedWorkers, selected, onSelect, disabled }: Props) {
-  const usedOrators = usedWorkers.filter((w) => w.workerType === 'orator').length;
-  const usedPromoter = usedWorkers.some((w) => w.workerType === 'promoter');
-  const usedSaboteur = usedWorkers.some((w) => w.workerType === 'saboteur');
+export default function WorkerSelector({
+  usedWorkers,
+  preliminaryWorkerType,
+  playerColor,
+  disabled,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+}: Props) {
+  const insets = useSafeAreaInsets();
 
-  function isAvailable(choice: WorkerSelection): boolean {
-    if (disabled) return false;
-    if (choice.workerType === 'orator') return usedOrators < 3;
-    if (choice.workerType === 'promoter') return !usedPromoter;
-    if (choice.workerType === 'saboteur') return !usedSaboteur;
-    return false;
-  }
+  // Per-slot identity: track which specific slots are committed vs preliminary vs active drag
+  const [committedSlots, setCommittedSlots] = useState<Set<string>>(() =>
+    assignCommittedSlots(usedWorkers)
+  );
+  const [prelimSlotKey, setPrelimSlotKey] = useState<string | null>(null);
+  const [activeSlotKey, setActiveSlotKey] = useState<string | null>(null);
+  const lastDragSlotRef = useRef<string | null>(null);
+  const prevUsedCountRef = useRef(usedWorkers.length);
 
-  function isSelected(choice: WorkerSelection): boolean {
-    if (!selected) return false;
-    return selected.workerType === choice.workerType && selected.oratorRole === choice.oratorRole;
-  }
+  // When committed placements change (new sub-round commit or round reset)
+  useEffect(() => {
+    const currentCount = usedWorkers.length;
+    if (currentCount < prevUsedCountRef.current) {
+      // Round reset — clear everything
+      setCommittedSlots(new Set());
+      setPrelimSlotKey(null);
+    } else if (currentCount > prevUsedCountRef.current && prelimSlotKey) {
+      // New commitment — the preliminary slot becomes committed
+      setCommittedSlots((prev) => {
+        const next = new Set(prev);
+        next.add(prelimSlotKey);
+        return next;
+      });
+      setPrelimSlotKey(null);
+    }
+    prevUsedCountRef.current = currentCount;
+  }, [usedWorkers.length, prelimSlotKey]);
+
+  // When preliminary placement appears/disappears
+  useEffect(() => {
+    if (preliminaryWorkerType && lastDragSlotRef.current && !prelimSlotKey) {
+      setPrelimSlotKey(lastDragSlotRef.current);
+    } else if (!preliminaryWorkerType && prelimSlotKey) {
+      setPrelimSlotKey(null);
+    }
+  }, [preliminaryWorkerType, prelimSlotKey]);
+
+  const hasPreliminary = !!preliminaryWorkerType;
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Choose Worker</Text>
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+      <Text style={styles.title}>Available Workers</Text>
       <View style={styles.row}>
-        {WORKER_CHOICES.map((choice) => {
-          const available = isAvailable(choice.selection);
-          const active = isSelected(choice.selection);
+        {WORKER_SLOTS.map((slot) => {
+          const isCommitted = committedSlots.has(slot.key);
+          const isPrelim = slot.key === prelimSlotKey;
+          const isActive = slot.key === activeSlotKey;
+          const showEmpty = isCommitted || isPrelim || isActive;
+          // Disable if: committed, or there's an existing preliminary and this isn't the active drag
+          const isDisabled = disabled || isCommitted || (hasPreliminary && !isActive);
+
           return (
-            <Pressable
-              key={choice.label}
-              style={[
-                styles.chip,
-                !available && styles.chipDisabled,
-                active && styles.chipActive,
-              ]}
-              onPress={() => {
-                if (!available) return;
-                onSelect(active ? null : choice.selection);
-              }}
-              disabled={!available}
-            >
-              <Text style={[
-                styles.chipText,
-                !available && styles.chipTextDisabled,
-                active && styles.chipTextActive,
-              ]}>
-                {choice.shortLabel}
+            <View key={slot.key} style={styles.slotWrapper}>
+              <DraggableWorker
+                workerType={slot.workerType}
+                playerColor={playerColor}
+                size={ICON_SIZE}
+                showEmpty={showEmpty}
+                disabled={isDisabled}
+                onDragStart={(wt, x, y) => {
+                  setActiveSlotKey(slot.key);
+                  lastDragSlotRef.current = slot.key;
+                  onDragStart?.(wt, x, y);
+                }}
+                onDragMove={onDragMove}
+                onDragEnd={(x, y) => {
+                  setActiveSlotKey(null);
+                  onDragEnd?.(x, y);
+                }}
+              />
+              <Text style={[styles.slotLabel, showEmpty && styles.slotLabelUsed]}>
+                {slot.label}
               </Text>
-              <Text style={[
-                styles.chipLabel,
-                !available && styles.chipTextDisabled,
-                active && styles.chipTextActive,
-              ]}>
-                {choice.label}
-              </Text>
-            </Pressable>
+            </View>
           );
         })}
       </View>
@@ -83,11 +128,32 @@ export default function WorkerSelector({ usedWorkers, selected, onSelect, disabl
   );
 }
 
+/** Assign committed placements to specific slot keys (in order) */
+function assignCommittedSlots(
+  usedWorkers: { workerType: WorkerType; oratorRole?: OratorRole }[]
+): Set<string> {
+  const slots = new Set<string>();
+  let oratorIdx = 0;
+  for (const w of usedWorkers) {
+    if (w.workerType === 'orator') {
+      if (oratorIdx < 3) {
+        slots.add(WORKER_SLOTS[oratorIdx].key);
+        oratorIdx++;
+      }
+    } else if (w.workerType === 'promoter') {
+      slots.add('promoter');
+    } else if (w.workerType === 'saboteur') {
+      slots.add('saboteur');
+    }
+  }
+  return slots;
+}
+
 const styles = StyleSheet.create({
   container: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(26, 26, 46, 0.95)',
+    backgroundColor: 'rgba(26, 26, 46, 0.92)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(224, 192, 151, 0.2)',
   },
@@ -103,40 +169,18 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 8,
+    gap: 12,
   },
-  chip: {
-    backgroundColor: 'rgba(224, 192, 151, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(224, 192, 151, 0.25)',
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+  slotWrapper: {
     alignItems: 'center',
-    minWidth: 58,
+    gap: 4,
   },
-  chipDisabled: {
-    opacity: 0.3,
-  },
-  chipActive: {
-    backgroundColor: 'rgba(224, 192, 151, 0.2)',
-    borderColor: '#e0c097',
-  },
-  chipText: {
-    color: '#e0c097',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  chipTextDisabled: {
-    opacity: 0.4,
-  },
-  chipTextActive: {
-    color: '#e0c097',
-  },
-  chipLabel: {
+  slotLabel: {
     color: '#e0c097',
     fontSize: 9,
     opacity: 0.6,
-    marginTop: 2,
+  },
+  slotLabelUsed: {
+    opacity: 0.3,
   },
 });

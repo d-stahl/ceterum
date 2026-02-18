@@ -1,23 +1,39 @@
 import {
   View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator,
-  Alert, ImageBackground,
+  Alert, ImageBackground, Image,
 } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../../lib/supabase';
 import { submitPlacement, resolveCurrentPhase } from '../../../lib/game-actions';
 import { getColorHex } from '../../../lib/player-colors';
+import { getSenatorIcon } from '../../../lib/worker-icons';
+import { WorkerType, Placement } from '../../../lib/game-engine/workers';
+import { BalancedFaction } from '../../../lib/game-engine/balance';
+import { WorkerEffect } from '../../../lib/game-engine/demagogery';
+import { computeTooltipEffects, getEffectForWorker } from '../../../lib/tooltip-effects';
 import FactionCard, { FactionPlacement } from '../../../components/FactionCard';
-import WorkerSelector, { WorkerSelection } from '../../../components/WorkerSelector';
+import WorkerSelector from '../../../components/WorkerSelector';
+import WorkerTooltip from '../../../components/WorkerTooltip';
+import { DragProvider, useDrag } from '../../../components/DragContext';
+import SubRoundAnnouncement from '../../../components/SubRoundAnnouncement';
+import Svg, { Polygon } from 'react-native-svg';
 
-const gameBg = require('../../../assets/images/lobby-bg.png');
+const gameBg = require('../../../assets/images/demagogery-bg.png');
 
 type Faction = {
   id: string;
   faction_key: string;
   display_name: string;
   power_level: number;
+  pref_centralization: number;
+  pref_expansion: number;
+  pref_commerce: number;
+  pref_patrician: number;
+  pref_tradition: number;
+  pref_militarism: number;
 };
 
 type Round = {
@@ -54,9 +70,18 @@ type Affinity = {
 };
 
 export default function GameScreen() {
+  return (
+    <DragProvider>
+      <GameScreenInner />
+    </DragProvider>
+  );
+}
+
+function GameScreenInner() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id: gameId } = useLocalSearchParams<{ id: string }>();
+  const drag = useDrag();
 
   const [loading, setLoading] = useState(true);
   const [factions, setFactions] = useState<Faction[]>([]);
@@ -67,16 +92,30 @@ export default function GameScreen() {
   const [affinities, setAffinities] = useState<Affinity[]>([]);
   const [currentUserId, setCurrentUserId] = useState('');
   const [expandedFaction, setExpandedFaction] = useState<string | null>(null);
-  const [selectedWorker, setSelectedWorker] = useState<WorkerSelection | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [hasSubmittedThisSubRound, setHasSubmittedThisSubRound] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [resultInfluence, setResultInfluence] = useState<Record<string, number>>({});
   const [gameStatus, setGameStatus] = useState('in_progress');
+  const [tooltipData, setTooltipData] = useState<{
+    effect: WorkerEffect;
+    playerName: string;
+    playerColor: string;
+    factionName: string;
+    position: { x: number; y: number };
+  } | null>(null);
 
-  // Track previous round state for detecting resolution
+  // Drag overlay position
+  const dragX = useSharedValue(0);
+  const dragY = useSharedValue(0);
+  const dragVisible = useSharedValue(false);
+  const [dragWorkerType, setDragWorkerType] = useState<WorkerType | null>(null);
+
   const prevRoundRef = useRef<{ roundNumber: number; subRound: number; phase: string } | null>(null);
+
+  const myPlayer = players.find((p) => p.player_id === currentUserId);
+  const playerColor = myPlayer?.color ?? 'ivory';
 
   useEffect(() => {
     loadGameState();
@@ -112,14 +151,12 @@ export default function GameScreen() {
     return () => { supabase.removeChannel(channel); };
   }, [gameId]);
 
-  // Detect round/sub-round changes to reset submission state
   useEffect(() => {
     if (!round) return;
     const prev = prevRoundRef.current;
     if (prev && (prev.roundNumber !== round.round_number || prev.subRound !== round.sub_round)) {
       setHasSubmittedThisSubRound(false);
-      setSelectedWorker(null);
-      // If phase changed to completed, trigger resolution
+      drag.clearPreliminary();
       if (round.phase === 'completed' && prev.phase === 'demagogery') {
         handleResolve();
       }
@@ -131,7 +168,6 @@ export default function GameScreen() {
     };
   }, [round]);
 
-  // Check if current user already submitted this sub-round
   useEffect(() => {
     if (!round || !currentUserId) return;
     const alreadySubmitted = placements.some(
@@ -169,7 +205,7 @@ export default function GameScreen() {
   async function loadFactions() {
     const { data } = await supabase
       .from('game_factions')
-      .select('id, faction_key, display_name, power_level')
+      .select('id, faction_key, display_name, power_level, pref_centralization, pref_expansion, pref_commerce, pref_patrician, pref_tradition, pref_militarism')
       .eq('game_id', gameId)
       .order('display_name');
     if (data) setFactions(data);
@@ -205,7 +241,6 @@ export default function GameScreen() {
       .single();
     if (!currentRound) return;
 
-    // Show placements from completed sub-rounds (not the current one, unless you submitted)
     const { data } = await supabase
       .from('game_placements')
       .select('id, player_id, faction_id, worker_type, orator_role, sub_round')
@@ -229,10 +264,12 @@ export default function GameScreen() {
     if (data) setAffinities(data);
   }
 
-  async function handlePlace(factionKey: string) {
-    if (!selectedWorker || !round || hasSubmittedThisSubRound) return;
+  // Submit the preliminary placement
+  async function handleSubmitMove() {
+    const prelim = drag.preliminaryPlacement;
+    if (!prelim || !round || hasSubmittedThisSubRound) return;
 
-    const faction = factions.find((f) => f.faction_key === factionKey);
+    const faction = factions.find((f) => f.faction_key === prelim.factionKey);
     if (!faction) return;
 
     setSubmitting(true);
@@ -240,11 +277,11 @@ export default function GameScreen() {
       await submitPlacement(
         gameId!,
         faction.id,
-        selectedWorker.workerType,
-        selectedWorker.oratorRole,
+        prelim.workerType,
+        prelim.oratorRole,
       );
       setHasSubmittedThisSubRound(true);
-      setSelectedWorker(null);
+      drag.clearPreliminary();
       await loadPlacements();
     } catch (e: any) {
       Alert.alert('Placement Failed', e.message ?? 'Could not submit placement');
@@ -256,18 +293,15 @@ export default function GameScreen() {
   async function handleResolve() {
     setResolving(true);
     try {
-      // Capture pre-resolution influence
       const preInfluence: Record<string, number> = {};
       playerStates.forEach((ps) => { preInfluence[ps.player_id] = ps.influence; });
 
       await resolveCurrentPhase(gameId!);
 
-      // Reload to get post-resolution state
       await loadPlayerStates();
       await loadFactions();
       await loadRound();
 
-      // Calculate deltas
       const { data: postStates } = await supabase
         .from('game_player_state')
         .select('player_id, influence')
@@ -280,7 +314,6 @@ export default function GameScreen() {
       setResultInfluence(deltas);
       setShowResults(true);
     } catch (e: any) {
-      // Another client may have already resolved
       await loadRound();
       await loadPlayerStates();
     } finally {
@@ -291,21 +324,153 @@ export default function GameScreen() {
   function handleContinue() {
     setShowResults(false);
     setHasSubmittedThisSubRound(false);
-    setSelectedWorker(null);
+    drag.clearPreliminary();
     loadPlacements();
   }
 
-  // Build faction placement data for display
+  // Drag handlers
+  // Lift the icon above the finger so it's fully visible and the
+  // hit-test / hover highlight uses the icon center, not the fingertip.
+  const DRAG_LIFT = 48;
+
+  const handleDragStart = useCallback((workerType: WorkerType, x: number, y: number) => {
+    setDragWorkerType(workerType);
+    setTooltipData(null); // dismiss tooltip on drag
+    dragX.value = x;
+    dragY.value = y - DRAG_LIFT;
+    dragVisible.value = true;
+    drag.startDrag(workerType, x, y - DRAG_LIFT);
+  }, [drag]);
+
+  const handleDragMove = useCallback((x: number, y: number) => {
+    dragX.value = x;
+    dragY.value = y - DRAG_LIFT;
+    drag.updateDrag(x, y - DRAG_LIFT);
+  }, [drag]);
+
+  const handleDragEnd = useCallback((x: number, y: number) => {
+    dragVisible.value = false;
+    setDragWorkerType(null);
+    drag.endDrag(x, y - DRAG_LIFT);
+  }, [drag]);
+
+  const handleWorkerTap = useCallback((fp: FactionPlacement, position: { x: number; y: number }) => {
+    // Build engine-compatible placements from current state (including preliminary)
+    const enginePlacements: Placement[] = placements.map((p) => {
+      const faction = factions.find((f) => f.id === p.faction_id);
+      return {
+        playerId: p.player_id,
+        factionKey: faction?.faction_key ?? '',
+        workerType: p.worker_type as WorkerType,
+        oratorRole: (p.orator_role as any) ?? undefined,
+        subRound: p.sub_round,
+      };
+    });
+
+    // Add preliminary placement if present
+    const prelim = drag.preliminaryPlacement;
+    if (prelim) {
+      enginePlacements.push({
+        playerId: currentUserId,
+        factionKey: prelim.factionKey,
+        workerType: prelim.workerType,
+        oratorRole: prelim.oratorRole,
+        subRound: round?.sub_round ?? 0,
+      });
+    }
+
+    // Build engine factions
+    const engineFactions: BalancedFaction[] = factions.map((f) => ({
+      key: f.faction_key,
+      displayName: f.display_name,
+      latinName: f.display_name,
+      description: '',
+      power: f.power_level,
+      preferences: {
+        centralization: f.pref_centralization,
+        expansion: f.pref_expansion,
+        commerce: f.pref_commerce,
+        patrician: f.pref_patrician,
+        tradition: f.pref_tradition,
+        militarism: f.pref_militarism,
+      },
+    }));
+
+    // Build affinity map
+    const affinityMap: Record<string, Record<string, number>> = {};
+    for (const a of affinities) {
+      const faction = factions.find((f) => f.id === a.faction_id);
+      if (!faction) continue;
+      if (!affinityMap[a.player_id]) affinityMap[a.player_id] = {};
+      affinityMap[a.player_id][faction.faction_key] = a.affinity;
+    }
+
+    const effects = computeTooltipEffects(enginePlacements, engineFactions, affinityMap);
+
+    // Find the faction key for this placement
+    const tappedFaction = factions.find((f) =>
+      f.faction_key === fp.workerType // won't match, need faction from context
+    );
+    // The placement has playerColor/workerType/oratorRole but we need factionKey
+    // We get factionKey from the FactionCard context — it's embedded in the placement data
+    // Actually FactionPlacement doesn't have factionKey, so let's find it from the placements list
+    // or from the preliminary placement
+    let factionKey = '';
+    if (fp.isPreliminary && prelim) {
+      factionKey = prelim.factionKey;
+    } else {
+      const matchingPlacement = placements.find((p) => {
+        const player = players.find((pl) => pl.player_id === p.player_id);
+        return p.player_id === fp.playerId &&
+          p.worker_type === fp.workerType &&
+          (p.orator_role ?? undefined) === fp.oratorRole &&
+          p.sub_round === fp.subRound;
+      });
+      if (matchingPlacement) {
+        const faction = factions.find((f) => f.id === matchingPlacement.faction_id);
+        factionKey = faction?.faction_key ?? '';
+      }
+    }
+
+    const effect = getEffectForWorker(
+      effects,
+      fp.playerId,
+      factionKey,
+      fp.workerType as WorkerType,
+      fp.oratorRole as any,
+    );
+
+    if (effect) {
+      const faction = factions.find((f) => f.faction_key === factionKey);
+      setTooltipData({
+        effect,
+        playerName: fp.playerName,
+        playerColor: fp.playerColor,
+        factionName: faction?.display_name ?? '',
+        position,
+      });
+    }
+  }, [placements, factions, affinities, drag.preliminaryPlacement, currentUserId, round, players]);
+
+  const dragOverlayStyle = useAnimatedStyle(() => ({
+    position: 'absolute' as const,
+    left: dragX.value - 24,
+    top: dragY.value - 24,
+    width: 48,
+    height: 48,
+    opacity: dragVisible.value ? 0.8 : 0,
+    zIndex: 9999,
+    pointerEvents: 'none' as const,
+  }));
+
+  // Build faction placement data
   function getFactionPlacements(factionId: string): FactionPlacement[] {
     if (!round) return [];
-    // Only show placements from completed sub-rounds (sub_round < current)
-    // plus the current user's own placement for current sub-round
-    return placements
+    const result: FactionPlacement[] = placements
       .filter((p) => {
         if (p.faction_id !== factionId) return false;
         if (p.sub_round < round.sub_round) return true;
         if (p.sub_round === round.sub_round && p.player_id === currentUserId) return true;
-        // Show all if phase is completed
         if (round.phase === 'completed') return true;
         return false;
       })
@@ -320,15 +485,52 @@ export default function GameScreen() {
           subRound: p.sub_round,
         };
       });
+
+    // Add preliminary placement if it targets this faction
+    const prelim = drag.preliminaryPlacement;
+    if (prelim) {
+      const faction = factions.find((f) => f.id === factionId);
+      if (faction && faction.faction_key === prelim.factionKey) {
+        result.push({
+          playerId: currentUserId,
+          playerName: myPlayer?.player_name ?? 'You',
+          playerColor: playerColor,
+          workerType: prelim.workerType,
+          oratorRole: prelim.oratorRole,
+          subRound: round?.sub_round ?? 0,
+          isPreliminary: true,
+        });
+      }
+    }
+
+    return result;
   }
 
-  function getMyAffinity(factionId: string): number {
-    return affinities.find(
-      (a) => a.player_id === currentUserId && a.faction_id === factionId
-    )?.affinity ?? 0;
+  function getAllPlayerAffinities(factionId: string) {
+    return players.map((p) => {
+      const aff = affinities.find(
+        (a) => a.player_id === p.player_id && a.faction_id === factionId
+      );
+      return {
+        playerId: p.player_id,
+        playerName: p.player_name,
+        playerColor: p.color,
+        affinity: aff?.affinity ?? 0,
+      };
+    });
   }
 
-  // Workers used this round by current player
+  function getFactionPreferences(faction: Faction) {
+    return {
+      centralization: faction.pref_centralization,
+      expansion: faction.pref_expansion,
+      commerce: faction.pref_commerce,
+      patrician: faction.pref_patrician,
+      tradition: faction.pref_tradition,
+      militarism: faction.pref_militarism,
+    };
+  }
+
   const myUsedWorkers = placements
     .filter((p) => p.player_id === currentUserId)
     .map((p) => ({
@@ -339,6 +541,8 @@ export default function GameScreen() {
   const submittedCount = round
     ? new Set(placements.filter((p) => p.sub_round === round.sub_round).map((p) => p.player_id)).size
     : 0;
+
+  const hasPreliminary = !!drag.preliminaryPlacement;
 
   if (loading) {
     return (
@@ -425,7 +629,7 @@ export default function GameScreen() {
           <View>
             <Text style={styles.phaseTitle}>DEMAGOGERY</Text>
             <Text style={styles.roundInfo}>
-              Round {round?.round_number ?? '?'} / Sub-round {round?.sub_round ?? '?'}
+              Round {round?.round_number ?? '?'} / Demagogery Step {round?.sub_round ?? '?'}
             </Text>
           </View>
           <View style={styles.influenceBox}>
@@ -459,6 +663,9 @@ export default function GameScreen() {
           data={factions}
           keyExtractor={(f) => f.id}
           contentContainerStyle={styles.factionList}
+          scrollEnabled={!drag.isDragging}
+          onScroll={(e) => { drag.scrollOffset.current = e.nativeEvent.contentOffset.y; setTooltipData(null); }}
+          scrollEventThrottle={16}
           renderItem={({ item: faction }) => (
             <FactionCard
               factionKey={faction.faction_key}
@@ -469,26 +676,96 @@ export default function GameScreen() {
               onToggle={() => setExpandedFaction(
                 expandedFaction === faction.faction_key ? null : faction.faction_key
               )}
-              onPlace={handlePlace}
-              selectedWorker={hasSubmittedThisSubRound ? null : selectedWorker}
               currentPlayerId={currentUserId}
-              myAffinity={getMyAffinity(faction.id)}
+              playerColor={playerColor}
+              allPlayerAffinities={getAllPlayerAffinities(faction.id)}
+              factionPreferences={getFactionPreferences(faction)}
+              onDragStart={handleDragStart}
+              onDragMove={handleDragMove}
+              onDragEnd={handleDragEnd}
+              onWorkerTap={handleWorkerTap}
             />
           )}
         />
 
-        {/* Worker selector (only show when player can act) */}
+        {/* Submit Move button */}
+        {hasPreliminary && !hasSubmittedThisSubRound && round?.phase === 'demagogery' && (
+          <Pressable
+            style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+            onPress={handleSubmitMove}
+            disabled={submitting}
+          >
+            <Text style={styles.submitButtonText}>
+              {submitting ? 'Submitting...' : 'Submit Move'}
+            </Text>
+          </Pressable>
+        )}
+
+        {/* Worker selector */}
         {round?.phase === 'demagogery' && !hasSubmittedThisSubRound && (
           <WorkerSelector
             usedWorkers={myUsedWorkers}
-            selected={selectedWorker}
-            onSelect={setSelectedWorker}
+            preliminaryWorkerType={drag.preliminaryPlacement?.workerType ?? null}
+            playerColor={playerColor}
             disabled={submitting}
+            onDragStart={handleDragStart}
+            onDragMove={handleDragMove}
+            onDragEnd={handleDragEnd}
           />
+        )}
+
+        {/* Drag overlay */}
+        <Animated.View style={dragOverlayStyle}>
+          <DragOverlayIcon workerType={dragWorkerType} playerColor={playerColor} />
+        </Animated.View>
+
+        {/* Worker tooltip */}
+        {tooltipData && (
+          <WorkerTooltip
+            effect={tooltipData.effect}
+            playerName={tooltipData.playerName}
+            playerColor={tooltipData.playerColor}
+            factionName={tooltipData.factionName}
+            position={tooltipData.position}
+            onDismiss={() => setTooltipData(null)}
+          />
+        )}
+
+        {/* Sub-round announcement */}
+        {round && round.phase === 'demagogery' && (
+          <SubRoundAnnouncement subRound={round.sub_round} roundNumber={round.round_number} />
         )}
       </View>
     </ImageBackground>
   );
+}
+
+function DragOverlayIcon({ workerType, playerColor }: { workerType: WorkerType | null; playerColor: string }) {
+  if (!workerType) return null;
+  const colorHex = getColorHex(playerColor);
+
+  if (workerType === 'orator') {
+    return (
+      <Image
+        source={getSenatorIcon(playerColor)}
+        style={{ width: 48, height: 48 }}
+        resizeMode="contain"
+      />
+    );
+  }
+  if (workerType === 'promoter') {
+    return (
+      <View style={{ width: 34, height: 34, backgroundColor: colorHex, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(0,0,0,0.2)' }} />
+    );
+  }
+  if (workerType === 'saboteur') {
+    return (
+      <Svg width={38} height={38} viewBox="0 0 40 40">
+        <Polygon points="20,4 36,36 4,36" fill={colorHex} stroke="rgba(0,0,0,0.3)" strokeWidth="1" />
+      </Svg>
+    );
+  }
+  return null;
 }
 
 const styles = StyleSheet.create({
@@ -569,6 +846,25 @@ const styles = StyleSheet.create({
   factionList: {
     gap: 8,
     paddingBottom: 8,
+  },
+  submitButton: {
+    backgroundColor: 'rgba(218, 165, 32, 0.25)',
+    borderWidth: 1,
+    borderColor: '#DAA520',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginHorizontal: 4,
+    marginBottom: 8,
+  },
+  submitButtonDisabled: {
+    opacity: 0.5,
+  },
+  submitButtonText: {
+    color: '#DAA520',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
   // Results screen
   resultsList: {

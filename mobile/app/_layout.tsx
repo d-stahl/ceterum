@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ensureAuthenticated } from '../lib/auth';
@@ -17,9 +18,9 @@ export default function RootLayout() {
 
   useEffect(() => {
     ensureAuthenticated()
-      .then((session) => {
-        setSession(session);
-        setUserId(session.user.id);
+      .then((s) => {
+        setSession(s);
+        if (s) setUserId(s.user.id);
       })
       .catch((e) => {
         console.error('Auth error:', e);
@@ -56,6 +57,8 @@ export default function RootLayout() {
         shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
       }),
     });
 
@@ -106,9 +109,11 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      <Slot />
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <Slot />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
