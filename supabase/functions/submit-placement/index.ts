@@ -166,7 +166,13 @@ Deno.serve(async (req) => {
       });
       if (rpcError) throw rpcError;
 
-      return new Response(JSON.stringify({ status: 'resolved' }), {
+      // Immediately start ruling phase: determine Senate Leader + draw controversy pool
+      const { data: rulingResult, error: rulingError } = await adminClient.rpc('start_ruling_phase', {
+        p_game_id: game_id,
+      });
+      if (rulingError) throw rulingError;
+
+      return new Response(JSON.stringify({ status: 'resolved', ruling: rulingResult }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
