@@ -199,8 +199,17 @@ export async function launchGame(gameId: string): Promise<void> {
   // Select and balance factions
   const factions = selectAndBalanceFactions(playerCount);
 
-  // Shuffle controversy keys for the deck
-  const deckOrder = [...CONTROVERSIES.map((c) => c.key)].sort(() => Math.random() - 0.5);
+  // Stratified shuffle: ensures one controversy of each category per group of 5 drawn
+  const categories = ['military', 'social', 'economic', 'political', 'religious'] as const;
+  const byCategory = categories.map((cat) =>
+    CONTROVERSIES.filter((c) => c.category === cat).map((c) => c.key).sort(() => Math.random() - 0.5)
+  );
+  const deckOrder: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    const group = byCategory.map((keys) => keys[i]);
+    group.sort(() => Math.random() - 0.5);
+    deckOrder.push(...group);
+  }
 
   // Call RPC to initialize game state in a single transaction
   const { error } = await supabase.rpc('launch_game', {
