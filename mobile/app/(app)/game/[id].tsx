@@ -199,7 +199,7 @@ function GameScreenInner() {
       playerStates.forEach((ps) => { snapshot[ps.player_id] = ps.influence; });
       preResolutionInfluenceRef.current = snapshot;
     }
-  }, [round?.phase]);
+  }, [round?.phase, playerStates]);
 
   async function loadGameState() {
     setLoading(true);
