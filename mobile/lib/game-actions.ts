@@ -13,6 +13,38 @@ export async function submitPledge(
   return data;
 }
 
+export async function declareResolution(
+  gameId: string,
+  controversyKey: string,
+  resolutionKey: string,
+): Promise<any> {
+  const { data, error } = await supabase.rpc('declare_resolution', {
+    p_game_id: gameId,
+    p_controversy_key: controversyKey,
+    p_resolution_key: resolutionKey,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function submitControversyVote(
+  gameId: string,
+  controversyKey: string,
+  resolutionKey: string,
+  influenceSpent: number,
+): Promise<any> {
+  const { data, error } = await supabase.functions.invoke('submit-controversy-vote', {
+    body: {
+      game_id: gameId,
+      controversy_key: controversyKey,
+      resolution_key: resolutionKey,
+      influence_spent: influenceSpent,
+    },
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function submitSenateLeaderActions(
   gameId: string,
   discardedKey: string,
