@@ -19,6 +19,11 @@ import WorkerSelector from '../../../components/WorkerSelector';
 import WorkerTooltip from '../../../components/WorkerTooltip';
 import { DragProvider, useDrag } from '../../../components/DragContext';
 import SubRoundAnnouncement from '../../../components/SubRoundAnnouncement';
+import SenateLeaderSelection from '../../../components/SenateLeaderSelection';
+import SenateLeaderPoolManager from '../../../components/SenateLeaderPoolManager';
+import ControversyVoting from '../../../components/ControversyVoting';
+import RoundEndSummary from '../../../components/RoundEndSummary';
+import OnTheHorizon from '../../../components/OnTheHorizon';
 const gameBg = require('../../../assets/images/demagogery-bg.png');
 
 type Faction = {
@@ -39,6 +44,9 @@ type Round = {
   round_number: number;
   phase: string;
   sub_round: number;
+  senate_leader_id: string | null;
+  controversy_pool: string[];
+  controversies_resolved: string[];
 };
 
 type PlayerInfo = {
@@ -67,6 +75,16 @@ type Affinity = {
   affinity: number;
 };
 
+type AxisState = {
+  axis_key: string;
+  current_value: number;
+};
+
+type ControversyStateRow = {
+  controversy_key: string;
+  status: string;
+};
+
 export default function GameScreen() {
   return (
     <DragProvider>
@@ -88,6 +106,8 @@ function GameScreenInner() {
   const [placements, setPlacements] = useState<PlacementRow[]>([]);
   const [playerStates, setPlayerStates] = useState<PlayerState[]>([]);
   const [affinities, setAffinities] = useState<Affinity[]>([]);
+  const [axes, setAxes] = useState<AxisState[]>([]);
+  const [controversyStates, setControversyStates] = useState<ControversyStateRow[]>([]);
   const [currentUserId, setCurrentUserId] = useState('');
   const [expandedFactions, setExpandedFactions] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
@@ -96,6 +116,8 @@ function GameScreenInner() {
   const [showResults, setShowResults] = useState(false);
   const [resultInfluence, setResultInfluence] = useState<Record<string, number>>({});
   const [gameStatus, setGameStatus] = useState('in_progress');
+  const [onTheHorizonVisible, setOnTheHorizonVisible] = useState(false);
+  const [showRoundEnd, setShowRoundEnd] = useState(false);
   const [tooltipData, setTooltipData] = useState<{
     effect: WorkerEffect;
     playerName: string;
@@ -112,9 +134,24 @@ function GameScreenInner() {
 
   const prevRoundRef = useRef<{ roundNumber: number; subRound: number; phase: string } | null>(null);
   const preResolutionInfluenceRef = useRef<Record<string, number> | null>(null);
+  const preRoundEndInfluenceRef = useRef<Record<string, number>>({});
 
   const myPlayer = players.find((p) => p.player_id === currentUserId);
   const playerColor = myPlayer?.color ?? 'ivory';
+
+  // Derived ruling-phase values
+  const senateLeaderId = round?.senate_leader_id ?? '';
+  const isSenateLeader = !!senateLeaderId && senateLeaderId === currentUserId;
+  const activeFactionKeys = factions.map((f) => f.faction_key);
+  const controversyPoolKeys = round?.controversy_pool ?? [];
+  const myInfluence = playerStates.find((ps) => ps.player_id === currentUserId)?.influence ?? 0;
+  const activeControversyKey = controversyStates.find(
+    (cs) => cs.status === 'declared' || cs.status === 'voting',
+  )?.controversy_key ?? '';
+  const maxInfluence = playerStates.length > 0 ? Math.max(...playerStates.map((ps) => ps.influence)) : 0;
+  const pledgeContenders = !round?.senate_leader_id
+    ? playerStates.filter((ps) => ps.influence === maxInfluence).map((ps) => ps.player_id)
+    : [];
 
   // Intercept hardware back button — lobby uses router.replace so the back
   // stack has Create Game behind Game; send users to home instead.
@@ -148,6 +185,14 @@ function GameScreenInner() {
         filter: `game_id=eq.${gameId}`,
       }, () => { loadFactions(); })
       .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'game_axes',
+        filter: `game_id=eq.${gameId}`,
+      }, () => { loadAxes(); })
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'game_controversy_state',
+        filter: `game_id=eq.${gameId}`,
+      }, () => { loadControversyStates(); })
+      .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'games',
         filter: `id=eq.${gameId}`,
       }, (payload: any) => {
@@ -160,6 +205,7 @@ function GameScreenInner() {
     return () => { supabase.removeChannel(channel); };
   }, [gameId]);
 
+  // Detect phase transitions
   useEffect(() => {
     if (!round) return;
     const prev = prevRoundRef.current;
@@ -172,9 +218,14 @@ function GameScreenInner() {
         drag.clearPreliminary();
       }
 
-      if (roundAdvanced) {
-        // New round means resolution just completed server-side — show results
+      // Demagogery just resolved → show demagogery results before ruling phase
+      if (prev.phase === 'demagogery' && round.phase !== 'demagogery') {
         handleShowResolutionResults();
+      }
+
+      // New round started → show round-end summary overlay
+      if (roundAdvanced) {
+        setShowRoundEnd(true);
       }
     }
     prevRoundRef.current = {
@@ -184,6 +235,20 @@ function GameScreenInner() {
     };
   }, [round]);
 
+  // Auto-open On the Horizon when ruling pool or first voting phase starts
+  useEffect(() => {
+    if (round?.phase === 'ruling_pool' || round?.phase === 'ruling_voting_1') {
+      setOnTheHorizonVisible(true);
+    }
+  }, [round?.phase]);
+
+  // Reload controversy states when round or phase changes
+  useEffect(() => {
+    if (round?.id) {
+      loadControversyStates();
+    }
+  }, [round?.id, round?.phase]);
+
   useEffect(() => {
     if (!round || !currentUserId) return;
     const alreadySubmitted = placements.some(
@@ -192,14 +257,23 @@ function GameScreenInner() {
     if (alreadySubmitted) setHasSubmittedThisSubRound(true);
   }, [placements, round, currentUserId]);
 
-  // Snapshot influence before resolution fires so we can show deltas afterwards
+  // Rolling snapshot of influence during demagogery — used for results delta
   useEffect(() => {
-    if (round?.phase === 'completed') {
+    if (round?.phase === 'demagogery') {
       const snapshot: Record<string, number> = {};
       playerStates.forEach((ps) => { snapshot[ps.player_id] = ps.influence; });
       preResolutionInfluenceRef.current = snapshot;
     }
-  }, [round?.phase, playerStates]);
+  }, [playerStates, round?.phase]);
+
+  // Snapshot influence during ruling_voting_2 — used for round-end "before halving" display
+  useEffect(() => {
+    if (round?.phase === 'ruling_voting_2') {
+      const snapshot: Record<string, number> = {};
+      playerStates.forEach((ps) => { snapshot[ps.player_id] = ps.influence; });
+      preRoundEndInfluenceRef.current = snapshot;
+    }
+  }, [playerStates, round?.phase]);
 
   async function loadGameState() {
     setLoading(true);
@@ -221,6 +295,7 @@ function GameScreenInner() {
         loadPlacements(),
         loadPlayerStates(),
         loadAffinities(),
+        loadAxes(),
       ]);
     } finally {
       setLoading(false);
@@ -239,12 +314,12 @@ function GameScreenInner() {
   async function loadRound() {
     const { data } = await supabase
       .from('game_rounds')
-      .select('id, round_number, phase, sub_round')
+      .select('id, round_number, phase, sub_round, senate_leader_id, controversy_pool, controversies_resolved')
       .eq('game_id', gameId)
       .order('round_number', { ascending: false })
       .limit(1)
       .single();
-    if (data) setRound(data);
+    if (data) setRound(data as Round);
   }
 
   async function loadPlayers() {
@@ -287,6 +362,31 @@ function GameScreenInner() {
       .select('player_id, faction_id, affinity')
       .eq('game_id', gameId);
     if (data) setAffinities(data);
+  }
+
+  async function loadAxes() {
+    const { data } = await supabase
+      .from('game_axes')
+      .select('axis_key, current_value')
+      .eq('game_id', gameId);
+    if (data) setAxes(data);
+  }
+
+  async function loadControversyStates() {
+    const { data: currentRound } = await supabase
+      .from('game_rounds')
+      .select('id')
+      .eq('game_id', gameId)
+      .order('round_number', { ascending: false })
+      .limit(1)
+      .single();
+    if (!currentRound) return;
+
+    const { data } = await supabase
+      .from('game_controversy_state')
+      .select('controversy_key, status')
+      .eq('round_id', currentRound.id);
+    if (data) setControversyStates(data as ControversyStateRow[]);
   }
 
   // Submit the preliminary placement
@@ -429,20 +529,11 @@ function GameScreenInner() {
 
     const effects = computeTooltipEffects(enginePlacements, engineFactions, affinityMap);
 
-    // Find the faction key for this placement
-    const tappedFaction = factions.find((f) =>
-      f.faction_key === fp.workerType // won't match, need faction from context
-    );
-    // The placement has playerColor/workerType/oratorRole but we need factionKey
-    // We get factionKey from the FactionCard context — it's embedded in the placement data
-    // Actually FactionPlacement doesn't have factionKey, so let's find it from the placements list
-    // or from the preliminary placement
     let factionKey = '';
     if (fp.isPreliminary && prelim) {
       factionKey = prelim.factionKey;
     } else {
       const matchingPlacement = placements.find((p) => {
-        const player = players.find((pl) => pl.player_id === p.player_id);
         return p.player_id === fp.playerId &&
           p.worker_type === fp.workerType &&
           (p.orator_role ?? undefined) === fp.oratorRole &&
@@ -493,7 +584,8 @@ function GameScreenInner() {
         if (p.faction_id !== factionId) return false;
         if (p.sub_round < round.sub_round) return true;
         if (p.sub_round === round.sub_round && p.player_id === currentUserId) return true;
-        if (round.phase === 'completed') return true;
+        // Show all placements once demagogery phase is over
+        if (round.phase !== 'demagogery') return true;
         return false;
       })
       .map((p) => {
@@ -577,7 +669,7 @@ function GameScreenInner() {
   }
 
   // Game finished screen
-  if (gameStatus === 'finished') {
+  if (gameStatus === 'finished' && !showRoundEnd) {
     const sorted = [...playerStates].sort((a, b) => b.influence - a.influence);
     return (
       <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
@@ -605,14 +697,14 @@ function GameScreenInner() {
     );
   }
 
-  // Resolution results overlay
+  // Demagogery resolution results overlay
   if (showResults) {
     return (
       <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
         <View style={[styles.container, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
           <Text style={styles.phaseTitle}>DEMAGOGERY RESOLVED</Text>
           <Text style={styles.subTitle}>
-            Round {round ? round.round_number - 1 : '?'} Results
+            Round {round?.round_number ?? '?'} Results
           </Text>
 
           <View style={styles.resultsList}>
@@ -634,15 +726,89 @@ function GameScreenInner() {
           </View>
 
           <Pressable style={styles.actionButton} onPress={handleContinue}>
-            <Text style={styles.actionButtonText}>
-              {gameStatus === 'finished' ? 'See Final Results' : 'Continue'}
-            </Text>
+            <Text style={styles.actionButtonText}>Continue to Ruling Phase</Text>
           </Pressable>
         </View>
       </ImageBackground>
     );
   }
 
+  // --- Ruling phase routing ---
+  const phase = round?.phase ?? 'demagogery';
+
+  if (phase === 'ruling_selection') {
+    return (
+      <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
+        <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]}>
+          <SenateLeaderSelection
+            gameId={gameId!}
+            roundId={round!.id}
+            currentUserId={currentUserId}
+            senateLeaderId={senateLeaderId || null}
+            pledgeContenders={pledgeContenders}
+            players={players}
+            onLeaderSelected={loadRound}
+          />
+        </View>
+      </ImageBackground>
+    );
+  }
+
+  if (phase === 'ruling_pool') {
+    return (
+      <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
+        <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: 0 }]}>
+          <SenateLeaderPoolManager
+            gameId={gameId!}
+            poolKeys={controversyPoolKeys}
+            activeFactionKeys={activeFactionKeys}
+            isSenateLeader={isSenateLeader}
+          />
+          <OnTheHorizon
+            poolKeys={controversyPoolKeys}
+            activeFactionKeys={activeFactionKeys}
+            visible={onTheHorizonVisible}
+            onClose={() => setOnTheHorizonVisible((v) => !v)}
+          />
+        </View>
+      </ImageBackground>
+    );
+  }
+
+  if (phase === 'ruling_voting_1' || phase === 'ruling_voting_2') {
+    return (
+      <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
+        <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: 0 }]}>
+          {activeControversyKey ? (
+            <ControversyVoting
+              gameId={gameId!}
+              roundId={round!.id}
+              controversyKey={activeControversyKey}
+              currentUserId={currentUserId}
+              senateLeaderId={senateLeaderId}
+              currentInfluence={myInfluence}
+              players={players}
+              activeFactionKeys={activeFactionKeys}
+              onContinue={loadRound}
+            />
+          ) : (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color="#c9a84c" size="large" />
+            </View>
+          )}
+          <OnTheHorizon
+            poolKeys={controversyPoolKeys}
+            activeFactionKeys={activeFactionKeys}
+            activeControversyKey={activeControversyKey}
+            visible={onTheHorizonVisible}
+            onClose={() => setOnTheHorizonVisible((v) => !v)}
+          />
+        </View>
+      </ImageBackground>
+    );
+  }
+
+  // --- Demagogery view (default) ---
   return (
     <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
       <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: 0 }]}>
@@ -656,14 +822,12 @@ function GameScreenInner() {
           </View>
           <View style={styles.influenceBox}>
             <Text style={styles.influenceLabel}>Influence</Text>
-            <Text style={styles.influenceValue}>
-              {playerStates.find((ps) => ps.player_id === currentUserId)?.influence ?? 0}
-            </Text>
+            <Text style={styles.influenceValue}>{myInfluence}</Text>
           </View>
         </View>
 
         {/* Status bar */}
-        {hasSubmittedThisSubRound && round?.phase === 'demagogery' && (
+        {hasSubmittedThisSubRound && phase === 'demagogery' && (
           <View style={styles.statusBar}>
             <Text style={styles.statusText}>
               {resolving ? 'Resolving...' :
@@ -674,7 +838,7 @@ function GameScreenInner() {
           </View>
         )}
 
-        {round?.phase === 'completed' && !resolving && (
+        {phase === 'demagogery_resolved' && !resolving && (
           <View style={styles.statusBar}>
             <Text style={styles.statusText}>All placements in. Resolving...</Text>
           </View>
@@ -717,7 +881,7 @@ function GameScreenInner() {
         />
 
         {/* Submit Move button */}
-        {hasPreliminary && !hasSubmittedThisSubRound && round?.phase === 'demagogery' && (
+        {hasPreliminary && !hasSubmittedThisSubRound && phase === 'demagogery' && (
           <Pressable
             style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
             onPress={handleSubmitMove}
@@ -730,7 +894,7 @@ function GameScreenInner() {
         )}
 
         {/* Worker selector */}
-        {round?.phase === 'demagogery' && !hasSubmittedThisSubRound && (
+        {phase === 'demagogery' && !hasSubmittedThisSubRound && (
           <WorkerSelector
             usedWorkers={myUsedWorkers}
             preliminaryWorkerType={drag.preliminaryPlacement?.workerType ?? null}
@@ -760,8 +924,29 @@ function GameScreenInner() {
         )}
 
         {/* Sub-round announcement */}
-        {round && round.phase === 'demagogery' && (
+        {phase === 'demagogery' && round && (
           <SubRoundAnnouncement subRound={round.sub_round} roundNumber={round.round_number} />
+        )}
+
+        {/* Round-end summary overlay (absolute, shown at start of new round) */}
+        {showRoundEnd && round && (
+          <RoundEndSummary
+            roundNumber={round.round_number - 1}
+            isGameOver={gameStatus === 'finished'}
+            playerInfluences={players.map((p) => {
+              const currentInf = playerStates.find((ps) => ps.player_id === p.player_id)?.influence ?? 0;
+              const beforeInf = preRoundEndInfluenceRef.current[p.player_id] ?? currentInf * 2;
+              return {
+                player_id: p.player_id,
+                player_name: p.player_name,
+                color: getColorHex(p.color),
+                influenceBefore: beforeInf,
+                influenceAfter: currentInf,
+              };
+            })}
+            axes={axes}
+            onContinue={() => setShowRoundEnd(false)}
+          />
         )}
       </View>
     </ImageBackground>
