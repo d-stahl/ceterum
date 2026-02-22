@@ -7,7 +7,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../../lib/supabase';
-import { submitPlacement, resolveCurrentPhase } from '../../../lib/game-actions';
+import { submitPlacement } from '../../../lib/game-actions';
 import { getColorHex } from '../../../lib/player-colors';
 import { getSenatorIcon, getSaboteurIcon } from '../../../lib/worker-icons';
 import { WorkerType, Placement } from '../../../lib/game-engine/workers';
@@ -111,6 +111,7 @@ function GameScreenInner() {
   const [dragWorkerType, setDragWorkerType] = useState<WorkerType | null>(null);
 
   const prevRoundRef = useRef<{ roundNumber: number; subRound: number; phase: string } | null>(null);
+  const preResolutionInfluenceRef = useRef<Record<string, number> | null>(null);
 
   const myPlayer = players.find((p) => p.player_id === currentUserId);
   const playerColor = myPlayer?.color ?? 'ivory';
@@ -162,11 +163,18 @@ function GameScreenInner() {
   useEffect(() => {
     if (!round) return;
     const prev = prevRoundRef.current;
-    if (prev && (prev.roundNumber !== round.round_number || prev.subRound !== round.sub_round)) {
-      setHasSubmittedThisSubRound(false);
-      drag.clearPreliminary();
-      if (round.phase === 'completed' && prev.phase === 'demagogery') {
-        handleResolve();
+    if (prev) {
+      const subRoundAdvanced = prev.subRound !== round.sub_round;
+      const roundAdvanced = prev.roundNumber !== round.round_number;
+
+      if (subRoundAdvanced || roundAdvanced) {
+        setHasSubmittedThisSubRound(false);
+        drag.clearPreliminary();
+      }
+
+      if (roundAdvanced) {
+        // New round means resolution just completed server-side — show results
+        handleShowResolutionResults();
       }
     }
     prevRoundRef.current = {
@@ -183,6 +191,15 @@ function GameScreenInner() {
     );
     if (alreadySubmitted) setHasSubmittedThisSubRound(true);
   }, [placements, round, currentUserId]);
+
+  // Snapshot influence before resolution fires so we can show deltas afterwards
+  useEffect(() => {
+    if (round?.phase === 'completed') {
+      const snapshot: Record<string, number> = {};
+      playerStates.forEach((ps) => { snapshot[ps.player_id] = ps.influence; });
+      preResolutionInfluenceRef.current = snapshot;
+    }
+  }, [round?.phase]);
 
   async function loadGameState() {
     setLoading(true);
@@ -298,22 +315,19 @@ function GameScreenInner() {
     }
   }
 
-  async function handleResolve() {
+  async function handleShowResolutionResults() {
     setResolving(true);
     try {
-      const preInfluence: Record<string, number> = {};
-      playerStates.forEach((ps) => { preInfluence[ps.player_id] = ps.influence; });
-
-      await resolveCurrentPhase(gameId!);
-
-      await loadPlayerStates();
-      await loadFactions();
-      await loadRound();
+      const preInfluence = preResolutionInfluenceRef.current ?? {};
+      preResolutionInfluenceRef.current = null;
 
       const { data: postStates } = await supabase
         .from('game_player_state')
         .select('player_id, influence')
         .eq('game_id', gameId);
+
+      await loadPlayerStates();
+      await loadFactions();
 
       const deltas: Record<string, number> = {};
       (postStates ?? []).forEach((ps: any) => {
@@ -321,7 +335,7 @@ function GameScreenInner() {
       });
       setResultInfluence(deltas);
       setShowResults(true);
-    } catch (e: any) {
+    } catch {
       await loadRound();
       await loadPlayerStates();
     } finally {
