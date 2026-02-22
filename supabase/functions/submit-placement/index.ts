@@ -64,6 +64,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Check that the caller is a member of this game (RLS enforced)
+    const { data: membership, error: memberError } = await anonClient
+      .from('game_players')
+      .select('player_id')
+      .eq('game_id', game_id)
+      .eq('player_id', user.id)
+      .maybeSingle();
+
+    if (memberError || !membership) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // All 3 sub-rounds complete — resolve immediately, server-side
     if (submitResult?.status === 'ready_for_resolution') {
       const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
@@ -73,12 +88,20 @@ Deno.serve(async (req) => {
       // Get current round ID (phase is now 'completed')
       const { data: round, error: roundError } = await adminClient
         .from('game_rounds')
-        .select('id')
+        .select('id, phase')
         .eq('game_id', game_id)
         .order('round_number', { ascending: false })
         .limit(1)
         .single();
       if (roundError) throw roundError;
+
+      if (round.phase !== 'completed') {
+        // Resolution already ran (race condition) — return resolved status
+        return new Response(JSON.stringify({ status: 'resolved' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
       // Fetch all placements for this round
       const { data: placements, error: placementsError } = await adminClient
