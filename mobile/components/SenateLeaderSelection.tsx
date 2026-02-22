@@ -1,0 +1,248 @@
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { useEffect, useState } from 'react';
+import { submitPledge } from '../lib/game-actions';
+
+type Contender = {
+  playerId: string;
+  influence: number;
+};
+
+type PlayerInfo = {
+  player_id: string;
+  player_name: string;
+  color: string;
+};
+
+type Props = {
+  gameId: string;
+  roundId: string;
+  currentUserId: string;
+  senateLeaderId: string | null;
+  pledgeContenders: string[];   // UUIDs of current contenders
+  players: PlayerInfo[];
+  onLeaderSelected: () => void; // called when phase moves to ruling_pool
+};
+
+export default function SenateLeaderSelection({
+  gameId,
+  roundId,
+  currentUserId,
+  senateLeaderId,
+  pledgeContenders,
+  players,
+  onLeaderSelected,
+}: Props) {
+  const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [pledgeRound, setPledgeRound] = useState(1);
+  const [error, setError] = useState<string | null>(null);
+
+  const playerName = (id: string) =>
+    players.find((p) => p.player_id === id)?.player_name ?? 'Unknown';
+
+  const playerColor = (id: string) =>
+    players.find((p) => p.player_id === id)?.color ?? '#888';
+
+  // If there's already a Senate Leader, this phase is done — notify parent
+  useEffect(() => {
+    if (senateLeaderId) {
+      onLeaderSelected();
+    }
+  }, [senateLeaderId]);
+
+  // Clear submitted state when pledge round changes (new elimination round)
+  useEffect(() => {
+    setHasSubmitted(false);
+    setSelectedCandidate(null);
+  }, [pledgeRound]);
+
+  async function handleSubmitPledge() {
+    if (!selectedCandidate || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await submitPledge(gameId, selectedCandidate, pledgeRound);
+      setHasSubmitted(true);
+
+      if (result.status === 'leader_selected') {
+        // Runoff resolved — parent will get the realtime update and call onLeaderSelected
+      } else if (result.status === 'eliminated') {
+        // Another round needed — UI will update when pledgeContenders changes via realtime
+        setPledgeRound(result.next_pledge_round);
+      }
+      // status === 'waiting' → hasSubmitted = true, waiting indicator shown
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to submit pledge');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (pledgeContenders.length === 0) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator color="#c9a84c" size="large" />
+        <Text style={styles.waitText}>Determining Senate Leader…</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Senate Leader Selection</Text>
+
+      {pledgeRound > 1 && (
+        <Text style={styles.subtitle}>Runoff Round {pledgeRound}</Text>
+      )}
+
+      <Text style={styles.body}>
+        Players are tied for the most influence. All must pledge support to one contender.
+        The contender with the least support is eliminated.
+      </Text>
+
+      {error && <Text style={styles.errorText}>{error}</Text>}
+
+      <View style={styles.contendersSection}>
+        {pledgeContenders.map((id) => {
+          const isSelected = selectedCandidate === id;
+          const isMe = id === currentUserId;
+          return (
+            <Pressable
+              key={id}
+              style={[
+                styles.contenderCard,
+                isSelected && styles.contenderCardSelected,
+              ]}
+              onPress={() => !hasSubmitted && setSelectedCandidate(id)}
+              disabled={hasSubmitted}
+            >
+              <View style={[styles.colorDot, { backgroundColor: playerColor(id) }]} />
+              <Text style={styles.contenderName}>
+                {playerName(id)}{isMe ? ' (You)' : ''}
+              </Text>
+              {isSelected && <Text style={styles.selectedMark}>✓</Text>}
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {!hasSubmitted ? (
+        <Pressable
+          style={[
+            styles.submitButton,
+            (!selectedCandidate || submitting) && styles.submitButtonDisabled,
+          ]}
+          onPress={handleSubmitPledge}
+          disabled={!selectedCandidate || submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator color="#1a1209" size="small" />
+          ) : (
+            <Text style={styles.submitButtonText}>Pledge Support</Text>
+          )}
+        </Pressable>
+      ) : (
+        <View style={styles.waitingContainer}>
+          <ActivityIndicator color="#c9a84c" size="small" />
+          <Text style={styles.waitText}>Waiting for other players…</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    gap: 16,
+  },
+  title: {
+    color: '#c9a84c',
+    fontSize: 22,
+    fontWeight: '700',
+    textAlign: 'center',
+    fontFamily: 'serif',
+  },
+  subtitle: {
+    color: '#e8d5a3',
+    fontSize: 15,
+    opacity: 0.8,
+  },
+  body: {
+    color: '#e8d5a3',
+    fontSize: 14,
+    textAlign: 'center',
+    opacity: 0.7,
+    lineHeight: 20,
+    maxWidth: 340,
+  },
+  contendersSection: {
+    width: '100%',
+    gap: 10,
+    marginTop: 8,
+  },
+  contenderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(201,168,76,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,76,0.3)',
+    borderRadius: 10,
+    padding: 14,
+    gap: 12,
+  },
+  contenderCardSelected: {
+    backgroundColor: 'rgba(201,168,76,0.22)',
+    borderColor: '#c9a84c',
+  },
+  colorDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+  },
+  contenderName: {
+    color: '#e8d5a3',
+    fontSize: 16,
+    flex: 1,
+  },
+  selectedMark: {
+    color: '#c9a84c',
+    fontSize: 18,
+  },
+  submitButton: {
+    backgroundColor: '#c9a84c',
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  submitButtonDisabled: {
+    opacity: 0.4,
+  },
+  submitButtonText: {
+    color: '#1a1209',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  waitingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 8,
+  },
+  waitText: {
+    color: '#c9a84c',
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  errorText: {
+    color: '#ff6b6b',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+});
