@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { generateCrisisName } from './crisis-names';
 import { PLAYER_COLORS } from './player-colors';
 import { selectAndBalanceFactions } from './game-engine/balance';
+import { CONTROVERSIES } from './game-engine/controversies';
 
 function generateInviteCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I/1/O/0 confusion
@@ -198,10 +199,15 @@ export async function launchGame(gameId: string): Promise<void> {
   // Select and balance factions
   const factions = selectAndBalanceFactions(playerCount);
 
+  // Shuffle controversy keys for the deck
+  const deckOrder = [...CONTROVERSIES.map((c) => c.key)].sort(() => Math.random() - 0.5);
+
   // Call RPC to initialize game state in a single transaction
   const { error } = await supabase.rpc('launch_game', {
     p_game_id: gameId,
     p_factions: factions,
+    p_controversies: CONTROVERSIES,
+    p_deck_order: deckOrder,
   });
 
   if (error) throw error;

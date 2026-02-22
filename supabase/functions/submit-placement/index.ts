@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
         .single();
       if (roundError) throw roundError;
 
-      if (round.phase !== 'completed') {
+      if (round.phase !== 'demagogery_resolved') {
         // Resolution already ran (race condition) — return resolved status
         return new Response(JSON.stringify({ status: 'resolved' }), {
           status: 200,
