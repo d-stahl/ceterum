@@ -13,6 +13,20 @@ export async function submitPledge(
   return data;
 }
 
+export async function submitSenateLeaderActions(
+  gameId: string,
+  discardedKey: string,
+  orderedKeys: string[],
+): Promise<any> {
+  const { data, error } = await supabase.rpc('submit_senate_leader_actions', {
+    p_game_id: gameId,
+    p_discarded_key: discardedKey,
+    p_ordered_keys: orderedKeys,
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function submitPlacement(
   gameId: string,
   factionId: string,
