@@ -257,15 +257,11 @@ npx supabase db push --local   # runs pending migrations against the local DB
 npx supabase db reset --local  # ⚠️  WIPES ALL DATA, re-runs all migrations from scratch
 ```
 
-### Watch out: two project IDs in use
+### One project ID: always "app"
 
-The Docker containers may be named `supabase_*_supabase` (old project) or `supabase_*_app`
-(current project, from `project_id = "app"` in config.toml). If `npx supabase stop` says
-"cannot find project", use `npx supabase stop --project-id supabase` to stop the old one.
-
-After any project switch, run `npx supabase db reset --local` to ensure all migrations are
-applied cleanly. The database volume is project-scoped, so switching projects gives you a
-different (possibly stale) DB state.
+`config.toml` has `project_id = "app"`. All Docker containers and volumes are named
+`supabase_*_app`. Never change the project ID or run `supabase init` again — that would
+create a second orphaned instance with its own stale volume.
 
 ---
 
