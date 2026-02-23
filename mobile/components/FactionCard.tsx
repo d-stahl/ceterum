@@ -1,8 +1,9 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, ReactNode } from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { getColorHex } from '../lib/player-colors';
-import { getSenatorIcon, getSaboteurIcon } from '../lib/worker-icons';
+import { getSenatorIcon, getSaboteurIcon, getPromoterIcon } from '../lib/worker-icons';
 import { useDrag, DropTarget } from './DragContext';
+import { useHelp } from './HelpContext';
 import ShineEffect from './ShineEffect';
 import DraggableWorker from './DraggableWorker';
 import FactionAffinityTab from './FactionAffinityTab';
@@ -66,6 +67,7 @@ export default function FactionCard({
   onWorkerTap,
 }: Props) {
   const { highlightedTargets, hoveredTarget, isDragging, dragPosition, dragWorkerType, registerTarget, unregisterTarget } = useDrag();
+  const help = useHelp();
   const [activeTab, setActiveTab] = useState<'none' | 'affinity' | 'alignment'>('none');
 
   const demagogs = placements.filter((p) => p.oratorRole === 'demagog');
@@ -83,21 +85,28 @@ export default function FactionCard({
   const headerBoundsRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Store header bounds on layout
+  // Store header bounds on layout; also register as help target
   const handleHeaderLayout = useCallback(() => {
     if (!headerRef.current) return;
     headerRef.current.measureInWindow((x, y, w, h) => {
       if (w === 0 && h === 0) return;
       headerBoundsRef.current = { x, y, w, h };
+      help?.registerHelpTarget({
+        uniqueKey: `faction-header-${factionKey}`,
+        helpId: 'faction-header',
+        bounds: { x, y, width: w, height: h },
+      });
     });
-  }, []);
+  }, [factionKey, help]);
 
-  // Re-measure header bounds when drag starts (scroll may have changed positions)
+  // Re-measure header bounds when worker drag or help drag starts
   useEffect(() => {
-    if (isDragging) {
-      handleHeaderLayout();
-    }
+    if (isDragging) handleHeaderLayout();
   }, [isDragging, handleHeaderLayout]);
+
+  useEffect(() => {
+    if (help?.isHelpDragging) handleHeaderLayout();
+  }, [help?.isHelpDragging, handleHeaderLayout]);
 
   useEffect(() => {
     if (!isDragging || expanded) {
@@ -130,13 +139,21 @@ export default function FactionCard({
   useEffect(() => {
     return () => {
       if (hoverTimer.current) clearTimeout(hoverTimer.current);
+      help?.unregisterHelpTarget(`faction-header-${factionKey}`);
     };
-  }, []);
+  }, [factionKey, help]);
 
   return (
     <View style={styles.card}>
       <View ref={headerRef} collapsable={false} onLayout={handleHeaderLayout}>
-      <Pressable style={styles.header} onPress={onToggle}>
+      <Pressable
+        style={[
+          styles.header,
+          help?.isHelpDragging && styles.headerHelpHighlighted,
+          help?.hoveredUniqueKey === `faction-header-${factionKey}` && styles.headerHelpHovered,
+        ]}
+        onPress={onToggle}
+      >
         <View style={styles.headerLeft}>
           <Text style={styles.factionName}>{displayName}</Text>
           <View style={styles.powerRow}>
@@ -252,22 +269,28 @@ export default function FactionCard({
 
           {/* Expandable tabs */}
           <View style={styles.tabBar}>
-            <Pressable
+            <HelpTargetButton
+              uniqueKey={`faction-affinity-${factionKey}`}
+              helpId="faction-affinity"
+              help={help}
               style={[styles.tabButton, activeTab === 'affinity' && styles.tabButtonActive]}
               onPress={() => setActiveTab(activeTab === 'affinity' ? 'none' : 'affinity')}
             >
               <Text style={[styles.tabButtonText, activeTab === 'affinity' && styles.tabButtonTextActive]}>
                 Affinity
               </Text>
-            </Pressable>
-            <Pressable
+            </HelpTargetButton>
+            <HelpTargetButton
+              uniqueKey={`faction-alignment-${factionKey}`}
+              helpId="faction-alignment"
+              help={help}
               style={[styles.tabButton, activeTab === 'alignment' && styles.tabButtonActive]}
               onPress={() => setActiveTab(activeTab === 'alignment' ? 'none' : 'alignment')}
             >
               <Text style={[styles.tabButtonText, activeTab === 'alignment' && styles.tabButtonTextActive]}>
                 Alignment
               </Text>
-            </Pressable>
+            </HelpTargetButton>
           </View>
 
           {activeTab === 'affinity' && (
@@ -320,9 +343,12 @@ function SlotRow({
   onWorkerTap,
 }: SlotRowProps) {
   const { isDragging } = useDrag();
+  const help = useHelp();
   const viewRef = useRef<View>(null);
   const wasDraggingRef = useRef(false);
   const targetId = `faction:${factionKey}:${targetRole}`;
+  const helpUniqueKey = `${targetId}:help`;
+  const helpId = `slot-${targetRole}`;
   const oratorRole = (['demagog', 'advocate', 'agitator'].includes(targetRole)
     ? targetRole as OratorRole
     : undefined);
@@ -337,10 +363,11 @@ function SlotRow({
         accepts,
         oratorRole,
       });
+      help?.registerHelpTarget({ uniqueKey: helpUniqueKey, helpId, bounds: { x, y, width, height } });
     });
-  }, [targetId, registerTarget, accepts, oratorRole]);
+  }, [targetId, registerTarget, accepts, oratorRole, helpUniqueKey, helpId, help]);
 
-  // Re-measure bounds once when drag starts (scroll may have shifted positions)
+  // Re-measure bounds once when game drag or help drag starts
   useEffect(() => {
     if (isDragging && !wasDraggingRef.current) {
       handleLayout();
@@ -349,8 +376,18 @@ function SlotRow({
   }, [isDragging, handleLayout]);
 
   useEffect(() => {
-    return () => unregisterTarget(targetId);
-  }, [targetId, unregisterTarget]);
+    if (help?.isHelpDragging) handleLayout();
+  }, [help?.isHelpDragging, handleLayout]);
+
+  useEffect(() => {
+    return () => {
+      unregisterTarget(targetId);
+      help?.unregisterHelpTarget(helpUniqueKey);
+    };
+  }, [targetId, unregisterTarget, helpUniqueKey, help]);
+
+  const isHelpHighlighted = !!help?.isHelpDragging;
+  const isHelpHovered = help?.hoveredUniqueKey === helpUniqueKey;
 
   const ICON_SIZE = 44;
 
@@ -363,6 +400,8 @@ function SlotRow({
         half && styles.slotRowHalf,
         highlighted && styles.slotRowHighlighted,
         hovered && styles.slotRowHovered,
+        isHelpHighlighted && styles.slotRowHelpHighlighted,
+        isHelpHovered && styles.slotRowHelpHovered,
       ]}
     >
       <Text style={styles.slotLabel}>{label}</Text>
@@ -434,9 +473,56 @@ function TappableWorkerIcon({
   );
 }
 
-function WorkerIcon({ workerType, playerColor, size }: { workerType: string; playerColor: string; size: number }) {
-  const colorHex = getColorHex(playerColor);
+function HelpTargetButton({
+  uniqueKey,
+  helpId,
+  help,
+  style,
+  onPress,
+  children,
+}: {
+  uniqueKey: string;
+  helpId: string;
+  help: ReturnType<typeof useHelp>;
+  style?: any;
+  onPress?: () => void;
+  children: ReactNode;
+}) {
+  const pressableRef = useRef<View>(null);
 
+  const measure = useCallback(() => {
+    if (!pressableRef.current || !help) return;
+    pressableRef.current.measureInWindow((x, y, width, height) => {
+      if (width === 0 && height === 0) return;
+      help.registerHelpTarget({ uniqueKey, helpId, bounds: { x, y, width, height } });
+    });
+  }, [uniqueKey, helpId, help]);
+
+  useEffect(() => {
+    if (help?.isHelpDragging) measure();
+  }, [help?.isHelpDragging, measure]);
+
+  useEffect(() => {
+    return () => { help?.unregisterHelpTarget(uniqueKey); };
+  }, [uniqueKey, help]);
+
+  const isHelpHighlighted = !!help?.isHelpDragging;
+  const isHelpHovered = help?.hoveredUniqueKey === uniqueKey;
+
+  return (
+    <Pressable
+      ref={pressableRef}
+      collapsable={false}
+      onLayout={measure}
+      style={[style, isHelpHighlighted && styles.tabHelpHighlighted, isHelpHovered && styles.tabHelpHovered]}
+      onPress={onPress}
+    >
+      {children}
+    </Pressable>
+  );
+}
+
+function WorkerIcon({ workerType, playerColor, size }: { workerType: string; playerColor: string; size: number }) {
   if (workerType === 'orator') {
     return (
       <Image
@@ -448,15 +534,10 @@ function WorkerIcon({ workerType, playerColor, size }: { workerType: string; pla
   }
   if (workerType === 'promoter') {
     return (
-      <View
-        style={{
-          width: size * 0.7,
-          height: size * 0.7,
-          backgroundColor: colorHex,
-          borderRadius: size * 0.1,
-          borderWidth: 1,
-          borderColor: 'rgba(0,0,0,0.2)',
-        }}
+      <Image
+        source={getPromoterIcon(playerColor)}
+        style={{ width: size, height: size }}
+        resizeMode="contain"
       />
     );
   }
@@ -469,7 +550,7 @@ function WorkerIcon({ workerType, playerColor, size }: { workerType: string; pla
       />
     );
   }
-  return <View style={{ width: size * 0.5, height: size * 0.5, borderRadius: size * 0.25, backgroundColor: colorHex }} />;
+  return null;
 }
 
 const styles = StyleSheet.create({
@@ -646,5 +727,46 @@ const styles = StyleSheet.create({
   },
   tabContent: {
     paddingTop: 8,
+  },
+  // Help drag highlights
+  headerHelpHighlighted: {
+    borderWidth: 1,
+    borderColor: 'rgba(224, 192, 151, 0.25)',
+  },
+  headerHelpHovered: {
+    borderWidth: 1.5,
+    borderColor: '#e0c097',
+    backgroundColor: 'rgba(224, 192, 151, 0.1)',
+    shadowColor: '#e0c097',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  slotRowHelpHighlighted: {
+    borderColor: 'rgba(224, 192, 151, 0.25)',
+  },
+  slotRowHelpHovered: {
+    borderColor: '#e0c097',
+    backgroundColor: 'rgba(224, 192, 151, 0.1)',
+    shadowColor: '#e0c097',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  tabHelpHighlighted: {
+    borderWidth: 1,
+    borderColor: 'rgba(224, 192, 151, 0.25)',
+  },
+  tabHelpHovered: {
+    borderWidth: 1,
+    borderColor: '#e0c097',
+    backgroundColor: 'rgba(224, 192, 151, 0.12)',
+    shadowColor: '#e0c097',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });

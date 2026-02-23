@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkerType, OratorRole } from '../lib/game-engine/workers';
 import DraggableWorker from './DraggableWorker';
+import { useHelp } from './HelpContext';
 
 export type WorkerSelection = {
   workerType: WorkerType;
@@ -47,44 +48,25 @@ export default function WorkerSelector({
 }: Props) {
   const insets = useSafeAreaInsets();
 
-  // Per-slot identity: track which specific slots are committed vs preliminary vs active drag
-  const [committedSlots, setCommittedSlots] = useState<Set<string>>(() =>
-    assignCommittedSlots(usedWorkers)
-  );
+  // Derive committed slots directly from usedWorkers — eliminates race conditions
+  // where the component mounts before loadPlacements() resolves.
+  const committedSlots = useMemo(() => assignCommittedSlots(usedWorkers), [usedWorkers]);
+
   const [prelimSlotKey, setPrelimSlotKey] = useState<string | null>(null);
   const [activeSlotKey, setActiveSlotKey] = useState<string | null>(null);
   const lastDragSlotRef = useRef<string | null>(null);
-  const prevUsedCountRef = useRef(usedWorkers.length);
 
-  // When committed placements change (new sub-round commit or round reset)
+  // Track which slot has the preliminary placement
   useEffect(() => {
-    const currentCount = usedWorkers.length;
-    if (currentCount < prevUsedCountRef.current) {
-      // Round reset — clear everything
-      setCommittedSlots(new Set());
-      setPrelimSlotKey(null);
-    } else if (currentCount > prevUsedCountRef.current && prelimSlotKey) {
-      // New commitment — the preliminary slot becomes committed
-      setCommittedSlots((prev) => {
-        const next = new Set(prev);
-        next.add(prelimSlotKey);
-        return next;
-      });
-      setPrelimSlotKey(null);
-    }
-    prevUsedCountRef.current = currentCount;
-  }, [usedWorkers.length, prelimSlotKey]);
-
-  // When preliminary placement appears/disappears
-  useEffect(() => {
-    if (preliminaryWorkerType && lastDragSlotRef.current && !prelimSlotKey) {
+    if (preliminaryWorkerType && lastDragSlotRef.current) {
       setPrelimSlotKey(lastDragSlotRef.current);
-    } else if (!preliminaryWorkerType && prelimSlotKey) {
+    } else if (!preliminaryWorkerType) {
       setPrelimSlotKey(null);
     }
-  }, [preliminaryWorkerType, prelimSlotKey]);
+  }, [preliminaryWorkerType]);
 
   const hasPreliminary = !!preliminaryWorkerType;
+  const help = useHelp();
 
   return (
     <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 12) }]}>
@@ -99,7 +81,12 @@ export default function WorkerSelector({
           const isDisabled = disabled || isCommitted || (hasPreliminary && !isActive);
 
           return (
-            <View key={slot.key} style={styles.slotWrapper}>
+            <WorkerSlotView
+              key={slot.key}
+              slotKey={slot.key}
+              helpId={`worker-${slot.workerType}`}
+              help={help}
+            >
               <DraggableWorker
                 workerType={slot.workerType}
                 playerColor={playerColor}
@@ -120,10 +107,61 @@ export default function WorkerSelector({
               <Text style={[styles.slotLabel, showEmpty && styles.slotLabelUsed]}>
                 {slot.label}
               </Text>
-            </View>
+            </WorkerSlotView>
           );
         })}
       </View>
+    </View>
+  );
+}
+
+/** Wrapper that registers a help target for a worker slot */
+function WorkerSlotView({
+  slotKey,
+  helpId,
+  help,
+  children,
+}: {
+  slotKey: string;
+  helpId: string;
+  help: ReturnType<typeof useHelp>;
+  children: React.ReactNode;
+}) {
+  const viewRef = useRef<View>(null);
+
+  const uniqueKey = `worker-slot-${slotKey}`;
+
+  const measure = useCallback(() => {
+    if (!viewRef.current || !help) return;
+    viewRef.current.measureInWindow((x, y, width, height) => {
+      if (width === 0 && height === 0) return;
+      help.registerHelpTarget({ uniqueKey, helpId, bounds: { x, y, width, height } });
+    });
+  }, [uniqueKey, helpId, help]);
+
+  useEffect(() => {
+    if (help?.isHelpDragging) measure();
+  }, [help?.isHelpDragging, measure]);
+
+  useEffect(() => {
+    return () => { help?.unregisterHelpTarget(uniqueKey); };
+  }, [uniqueKey, help]);
+
+  const isHelpHighlighted = !!help?.isHelpDragging;
+  const isHelpHovered = help?.hoveredUniqueKey === uniqueKey;
+
+  return (
+    <View
+      ref={viewRef}
+      collapsable={false}
+      onLayout={measure}
+      style={[
+        styles.slotWrapper,
+        isHelpHighlighted && styles.slotHelpHighlighted,
+        isHelpHovered && styles.slotHelpHovered,
+      ]}
+    >
+      {children}
     </View>
   );
 }
@@ -174,6 +212,22 @@ const styles = StyleSheet.create({
   slotWrapper: {
     alignItems: 'center',
     gap: 4,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderRadius: 8,
+    padding: 4,
+  },
+  slotHelpHighlighted: {
+    borderColor: 'rgba(224, 192, 151, 0.25)',
+  },
+  slotHelpHovered: {
+    borderColor: '#e0c097',
+    backgroundColor: 'rgba(224, 192, 151, 0.1)',
+    shadowColor: '#e0c097',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 4,
   },
   slotLabel: {
     color: '#e0c097',

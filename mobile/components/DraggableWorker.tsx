@@ -7,7 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { WorkerType } from '../lib/game-engine/workers';
-import { getSenatorIcon, getSenatorEmptyIcon, getSaboteurEmptyIcon, getSaboteurIcon } from '../lib/worker-icons';
+import { getSenatorIcon, getSenatorEmptyIcon, getSaboteurEmptyIcon, getSaboteurIcon, getPromoterIcon, getPromoterEmptyIcon } from '../lib/worker-icons';
 import { getColorHex } from '../lib/player-colors';
 
 type Props = {
@@ -87,16 +87,10 @@ function ColoredIcon({ workerType, playerColor, colorHex, size }: { workerType: 
   }
   if (workerType === 'promoter') {
     return (
-      <View
-        style={[
-          styles.promoterSquare,
-          {
-            width: size * 0.7,
-            height: size * 0.7,
-            backgroundColor: colorHex,
-            borderRadius: size * 0.1,
-          },
-        ]}
+      <Image
+        source={getPromoterIcon(playerColor)}
+        style={{ width: size, height: size }}
+        resizeMode="contain"
       />
     );
   }
@@ -131,18 +125,16 @@ function EmptyIcon({ workerType, size }: { workerType: WorkerType; size: number 
       />
     );
   }
-  // Promoter: outlined square with no fill
-  return (
-    <View
-      style={{
-        width: size * 0.7,
-        height: size * 0.7,
-        borderRadius: size * 0.1,
-        borderWidth: 1.5,
-        borderColor: 'rgba(224, 192, 151, 0.25)',
-      }}
-    />
-  );
+  if (workerType === 'promoter') {
+    return (
+      <Image
+        source={getPromoterEmptyIcon()}
+        style={{ width: size, height: size }}
+        resizeMode="contain"
+      />
+    );
+  }
+  return null;
 }
 
 const styles = StyleSheet.create({

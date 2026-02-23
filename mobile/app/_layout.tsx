@@ -6,11 +6,9 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ensureAuthenticated } from '../lib/auth';
-import * as Notifications from 'expo-notifications';
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const segments = useSegments();
@@ -20,7 +18,6 @@ export default function RootLayout() {
     ensureAuthenticated()
       .then((s) => {
         setSession(s);
-        if (s) setUserId(s.user.id);
       })
       .catch((e) => {
         console.error('Auth error:', e);
@@ -49,43 +46,6 @@ export default function RootLayout() {
     }
   }, [session, loading, segments]);
 
-  useEffect(() => {
-    if (!userId) return;
-
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-        shouldShowBanner: true,
-        shouldShowList: true,
-      }),
-    });
-
-    const channel = supabase
-      .channel('events-notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'events',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload: any) => {
-          Notifications.scheduleNotificationAsync({
-            content: {
-              title: payload.new.title,
-              body: payload.new.body,
-            },
-            trigger: null,
-          });
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [userId]);
 
   if (loading) {
     return (

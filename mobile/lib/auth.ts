@@ -15,10 +15,11 @@ export async function ensureAuthenticated() {
     if (profile) {
       return session;
     }
-
-    // Stale session - sign out and re-authenticate
-    await supabase.auth.signOut();
   }
+
+  // Clear any stale tokens from local storage before attempting fresh sign-in.
+  // scope: 'local' avoids a network request (safe when the session may already be invalid).
+  await supabase.auth.signOut({ scope: 'local' });
 
   // Sign in anonymously
   const { data, error } = await supabase.auth.signInAnonymously();

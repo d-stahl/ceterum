@@ -219,6 +219,46 @@ The comment `// Deno-compatible copy` marks these files.
 
 ---
 
+## Local Supabase Management
+
+The project runs a local Supabase stack via Docker. Config lives in `supabase/config.toml`.
+
+### Starting / stopping
+
+```bash
+npx supabase start        # starts all containers, applies config.toml
+npx supabase stop         # stops containers, preserves data in Docker volumes
+npx supabase stop --project-id supabase  # if "app" project conflicts with another stack
+```
+
+**Data is safe across stop/start.** It lives in a named Docker volume, not the container.
+`supabase db reset` wipes data — only run that intentionally.
+
+### Critical: config.toml is only applied on `supabase start`
+
+If a setting in `config.toml` isn't reflected in the running instance (e.g. anonymous sign-ins
+disabled despite `enable_anonymous_sign_ins = true`), it means the instance was started with
+stale config. **Fix: `npx supabase stop && npx supabase start`.**
+
+Do NOT try to patch the running GoTrue container directly — the admin JWT validation is opaque
+and the config is re-applied cleanly on restart.
+
+### Auth
+
+- Anonymous sign-ins are the app's auth strategy (set in `config.toml`).
+- Users with stale refresh tokens (e.g. after a `db reset`) will hit "Invalid Refresh Token".
+  The app handles this gracefully by clearing the session and re-authenticating anonymously.
+- If the mobile app shows "Anonymous sign-ins are disabled", the Supabase stack needs a restart.
+
+### Applying new migrations to a running instance
+
+```bash
+npx supabase db push       # runs pending migrations against the local DB
+npx supabase db reset      # ⚠️  WIPES ALL DATA, re-runs all migrations from scratch
+```
+
+---
+
 ## Iteration Roadmap
 
 | Iteration | Focus |

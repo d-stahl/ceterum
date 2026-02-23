@@ -1,5 +1,19 @@
 import { ImageSourcePropType } from 'react-native';
 
+const PROMOTER_ICONS: Record<string, ImageSourcePropType> = {
+  ivory: require('../assets/images/promoter-icon-ivory.png'),
+  slate: require('../assets/images/promoter-icon-slate.png'),
+  crimson: require('../assets/images/promoter-icon-cimson.png'),
+  cobalt: require('../assets/images/promoter-icon-cobalt.png'),
+  emerald: require('../assets/images/promoter-icon-emerald.png'),
+  purple: require('../assets/images/promoter-icon-purple.png'),
+  gold: require('../assets/images/promoter-icon-gold.png'),
+  burnt_orange: require('../assets/images/promoter-icon-orange.png'),
+  orange: require('../assets/images/promoter-icon-orange.png'),
+  rose: require('../assets/images/promoter-icon-rose.png'),
+  teal: require('../assets/images/promoter-icon-teal.png'),
+};
+
 const SENATOR_ICONS: Record<string, ImageSourcePropType> = {
   ivory: require('../assets/images/senator-icon-ivory.png'),
   slate: require('../assets/images/senator-icon-slate.png'),
@@ -30,6 +44,15 @@ const SABOTEUR_ICONS: Record<string, ImageSourcePropType> = {
 
 const SENATOR_ICON_EMPTY: ImageSourcePropType = require('../assets/images/senator-icon-empty.png');
 const SABOTEUR_ICON_EMPTY: ImageSourcePropType = require('../assets/images/saboteur-icon-empty.png');
+const PROMOTER_ICON_EMPTY: ImageSourcePropType = require('../assets/images/promoter-icon-empty.png');
+
+export function getPromoterIcon(playerColor: string): ImageSourcePropType {
+  return PROMOTER_ICONS[playerColor] ?? PROMOTER_ICONS.ivory;
+}
+
+export function getPromoterEmptyIcon(): ImageSourcePropType {
+  return PROMOTER_ICON_EMPTY;
+}
 
 export function getSenatorIcon(playerColor: string): ImageSourcePropType {
   return SENATOR_ICONS[playerColor] ?? SENATOR_ICONS.ivory;

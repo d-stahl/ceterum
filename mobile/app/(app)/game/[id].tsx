@@ -2,14 +2,15 @@ import {
   View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator,
   Alert, ImageBackground, Image, BackHandler,
 } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../../lib/supabase';
 import { submitPlacement } from '../../../lib/game-actions';
 import { getColorHex } from '../../../lib/player-colors';
-import { getSenatorIcon, getSaboteurIcon } from '../../../lib/worker-icons';
+import { getSenatorIcon, getSaboteurIcon, getPromoterIcon } from '../../../lib/worker-icons';
 import { WorkerType, Placement } from '../../../lib/game-engine/workers';
 import { BalancedFaction } from '../../../lib/game-engine/balance';
 import { WorkerEffect } from '../../../lib/game-engine/demagogery';
@@ -18,12 +19,16 @@ import FactionCard, { FactionPlacement } from '../../../components/FactionCard';
 import WorkerSelector from '../../../components/WorkerSelector';
 import WorkerTooltip from '../../../components/WorkerTooltip';
 import { DragProvider, useDrag } from '../../../components/DragContext';
+import { HelpProvider, useHelp } from '../../../components/HelpContext';
 import SubRoundAnnouncement from '../../../components/SubRoundAnnouncement';
 import SenateLeaderSelection from '../../../components/SenateLeaderSelection';
 import SenateLeaderPoolManager from '../../../components/SenateLeaderPoolManager';
 import ControversyVoting from '../../../components/ControversyVoting';
 import RoundEndSummary from '../../../components/RoundEndSummary';
 import OnTheHorizon from '../../../components/OnTheHorizon';
+import HomeIcon from '../../../components/icons/HomeIcon';
+import HelpIcon from '../../../components/icons/HelpIcon';
+import HelpModal from '../../../components/HelpModal';
 const gameBg = require('../../../assets/images/demagogery-bg.png');
 
 type Faction = {
@@ -88,7 +93,9 @@ type ControversyStateRow = {
 export default function GameScreen() {
   return (
     <DragProvider>
-      <GameScreenInner />
+      <HelpProvider>
+        <GameScreenInner />
+      </HelpProvider>
     </DragProvider>
   );
 }
@@ -98,6 +105,7 @@ function GameScreenInner() {
   const insets = useSafeAreaInsets();
   const { id: gameId } = useLocalSearchParams<{ id: string }>();
   const drag = useDrag();
+  const help = useHelp();
 
   const [loading, setLoading] = useState(true);
   const [factions, setFactions] = useState<Faction[]>([]);
@@ -126,11 +134,16 @@ function GameScreenInner() {
     position: { x: number; y: number };
   } | null>(null);
 
-  // Drag overlay position
+  // Worker drag overlay position
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
   const dragVisible = useSharedValue(false);
   const [dragWorkerType, setDragWorkerType] = useState<WorkerType | null>(null);
+
+  // Help icon drag overlay position
+  const helpDragX = useSharedValue(0);
+  const helpDragY = useSharedValue(0);
+  const helpDragVisible = useSharedValue(false);
 
   const prevRoundRef = useRef<{ roundNumber: number; subRound: number; phase: string } | null>(null);
   const preResolutionInfluenceRef = useRef<Record<string, number> | null>(null);
@@ -576,6 +589,49 @@ function GameScreenInner() {
     pointerEvents: 'none' as const,
   }));
 
+  const helpDragOverlayStyle = useAnimatedStyle(() => ({
+    position: 'absolute' as const,
+    left: helpDragX.value - 16,
+    top: helpDragY.value - 16,
+    width: 32,
+    height: 32,
+    opacity: helpDragVisible.value ? 0.9 : 0,
+    zIndex: 10000,
+    pointerEvents: 'none' as const,
+  }));
+
+  const doOpenHelp = useCallback(() => help?.openGeneralHelp(), [help]);
+  const doStartHelpDrag = useCallback((x: number, y: number) => help?.startHelpDrag(x, y), [help]);
+  const doUpdateHelpDrag = useCallback((x: number, y: number) => help?.updateHelpDrag(x, y), [help]);
+  const doEndHelpDrag = useCallback((x: number, y: number) => help?.endHelpDrag(x, y), [help]);
+
+  // Lift the help icon above the finger so the icon center aligns with
+  // where the user is pointing, matching the worker drag behaviour.
+  const HELP_LIFT = 48;
+
+  const helpIconGesture = Gesture.Exclusive(
+    Gesture.Pan()
+      .minDistance(8)
+      .onStart((e) => {
+        helpDragX.value = e.absoluteX;
+        helpDragY.value = e.absoluteY - HELP_LIFT;
+        helpDragVisible.value = true;
+        runOnJS(doStartHelpDrag)(e.absoluteX, e.absoluteY - HELP_LIFT);
+      })
+      .onUpdate((e) => {
+        helpDragX.value = e.absoluteX;
+        helpDragY.value = e.absoluteY - HELP_LIFT;
+        runOnJS(doUpdateHelpDrag)(e.absoluteX, e.absoluteY - HELP_LIFT);
+      })
+      .onEnd((e) => {
+        helpDragVisible.value = false;
+        runOnJS(doEndHelpDrag)(e.absoluteX, e.absoluteY - HELP_LIFT);
+      }),
+    Gesture.Tap().onEnd(() => {
+      runOnJS(doOpenHelp)();
+    }),
+  );
+
   // Build faction placement data
   function getFactionPlacements(factionId: string): FactionPlacement[] {
     if (!round) return [];
@@ -820,9 +876,19 @@ function GameScreenInner() {
               Round {round?.round_number ?? '?'} / Demagogery Step {round?.sub_round ?? '?'}
             </Text>
           </View>
-          <View style={styles.influenceBox}>
-            <Text style={styles.influenceLabel}>Influence</Text>
-            <Text style={styles.influenceValue}>{myInfluence}</Text>
+          <View style={styles.headerRight}>
+            <GestureDetector gesture={helpIconGesture}>
+              <Animated.View style={styles.helpButton}>
+                <HelpIcon size={22} color="#e0c097" />
+              </Animated.View>
+            </GestureDetector>
+            <Pressable style={styles.homeButton} onPress={() => router.replace('/(app)/home')}>
+              <HomeIcon size={22} color="#e0c097" />
+            </Pressable>
+            <View style={styles.influenceBox}>
+              <Text style={styles.influenceLabel}>Influence</Text>
+              <Text style={styles.influenceValue}>{myInfluence}</Text>
+            </View>
           </View>
         </View>
 
@@ -906,9 +972,14 @@ function GameScreenInner() {
           />
         )}
 
-        {/* Drag overlay */}
+        {/* Worker drag overlay */}
         <Animated.View style={dragOverlayStyle}>
           <DragOverlayIcon workerType={dragWorkerType} playerColor={playerColor} />
+        </Animated.View>
+
+        {/* Help icon drag overlay */}
+        <Animated.View style={helpDragOverlayStyle}>
+          <HelpIcon size={32} color="#e0c097" />
         </Animated.View>
 
         {/* Worker tooltip */}
@@ -949,13 +1020,15 @@ function GameScreenInner() {
           />
         )}
       </View>
+
+      {/* Help modal */}
+      <HelpModal helpId={help?.activeHelpId ?? null} onDismiss={() => help?.dismissHelp()} />
     </ImageBackground>
   );
 }
 
 function DragOverlayIcon({ workerType, playerColor }: { workerType: WorkerType | null; playerColor: string }) {
   if (!workerType) return null;
-  const colorHex = getColorHex(playerColor);
 
   if (workerType === 'orator') {
     return (
@@ -968,7 +1041,11 @@ function DragOverlayIcon({ workerType, playerColor }: { workerType: WorkerType |
   }
   if (workerType === 'promoter') {
     return (
-      <View style={{ width: 34, height: 34, backgroundColor: colorHex, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(0,0,0,0.2)' }} />
+      <Image
+        source={getPromoterIcon(playerColor)}
+        style={{ width: 48, height: 48 }}
+        resizeMode="contain"
+      />
     );
   }
   if (workerType === 'saboteur') {
@@ -1022,6 +1099,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.5,
     marginTop: 2,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  helpButton: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(224, 192, 151, 0.08)',
+  },
+  homeButton: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(224, 192, 151, 0.08)',
   },
   influenceBox: {
     alignItems: 'center',

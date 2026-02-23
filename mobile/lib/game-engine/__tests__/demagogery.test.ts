@@ -1,4 +1,4 @@
-import { resolveDemagogery, resolveDemagogeryDetailed, BASE_INFLUENCE, ALLY_BONUS, AGITATOR_PENALTY } from '../demagogery';
+import { resolveDemagogery, resolveDemagogeryDetailed, BASE_INFLUENCE, ALLY_BONUS, AGITATOR_MOD } from '../demagogery';
 import { Placement } from '../workers';
 import { BalancedFaction } from '../balance';
 import { validatePlacement } from '../workers';
@@ -108,7 +108,7 @@ describe('resolveDemagogeryDetailed', () => {
     const effect = result.workerEffects[0];
     const crowdItem = effect.lineItems.find(li => li.label.includes('Crowd'));
     expect(crowdItem).toBeDefined();
-    expect(crowdItem!.displayValue).toContain('×');
+    expect(crowdItem!.displayValue).toContain('%');
   });
 
   it('advocate boost line item appears when advocates present', () => {
@@ -118,7 +118,7 @@ describe('resolveDemagogeryDetailed', () => {
     ];
     const result = resolveDemagogeryDetailed(placements, [testFaction], noAffinity);
     const demagogEffect = result.workerEffects.find(e => e.oratorRole === 'demagog')!;
-    expect(demagogEffect.lineItems.find(li => li.label === 'Advocate boost')).toBeDefined();
+    expect(demagogEffect.lineItems.find(li => li.label === 'Advocate present')).toBeDefined();
     expect(demagogEffect.totalInfluence).toBe(BASE_INFLUENCE + ALLY_BONUS);
   });
 
@@ -129,8 +129,9 @@ describe('resolveDemagogeryDetailed', () => {
     ];
     const result = resolveDemagogeryDetailed(placements, [testFaction], noAffinity);
     const demagogEffect = result.workerEffects.find(e => e.oratorRole === 'demagog')!;
-    expect(demagogEffect.lineItems.find(li => li.label === 'Agitator penalty')).toBeDefined();
-    expect(demagogEffect.totalInfluence).toBe(BASE_INFLUENCE - AGITATOR_PENALTY);
+    expect(demagogEffect.lineItems.find(li => li.label === 'Agitator present')).toBeDefined();
+    // power=3 → no bonus; single demagog → no crowd; agitator → ×0.5; base=4 → ceil(4×0.5)=2
+    expect(demagogEffect.totalInfluence).toBe(Math.ceil(BASE_INFLUENCE * AGITATOR_MOD));
   });
 
   it('wasted advocate shows "No demagog" line item', () => {
@@ -185,10 +186,34 @@ describe('resolveDemagogeryDetailed', () => {
     const withAffinity = { p1: { legiones: 3 } };
     const result = resolveDemagogeryDetailed(placements, [testFaction], withAffinity);
     const effect = result.workerEffects[0];
-    const affinityItem = effect.lineItems.find(li => li.label.includes('Affinity'));
+    const affinityItem = effect.lineItems.find(li => li.label.includes('Affinity') || li.label.includes('sympathy') || li.label.includes('Sympathy'));
     expect(affinityItem).toBeDefined();
-    expect(affinityItem!.label).toContain('+3');
     expect(effect.totalInfluence).toBeGreaterThan(BASE_INFLUENCE);
+  });
+
+  it('power modifier line appears for non-3 power factions', () => {
+    const weakFaction: BalancedFaction = { ...testFaction, power: 1 };
+    const placements: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
+    ];
+    const result = resolveDemagogeryDetailed(placements, [weakFaction], noAffinity);
+    const effect = result.workerEffects[0];
+    expect(effect.lineItems.find(li => li.label === 'Very weak faction')).toBeDefined();
+    // base(4) + power(-2) = 2; ceil(2) = 2
+    expect(effect.totalInfluence).toBe(2);
+  });
+
+  it('example calculation: power4 + advocate + agitator => 5', () => {
+    const strongFaction: BalancedFaction = { ...testFaction, power: 4 };
+    const placements: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
+      { playerId: 'p2', factionKey: 'legiones', workerType: 'orator', oratorRole: 'advocate', subRound: 2 },
+      { playerId: 'p3', factionKey: 'legiones', workerType: 'orator', oratorRole: 'agitator', subRound: 3 },
+    ];
+    const result = resolveDemagogeryDetailed(placements, [strongFaction], noAffinity);
+    const demagogEffect = result.workerEffects.find(e => e.oratorRole === 'demagog')!;
+    // 4 base + 1 power + 4 advocate = 9; × 0.5 agitator = 4.5; ceil = 5
+    expect(demagogEffect.totalInfluence).toBe(5);
   });
 });
 

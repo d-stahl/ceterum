@@ -64,18 +64,22 @@ export default function WorkerTooltip({
 
         <View style={styles.divider} />
 
-        {effect.lineItems.map((item, i) => (
-          <View key={i} style={styles.lineItemRow}>
-            <Text style={styles.lineItemLabel} numberOfLines={1}>{item.label}</Text>
-            <Text style={[
-              styles.lineItemValue,
-              item.value < 0 && styles.negativeValue,
-              item.value > 0 && item.displayValue.startsWith('+') && styles.positiveValue,
-            ]}>
-              {item.displayValue}
-            </Text>
-          </View>
-        ))}
+        {effect.lineItems.map((item, i) => {
+          const isNegative = item.value < 0 || item.displayValue.startsWith('-');
+          const isPositive = !isNegative && item.value > 0 && item.displayValue.startsWith('+');
+          return (
+            <View key={i} style={styles.lineItemRow}>
+              <Text style={styles.lineItemLabel} numberOfLines={1}>{item.label}</Text>
+              <Text style={[
+                styles.lineItemValue,
+                isNegative && styles.negativeValue,
+                isPositive && styles.positiveValue,
+              ]}>
+                {item.displayValue}
+              </Text>
+            </View>
+          );
+        })}
 
         {hasTotalLine && (
           <>
