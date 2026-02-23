@@ -57,9 +57,12 @@ export async function joinGame(inviteCode: string): Promise<string> {
 
   if ((existing ?? []).length >= game.max_players) throw new Error('Game is full');
 
-  // Pick first available color
+  // Pick a random available color
   const takenColors = new Set((existing ?? []).map((r: any) => r.color));
-  const availableColor = PLAYER_COLORS.find(c => !takenColors.has(c.id))?.id ?? 'ivory';
+  const available = PLAYER_COLORS.filter(c => !takenColors.has(c.id));
+  const availableColor = available.length > 0
+    ? available[Math.floor(Math.random() * available.length)].id
+    : 'ivory';
 
   const { error: joinError } = await supabase
     .from('game_players')

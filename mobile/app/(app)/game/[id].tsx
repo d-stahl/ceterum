@@ -52,6 +52,7 @@ type Round = {
   senate_leader_id: string | null;
   controversy_pool: string[];
   controversies_resolved: string[];
+  upcoming_pool: string[];
 };
 
 type PlayerInfo = {
@@ -248,9 +249,9 @@ function GameScreenInner() {
     };
   }, [round]);
 
-  // Auto-open On the Horizon when ruling pool or first voting phase starts
+  // Auto-open On the Horizon at the start of each round's demagogery and ruling pool
   useEffect(() => {
-    if (round?.phase === 'ruling_pool' || round?.phase === 'ruling_voting_1') {
+    if (round?.phase === 'demagogery' || round?.phase === 'ruling_pool' || round?.phase === 'ruling_voting_1') {
       setOnTheHorizonVisible(true);
     }
   }, [round?.phase]);
@@ -327,7 +328,7 @@ function GameScreenInner() {
   async function loadRound() {
     const { data } = await supabase
       .from('game_rounds')
-      .select('id, round_number, phase, sub_round, senate_leader_id, controversy_pool, controversies_resolved')
+      .select('id, round_number, phase, sub_round, senate_leader_id, controversy_pool, controversies_resolved, upcoming_pool')
       .eq('game_id', gameId)
       .order('round_number', { ascending: false })
       .limit(1)
@@ -789,8 +790,13 @@ function GameScreenInner() {
     );
   }
 
-  // --- Ruling phase routing ---
+  // --- Phase routing ---
   const phase = round?.phase ?? 'demagogery';
+
+  // During ruling phases, show the drawn controversy pool;
+  // during demagogery, show the upcoming_pool preview from game state.
+  const upcomingPoolKeys = round?.upcoming_pool ?? [];
+  const horizonKeys = controversyPoolKeys.length > 0 ? controversyPoolKeys : upcomingPoolKeys;
 
   if (phase === 'ruling_selection') {
     return (
@@ -821,7 +827,7 @@ function GameScreenInner() {
             isSenateLeader={isSenateLeader}
           />
           <OnTheHorizon
-            poolKeys={controversyPoolKeys}
+            poolKeys={horizonKeys}
             activeFactionKeys={activeFactionKeys}
             visible={onTheHorizonVisible}
             onClose={() => setOnTheHorizonVisible((v) => !v)}
@@ -853,7 +859,7 @@ function GameScreenInner() {
             </View>
           )}
           <OnTheHorizon
-            poolKeys={controversyPoolKeys}
+            poolKeys={horizonKeys}
             activeFactionKeys={activeFactionKeys}
             activeControversyKey={activeControversyKey}
             visible={onTheHorizonVisible}
@@ -998,6 +1004,14 @@ function GameScreenInner() {
         {phase === 'demagogery' && round && (
           <SubRoundAnnouncement subRound={round.sub_round} roundNumber={round.round_number} />
         )}
+
+        {/* On the Horizon slide-in panel */}
+        <OnTheHorizon
+          poolKeys={horizonKeys}
+          activeFactionKeys={activeFactionKeys}
+          visible={onTheHorizonVisible}
+          onClose={() => setOnTheHorizonVisible((v) => !v)}
+        />
 
         {/* Round-end summary overlay (absolute, shown at start of new round) */}
         {showRoundEnd && round && (
