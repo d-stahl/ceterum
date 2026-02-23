@@ -61,7 +61,7 @@ export default function CreateGameScreen() {
             autoCorrect={false}
           />
 
-          <Text style={styles.label}>Max Players</Text>
+          <Text style={styles.label}>Number of Players</Text>
           <View style={styles.counterRow}>
             <Pressable
               style={[styles.counterButton, playerCount <= 3 && styles.counterButtonDisabled]}
