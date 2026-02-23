@@ -9,12 +9,20 @@ import ControversyCard from './ControversyCard';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PANEL_WIDTH = Math.min(SCREEN_WIDTH * 0.88, 380);
 
+type FactionInfo = {
+  key: string;
+  displayName: string;
+  power: number;
+};
+
 type Props = {
   poolKeys: string[];            // 4 controversy keys for this round
   activeFactionKeys: string[];   // factions in this game
   activeControversyKey?: string; // currently being voted on (highlighted)
   visible: boolean;
   onClose: () => void;
+  axisValues?: Record<string, number>;
+  factionInfoMap?: Record<string, FactionInfo>;
 };
 
 export default function OnTheHorizon({
@@ -23,6 +31,8 @@ export default function OnTheHorizon({
   activeControversyKey,
   visible,
   onClose,
+  axisValues,
+  factionInfoMap,
 }: Props) {
   const slideAnim = useRef(new Animated.Value(PANEL_WIDTH)).current;
 
@@ -40,9 +50,22 @@ export default function OnTheHorizon({
 
   return (
     <>
-      {/* Tab trigger — always visible on right edge during ruling phase */}
+      {/* Tab trigger — always visible on right edge */}
       <Pressable style={styles.tabTrigger} onPress={onClose}>
-        <Text style={styles.tabText}>{'◀ On the Horizon'}</Text>
+        <Text style={styles.tabText}>O</Text>
+        <Text style={styles.tabText}>N</Text>
+        <Text style={styles.tabDot} />
+        <Text style={styles.tabText}>T</Text>
+        <Text style={styles.tabText}>H</Text>
+        <Text style={styles.tabText}>E</Text>
+        <Text style={styles.tabDot} />
+        <Text style={styles.tabText}>H</Text>
+        <Text style={styles.tabText}>O</Text>
+        <Text style={styles.tabText}>R</Text>
+        <Text style={styles.tabText}>I</Text>
+        <Text style={styles.tabText}>Z</Text>
+        <Text style={styles.tabText}>O</Text>
+        <Text style={styles.tabText}>N</Text>
       </Pressable>
 
       {/* Backdrop */}
@@ -59,7 +82,10 @@ export default function OnTheHorizon({
         pointerEvents={visible ? 'box-none' : 'none'}
       >
         <View style={styles.panelHeader}>
-          <Text style={styles.panelTitle}>On the Horizon</Text>
+          <View>
+            <Text style={styles.panelTitle}>On the Horizon</Text>
+            <Text style={styles.panelSubtitle}>Upcoming controversies</Text>
+          </View>
           <Pressable onPress={onClose} style={styles.closeButton}>
             <Text style={styles.closeText}>✕</Text>
           </Pressable>
@@ -79,6 +105,8 @@ export default function OnTheHorizon({
                 controversy={c}
                 activeFactionKeys={activeFactionKeys}
                 isActive={c.key === activeControversyKey}
+                axisValues={axisValues}
+                factionInfoMap={factionInfoMap}
               />
             ))
           )}
@@ -91,22 +119,31 @@ export default function OnTheHorizon({
 const styles = StyleSheet.create({
   tabTrigger: {
     position: 'absolute',
-    right: 0,
-    top: '40%',
+    right: -1,
+    top: '25%',
     backgroundColor: 'rgba(201,168,76,0.15)',
     borderWidth: 1,
     borderColor: 'rgba(201,168,76,0.4)',
     borderRightWidth: 0,
     borderTopLeftRadius: 8,
     borderBottomLeftRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 3,
+    alignItems: 'center',
     zIndex: 10,
   },
   tabText: {
     color: '#c9a84c',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 9,
+    fontWeight: '700',
+    lineHeight: 11,
+  },
+  tabDot: {
+    width: 2,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: 'rgba(201,168,76,0.4)',
+    marginVertical: 2,
   },
   panel: {
     position: 'absolute',
@@ -132,6 +169,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     fontFamily: 'serif',
+  },
+  panelSubtitle: {
+    color: '#e8d5a3',
+    fontSize: 11,
+    opacity: 0.5,
+    marginTop: 2,
   },
   closeButton: {
     padding: 4,

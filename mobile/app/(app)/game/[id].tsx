@@ -167,6 +167,12 @@ function GameScreenInner() {
     ? playerStates.filter((ps) => ps.influence === maxInfluence).map((ps) => ps.player_id)
     : [];
 
+  // Derived values for controversy card visualizations
+  const axisValuesMap: Record<string, number> = {};
+  axes.forEach((a) => { axisValuesMap[a.axis_key] = a.current_value; });
+  const factionInfoMap: Record<string, { key: string; displayName: string; power: number }> = {};
+  factions.forEach((f) => { factionInfoMap[f.faction_key] = { key: f.faction_key, displayName: f.display_name, power: f.power_level }; });
+
   // Intercept hardware back button — lobby uses router.replace so the back
   // stack has Create Game behind Game; send users to home instead.
   useEffect(() => {
@@ -831,6 +837,8 @@ function GameScreenInner() {
             activeFactionKeys={activeFactionKeys}
             visible={onTheHorizonVisible}
             onClose={() => setOnTheHorizonVisible((v) => !v)}
+            axisValues={axisValuesMap}
+            factionInfoMap={factionInfoMap}
           />
         </View>
       </ImageBackground>
@@ -864,6 +872,8 @@ function GameScreenInner() {
             activeControversyKey={activeControversyKey}
             visible={onTheHorizonVisible}
             onClose={() => setOnTheHorizonVisible((v) => !v)}
+            axisValues={axisValuesMap}
+            factionInfoMap={factionInfoMap}
           />
         </View>
       </ImageBackground>
@@ -1011,6 +1021,8 @@ function GameScreenInner() {
           activeFactionKeys={activeFactionKeys}
           visible={onTheHorizonVisible}
           onClose={() => setOnTheHorizonVisible((v) => !v)}
+          axisValues={axisValuesMap}
+          factionInfoMap={factionInfoMap}
         />
 
         {/* Round-end summary overlay (absolute, shown at start of new round) */}
