@@ -15,6 +15,13 @@ type FactionInfo = {
   power: number;
 };
 
+type PlayerAgendaInfo = {
+  playerId: string;
+  name: string;
+  color: string;
+  agenda: Record<string, number>;
+};
+
 type Props = {
   poolKeys: string[];            // 4 controversy keys for this round
   activeFactionKeys: string[];   // factions in this game
@@ -23,6 +30,7 @@ type Props = {
   onClose: () => void;
   axisValues?: Record<string, number>;
   factionInfoMap?: Record<string, FactionInfo>;
+  playerAgendas?: PlayerAgendaInfo[];
 };
 
 export default function OnTheHorizon({
@@ -33,6 +41,7 @@ export default function OnTheHorizon({
   onClose,
   axisValues,
   factionInfoMap,
+  playerAgendas,
 }: Props) {
   const slideAnim = useRef(new Animated.Value(PANEL_WIDTH)).current;
 
@@ -107,6 +116,7 @@ export default function OnTheHorizon({
                 isActive={c.key === activeControversyKey}
                 axisValues={axisValues}
                 factionInfoMap={factionInfoMap}
+                playerAgendas={playerAgendas}
               />
             ))
           )}

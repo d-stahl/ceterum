@@ -73,6 +73,7 @@ type PlacementRow = {
 type PlayerState = {
   player_id: string;
   influence: number;
+  agenda: Record<string, number> | null;
 };
 
 type Affinity = {
@@ -172,6 +173,12 @@ function GameScreenInner() {
   axes.forEach((a) => { axisValuesMap[a.axis_key] = a.current_value; });
   const factionInfoMap: Record<string, { key: string; displayName: string; power: number }> = {};
   factions.forEach((f) => { factionInfoMap[f.faction_key] = { key: f.faction_key, displayName: f.display_name, power: f.power_level }; });
+  const playerAgendas: { playerId: string; name: string; color: string; agenda: Record<string, number> }[] = [];
+  playerStates.forEach((ps) => {
+    if (!ps.agenda) return;
+    const p = players.find((pl) => pl.player_id === ps.player_id);
+    if (p) playerAgendas.push({ playerId: ps.player_id, name: p.player_name, color: p.color, agenda: ps.agenda });
+  });
 
   // Intercept hardware back button — lobby uses router.replace so the back
   // stack has Create Game behind Game; send users to home instead.
@@ -371,9 +378,9 @@ function GameScreenInner() {
   async function loadPlayerStates() {
     const { data } = await supabase
       .from('game_player_state')
-      .select('player_id, influence')
+      .select('player_id, influence, agenda')
       .eq('game_id', gameId);
-    if (data) setPlayerStates(data);
+    if (data) setPlayerStates(data as PlayerState[]);
   }
 
   async function loadAffinities() {
@@ -839,6 +846,7 @@ function GameScreenInner() {
             onClose={() => setOnTheHorizonVisible((v) => !v)}
             axisValues={axisValuesMap}
             factionInfoMap={factionInfoMap}
+            playerAgendas={playerAgendas}
           />
         </View>
       </ImageBackground>
@@ -874,6 +882,7 @@ function GameScreenInner() {
             onClose={() => setOnTheHorizonVisible((v) => !v)}
             axisValues={axisValuesMap}
             factionInfoMap={factionInfoMap}
+            playerAgendas={playerAgendas}
           />
         </View>
       </ImageBackground>

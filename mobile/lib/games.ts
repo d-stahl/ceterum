@@ -3,6 +3,7 @@ import { generateCrisisName } from './crisis-names';
 import { PLAYER_COLORS } from './player-colors';
 import { selectAndBalanceFactions } from './game-engine/balance';
 import { CONTROVERSIES } from './game-engine/controversies';
+import { generateAgendas } from './game-engine/agenda';
 
 function generateInviteCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I/1/O/0 confusion
@@ -197,10 +198,14 @@ export async function launchGame(gameId: string): Promise<void> {
     .eq('game_id', gameId);
 
   if (playersError) throw playersError;
-  const playerCount = (players ?? []).length;
+  const playerIds = (players ?? []).map((p) => p.player_id);
+  const playerCount = playerIds.length;
 
   // Select and balance factions
   const factions = selectAndBalanceFactions(playerCount);
+
+  // Generate player agendas (balanced target axis positions)
+  const agendas = generateAgendas(playerIds);
 
   // Stratified shuffle: ensures one controversy of each category per group of 5 drawn
   const categories = ['military', 'social', 'economic', 'political', 'religious'] as const;
@@ -220,6 +225,7 @@ export async function launchGame(gameId: string): Promise<void> {
     p_factions: factions,
     p_controversies: CONTROVERSIES,
     p_deck_order: deckOrder,
+    p_agendas: agendas,
   });
 
   if (error) throw error;

@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Image, ImageSourcePropType, Animated } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Image, ImageSourcePropType, Animated, Pressable } from 'react-native';
 import { Controversy } from '../lib/game-engine/controversies';
 import { AXIS_LABELS, AxisKey } from '../lib/game-engine/axes';
+import { getColorHex } from '../lib/player-colors';
 
 // Static require map for controversy illustrations (add new images here as they become available)
 const ILLUSTRATION_MAP: Record<string, ImageSourcePropType> = {
@@ -20,12 +21,20 @@ type FactionInfo = {
   power: number;
 };
 
+type PlayerAgendaInfo = {
+  playerId: string;
+  name: string;
+  color: string;
+  agenda: Record<string, number>;
+};
+
 type Props = {
   controversy: Controversy;
   activeFactionKeys: string[];
   isActive?: boolean;
-  axisValues?: Record<string, number>;     // current axis values (key → -2..2)
-  factionInfoMap?: Record<string, FactionInfo>; // key → { displayName, power }
+  axisValues?: Record<string, number>;
+  factionInfoMap?: Record<string, FactionInfo>;
+  playerAgendas?: PlayerAgendaInfo[];
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -42,20 +51,32 @@ function effectSign(n: number): string {
 
 const NOTCH_POSITIONS = [0, 25, 50, 75, 100];
 
-function AxisEffectSlider({ axis, change, currentValue }: {
+function AxisEffectSlider({ axis, change, currentValue, playerAgendas }: {
   axis: string;
   change: number;
   currentValue: number;
+  playerAgendas?: PlayerAgendaInfo[];
 }) {
   const labels = AXIS_LABELS[axis as AxisKey];
   if (!labels) return null;
 
-  // Map value from -2..2 to 0..100%
   const clamp = (v: number) => Math.max(0, Math.min(100, ((v + 2) / 4) * 100));
   const fromPct = clamp(currentValue);
   const toPct = clamp(currentValue + change);
   const linePct = { left: Math.min(fromPct, toPct), right: Math.max(fromPct, toPct) };
   const isPositive = change > 0;
+
+  // Group player agendas by position for stacking
+  const agendaByPosition = new Map<number, PlayerAgendaInfo[]>();
+  if (playerAgendas) {
+    for (const pa of playerAgendas) {
+      const val = pa.agenda[axis];
+      if (val == null) continue;
+      const existing = agendaByPosition.get(val) ?? [];
+      existing.push(pa);
+      agendaByPosition.set(val, existing);
+    }
+  }
 
   return (
     <View style={styles.axisEffect}>
@@ -84,6 +105,28 @@ function AxisEffectSlider({ axis, change, currentValue }: {
           <View style={[styles.axisMarkerTriangle, { borderTopColor: '#DAA520' }]} />
         </View>
       </View>
+      {/* Player agenda dots below the slider */}
+      {agendaByPosition.size > 0 && (
+        <View style={styles.agendaDotsContainer}>
+          {Array.from(agendaByPosition.entries()).map(([val, agendaPlayers]) => {
+            const pct = clamp(val);
+            return (
+              <View key={val} style={[styles.agendaDotGroup, { left: `${pct}%` }]}>
+                {agendaPlayers.map((pa) => (
+                  <View key={pa.playerId} style={styles.agendaDotItem}>
+                    <View style={[styles.agendaDot, { backgroundColor: getColorHex(pa.color) }]} />
+                    <Text style={[styles.agendaDotName, { color: getColorHex(pa.color) }]}
+                      numberOfLines={1}
+                    >
+                      {pa.name}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -112,13 +155,10 @@ function PowerEffectRow({ factionName, currentPower, change }: {
           const isFilledAfter = pipNum <= newPower;
 
           if (isGain && !wasFilledBefore && isFilledAfter) {
-            // New pip being gained — animate pulse
             return <PulsingPip key={i} color="#4caf50" />;
           } else if (!isGain && wasFilledBefore && !isFilledAfter) {
-            // Pip being lost — animate fade
             return <PulsingPip key={i} color="#e53935" />;
           } else {
-            // Normal pip
             return (
               <View key={i} style={[
                 styles.powerPip,
@@ -149,11 +189,7 @@ function PulsingPip({ color }: { color: string }) {
   return (
     <Animated.View style={[
       styles.powerPip,
-      {
-        backgroundColor: color,
-        borderColor: color,
-        opacity: anim,
-      },
+      { backgroundColor: color, borderColor: color, opacity: anim },
     ]} />
   );
 }
@@ -164,7 +200,9 @@ export default function ControversyCard({
   isActive = false,
   axisValues,
   factionInfoMap,
+  playerAgendas,
 }: Props) {
+  const [expanded, setExpanded] = useState(false);
   const catColor = CATEGORY_COLORS[controversy.category] ?? '#888';
   const illustrationSource = ILLUSTRATION_MAP[controversy.illustration] ?? FALLBACK_ILLUSTRATION;
 
@@ -182,60 +220,74 @@ export default function ControversyCard({
       <Image source={illustrationSource} style={styles.illustration} resizeMode="cover" />
 
       {/* Flavor text */}
-      <Text style={styles.flavor} numberOfLines={3} ellipsizeMode="tail">
-        {controversy.flavor}
-      </Text>
+      <Text style={styles.flavor}>{controversy.flavor}</Text>
 
-      {/* Resolutions */}
-      <View style={styles.resolutionsSection}>
-        {controversy.resolutions.map((r) => {
-          const axisKeys = Object.keys(r.axisEffects) as string[];
-          const factionKeys = Object.keys(r.factionPowerEffects).filter((k) =>
-            activeFactionKeys.includes(k)
-          );
+      {/* Expand/collapse toggle */}
+      <Pressable
+        style={[styles.detailsButton, expanded && styles.detailsButtonActive]}
+        onPress={() => setExpanded((v) => !v)}
+      >
+        <Text style={styles.detailsButtonText}>
+          {expanded ? 'Hide Resolutions' : 'Show Resolutions'}
+        </Text>
+        <Text style={styles.detailsChevron}>{expanded ? '▴' : '▾'}</Text>
+      </Pressable>
 
-          return (
-            <View key={r.key} style={styles.resolution}>
-              <Text style={styles.resolutionTitle}>{r.title}</Text>
-              <Text style={styles.resolutionDesc} numberOfLines={2}>{r.description}</Text>
+      {/* Resolutions (expandable) */}
+      {expanded && (
+        <View style={styles.resolutionsSection}>
+          {controversy.resolutions.map((r) => {
+            const axisKeys = Object.keys(r.axisEffects) as string[];
+            const factionKeys = Object.keys(r.factionPowerEffects).filter((k) =>
+              activeFactionKeys.includes(k)
+            );
 
-              {axisKeys.length > 0 && (
-                <View style={styles.effectsSection}>
-                  {axisKeys.map((axis) => {
-                    const change = r.axisEffects[axis as keyof typeof r.axisEffects] ?? 0;
-                    const currentVal = axisValues?.[axis] ?? 0;
-                    return (
-                      <AxisEffectSlider
-                        key={axis}
-                        axis={axis}
-                        change={change}
-                        currentValue={currentVal}
-                      />
-                    );
-                  })}
-                </View>
-              )}
+            return (
+              <View key={r.key} style={styles.resolution}>
+                <Text style={styles.resolutionTitle}>{r.title}</Text>
+                <Text style={styles.resolutionDesc}>{r.description}</Text>
 
-              {factionKeys.length > 0 && (
-                <View style={styles.effectsSection}>
-                  {factionKeys.map((fkey) => {
-                    const change = r.factionPowerEffects[fkey] ?? 0;
-                    const info = factionInfoMap?.[fkey];
-                    return (
-                      <PowerEffectRow
-                        key={fkey}
-                        factionName={info?.displayName ?? fkey}
-                        currentPower={info?.power ?? 3}
-                        change={change}
-                      />
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-          );
-        })}
-      </View>
+                {axisKeys.length > 0 && (
+                  <View style={styles.effectsSection}>
+                    <Text style={styles.effectsSectionLabel}>Policy Effects</Text>
+                    {axisKeys.map((axis) => {
+                      const change = r.axisEffects[axis as keyof typeof r.axisEffects] ?? 0;
+                      const currentVal = axisValues?.[axis] ?? 0;
+                      return (
+                        <AxisEffectSlider
+                          key={axis}
+                          axis={axis}
+                          change={change}
+                          currentValue={currentVal}
+                          playerAgendas={playerAgendas}
+                        />
+                      );
+                    })}
+                  </View>
+                )}
+
+                {factionKeys.length > 0 && (
+                  <View style={styles.effectsSection}>
+                    <Text style={styles.effectsSectionLabel}>Power Effects</Text>
+                    {factionKeys.map((fkey) => {
+                      const change = r.factionPowerEffects[fkey] ?? 0;
+                      const info = factionInfoMap?.[fkey];
+                      return (
+                        <PowerEffectRow
+                          key={fkey}
+                          factionName={info?.displayName ?? fkey}
+                          currentPower={info?.power ?? 3}
+                          change={change}
+                        />
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -290,8 +342,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
     opacity: 0.65,
-    marginBottom: 12,
+    marginBottom: 10,
     lineHeight: 17,
+  },
+  detailsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: 'rgba(201,168,76,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,76,0.2)',
+  },
+  detailsButtonActive: {
+    backgroundColor: 'rgba(201,168,76,0.12)',
+    borderColor: 'rgba(201,168,76,0.35)',
+    marginBottom: 10,
+  },
+  detailsButtonText: {
+    color: '#c9a84c',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  detailsChevron: {
+    color: '#c9a84c',
+    fontSize: 12,
   },
   resolutionsSection: {
     gap: 10,
@@ -318,6 +395,15 @@ const styles = StyleSheet.create({
   effectsSection: {
     gap: 6,
     marginTop: 4,
+  },
+  effectsSectionLabel: {
+    color: '#e0c097',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    opacity: 0.4,
+    marginBottom: 2,
   },
 
   // Axis effect slider
@@ -372,6 +458,37 @@ const styles = StyleSheet.create({
     borderTopWidth: 6,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
+  },
+
+  // Player agenda dots
+  agendaDotsContainer: {
+    height: 22,
+    position: 'relative',
+    marginHorizontal: 4,
+  },
+  agendaDotGroup: {
+    position: 'absolute',
+    top: 0,
+    flexDirection: 'row',
+    marginLeft: -12,
+    width: 24,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 1,
+  },
+  agendaDotItem: {
+    alignItems: 'center',
+    width: 22,
+  },
+  agendaDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  agendaDotName: {
+    fontSize: 6,
+    fontWeight: '600',
+    marginTop: 1,
   },
 
   // Power effect
