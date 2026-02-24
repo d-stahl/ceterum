@@ -107,24 +107,26 @@ function AxisEffectSlider({ axis, change, currentValue, playerAgendas }: {
       </View>
       {/* Player agenda dots below the slider */}
       {agendaByPosition.size > 0 && (
-        <View style={styles.agendaDotsContainer}>
-          {Array.from(agendaByPosition.entries()).map(([val, agendaPlayers]) => {
-            const pct = clamp(val);
-            return (
-              <View key={val} style={[styles.agendaDotGroup, { left: `${pct}%` }]}>
-                {agendaPlayers.map((pa) => (
-                  <View key={pa.playerId} style={styles.agendaDotItem}>
-                    <View style={[styles.agendaDot, { backgroundColor: getColorHex(pa.color) }]} />
-                    <Text style={[styles.agendaDotName, { color: getColorHex(pa.color) }]}
-                      numberOfLines={1}
-                    >
-                      {pa.name}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            );
-          })}
+        <View style={styles.agendaDotsRow}>
+          {Array.from(agendaByPosition.entries())
+            .sort(([a], [b]) => a - b)
+            .map(([val, agendaPlayers]) => {
+              const pct = clamp(val);
+              return agendaPlayers.map((pa, idx) => (
+                <View
+                  key={pa.playerId}
+                  style={[styles.agendaDotPositioned, {
+                    left: `${pct}%`,
+                    top: idx * 9,
+                  }]}
+                >
+                  <View style={[styles.agendaDot, { backgroundColor: getColorHex(pa.color) }]} />
+                  <Text style={[styles.agendaDotName, { color: getColorHex(pa.color) }]} numberOfLines={1}>
+                    {pa.name.split(' ')[0]}
+                  </Text>
+                </View>
+              ));
+            })}
         </View>
       )}
     </View>
@@ -461,34 +463,30 @@ const styles = StyleSheet.create({
   },
 
   // Player agenda dots
-  agendaDotsContainer: {
-    height: 22,
+  agendaDotsRow: {
+    height: 28,
     position: 'relative',
     marginHorizontal: 4,
+    overflow: 'visible',
   },
-  agendaDotGroup: {
+  agendaDotPositioned: {
     position: 'absolute',
-    top: 0,
     flexDirection: 'row',
-    marginLeft: -12,
-    width: 24,
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 1,
-  },
-  agendaDotItem: {
     alignItems: 'center',
-    width: 22,
+    marginLeft: -3,
+    gap: 2,
   },
   agendaDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.3)',
   },
   agendaDotName: {
-    fontSize: 6,
+    fontSize: 7,
     fontWeight: '600',
-    marginTop: 1,
+    opacity: 0.8,
   },
 
   // Power effect
