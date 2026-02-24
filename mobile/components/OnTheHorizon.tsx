@@ -1,8 +1,8 @@
 import {
   View, Text, StyleSheet, Pressable, ScrollView, Animated,
-  Dimensions, Platform,
+  Dimensions, Platform, PanResponder,
 } from 'react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
 import { CONTROVERSY_MAP, Controversy } from '../lib/game-engine/controversies';
 import ControversyCard from './ControversyCard';
 
@@ -53,6 +53,20 @@ export default function OnTheHorizon({
     }).start();
   }, [visible]);
 
+  const panResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gs) => gs.dx > 10 && Math.abs(gs.dy) < Math.abs(gs.dx),
+    onPanResponderMove: (_, gs) => {
+      if (gs.dx > 0) slideAnim.setValue(gs.dx);
+    },
+    onPanResponderRelease: (_, gs) => {
+      if (gs.dx > 60 || gs.vx > 0.5) {
+        Animated.timing(slideAnim, { toValue: PANEL_WIDTH, duration: 200, useNativeDriver: true }).start(() => onClose());
+      } else {
+        Animated.timing(slideAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+      }
+    },
+  }), [onClose]);
+
   const controversies: Controversy[] = poolKeys
     .map((k) => CONTROVERSY_MAP[k])
     .filter(Boolean);
@@ -89,6 +103,7 @@ export default function OnTheHorizon({
           { transform: [{ translateX: slideAnim }] },
         ]}
         pointerEvents={visible ? 'box-none' : 'none'}
+        {...panResponder.panHandlers}
       >
         <View style={styles.panelHeader}>
           <View>

@@ -1032,6 +1032,7 @@ function GameScreenInner() {
           onClose={() => setOnTheHorizonVisible((v) => !v)}
           axisValues={axisValuesMap}
           factionInfoMap={factionInfoMap}
+          playerAgendas={playerAgendas}
         />
 
         {/* Round-end summary overlay (absolute, shown at start of new round) */}

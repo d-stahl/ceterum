@@ -12,6 +12,12 @@ const ILLUSTRATION_MAP: Record<string, ImageSourcePropType> = {
   greek_city: require('../assets/images/controversies/greek_city.png'),
   roman_fields: require('../assets/images/controversies/roman_fields.png'),
   slave_revolt: require('../assets/images/controversies/slave_revolt.png'),
+  allied_soldiers: require('../assets/images/controversies/allied_soldiers.png'),
+  debt_bondage: require('../assets/images/controversies/debt_bondage.png'),
+  grain_market: require('../assets/images/controversies/grain_market.png'),
+  pirate_ships: require('../assets/images/controversies/pirate_ships.png'),
+  tax_collectors: require('../assets/images/controversies/tax_collectors.png'),
+  roman_banquet: require('../assets/images/controversies/roman_banquet.png'),
 };
 const FALLBACK_ILLUSTRATION = require('../assets/images/controversies/roman_fields.png');
 
@@ -66,15 +72,13 @@ function AxisEffectSlider({ axis, change, currentValue, playerAgendas }: {
   const linePct = { left: Math.min(fromPct, toPct), right: Math.max(fromPct, toPct) };
   const isPositive = change > 0;
 
-  // Group player agendas by position for stacking
-  const agendaByPosition = new Map<number, PlayerAgendaInfo[]>();
+  // Collect player agendas for this axis
+  const agendaEntries: { pa: PlayerAgendaInfo; pct: number }[] = [];
   if (playerAgendas) {
     for (const pa of playerAgendas) {
       const val = pa.agenda[axis];
       if (val == null) continue;
-      const existing = agendaByPosition.get(val) ?? [];
-      existing.push(pa);
-      agendaByPosition.set(val, existing);
+      agendaEntries.push({ pa, pct: clamp(val) });
     }
   }
 
@@ -104,31 +108,55 @@ function AxisEffectSlider({ axis, change, currentValue, playerAgendas }: {
         <View style={[styles.axisMarker, { left: `${toPct}%` }]}>
           <View style={[styles.axisMarkerTriangle, { borderTopColor: '#DAA520' }]} />
         </View>
+        {/* Player agenda dots on the slider line — exploded horizontally when stacked */}
+        {(() => {
+          const groups = new Map<number, PlayerAgendaInfo[]>();
+          for (const { pa, pct } of agendaEntries) {
+            const list = groups.get(pct) ?? [];
+            list.push(pa);
+            groups.set(pct, list);
+          }
+          const dots: { pa: PlayerAgendaInfo; pct: number; offset: number }[] = [];
+          for (const [pct, players] of groups) {
+            const n = players.length;
+            players.forEach((pa, i) => {
+              dots.push({ pa, pct, offset: (i - (n - 1) / 2) * 10 });
+            });
+          }
+          return dots.map(({ pa, pct, offset }) => (
+            <View key={pa.playerId} style={[styles.agendaDotOnLine, { left: `${pct}%`, marginLeft: -4 + offset }]}>
+              <View style={[styles.agendaDot, { backgroundColor: getColorHex(pa.color) }]} />
+            </View>
+          ));
+        })()}
       </View>
-      {/* Player agenda dots below the slider */}
-      {agendaByPosition.size > 0 && (
-        <View style={styles.agendaDotsRow}>
-          {Array.from(agendaByPosition.entries())
-            .sort(([a], [b]) => a - b)
-            .map(([val, agendaPlayers]) => {
-              const pct = clamp(val);
-              return agendaPlayers.map((pa, idx) => (
-                <View
-                  key={pa.playerId}
-                  style={[styles.agendaDotPositioned, {
-                    left: `${pct}%`,
-                    top: idx * 9,
-                  }]}
-                >
-                  <View style={[styles.agendaDot, { backgroundColor: getColorHex(pa.color) }]} />
-                  <Text style={[styles.agendaDotName, { color: getColorHex(pa.color) }]} numberOfLines={1}>
-                    {pa.name.split(' ')[0]}
-                  </Text>
-                </View>
-              ));
-            })}
-        </View>
-      )}
+      {/* Player name labels below the slider — stagger when close */}
+      {agendaEntries.length > 0 && (() => {
+        const sorted = [...agendaEntries].sort((a, b) => a.pct - b.pct);
+        const rows: number[] = [];
+        let maxRow = 0;
+        for (let i = 0; i < sorted.length; i++) {
+          let row = 0;
+          for (let j = 0; j < i; j++) {
+            if (Math.abs(sorted[j].pct - sorted[i].pct) < 12 && rows[j] === row) {
+              row++;
+            }
+          }
+          rows.push(row);
+          if (row > maxRow) maxRow = row;
+        }
+        return (
+          <View style={[styles.agendaLabelsRow, { height: 10 + maxRow * 9 }]}>
+            {sorted.map(({ pa, pct }, i) => (
+              <View key={pa.playerId} style={[styles.agendaLabelPositioned, { left: `${pct}%`, top: rows[i] * 9 }]}>
+                <Text style={[styles.agendaDotName, { color: getColorHex(pa.color) }]} numberOfLines={1}>
+                  {pa.name.split(' ')[0]}
+                </Text>
+              </View>
+            ))}
+          </View>
+        );
+      })()}
     </View>
   );
 }
@@ -462,31 +490,35 @@ const styles = StyleSheet.create({
     borderRightColor: 'transparent',
   },
 
-  // Player agenda dots
-  agendaDotsRow: {
-    height: 28,
-    position: 'relative',
-    marginHorizontal: 4,
-    overflow: 'visible',
-  },
-  agendaDotPositioned: {
+  // Player agenda dots (on the slider line)
+  agendaDotOnLine: {
     position: 'absolute',
-    flexDirection: 'row',
+    top: 2,
     alignItems: 'center',
-    marginLeft: -3,
-    gap: 2,
   },
   agendaDot: {
-    width: 7,
-    height: 7,
+    width: 8,
+    height: 8,
     borderRadius: 4,
-    borderWidth: 0.5,
-    borderColor: 'rgba(0,0,0,0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.4)',
+  },
+  // Player name labels below slider
+  agendaLabelsRow: {
+    position: 'relative',
+    marginHorizontal: 4,
+  },
+  agendaLabelPositioned: {
+    position: 'absolute',
+    alignItems: 'center',
+    transform: [{ translateX: -16 }],
+    width: 32,
   },
   agendaDotName: {
     fontSize: 7,
     fontWeight: '600',
     opacity: 0.8,
+    textAlign: 'center',
   },
 
   // Power effect
