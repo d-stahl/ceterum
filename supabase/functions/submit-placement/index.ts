@@ -91,6 +91,7 @@ Deno.serve(async (req) => {
   } catch (err) {
     if (err instanceof Response) return err;
     const message = err instanceof Error ? err.message : 'Internal server error';
+    console.error('[submit-placement] Resolution error:', err);
     return errorResponse(message);
   }
 });

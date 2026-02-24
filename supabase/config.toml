@@ -106,6 +106,14 @@ port = 54324
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
+# Edge Functions — disable runtime-level JWT verification (our functions validate auth internally)
+[functions.submit-placement]
+verify_jwt = false
+[functions.submit-pledge]
+verify_jwt = false
+[functions.submit-controversy-vote]
+verify_jwt = false
+
 [storage]
 enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
