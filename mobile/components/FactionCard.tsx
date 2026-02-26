@@ -10,6 +10,7 @@ import FactionAffinityTab from './FactionAffinityTab';
 import FactionAlignmentTab from './FactionAlignmentTab';
 import { WorkerType, OratorRole } from '../lib/game-engine/workers';
 import { AxisPreferences } from '../lib/game-engine/axes';
+import { PlayerAgendaInfo } from './AgendaDots';
 
 // Stable array references to prevent useCallback/useEffect churn
 const ACCEPTS_ORATOR: WorkerType[] = ['orator'];
@@ -44,6 +45,7 @@ type Props = {
   playerColor: string;
   allPlayerAffinities?: PlayerAffinityInfo[];
   factionPreferences?: AxisPreferences | null;
+  playerAgendas?: PlayerAgendaInfo[];
   onDragStart?: (workerType: WorkerType, absoluteX: number, absoluteY: number) => void;
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   onDragEnd?: (absoluteX: number, absoluteY: number) => void;
@@ -61,6 +63,7 @@ export default function FactionCard({
   playerColor,
   allPlayerAffinities,
   factionPreferences,
+  playerAgendas,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -300,7 +303,7 @@ export default function FactionCard({
           )}
           {activeTab === 'alignment' && (
             <View style={styles.tabContent}>
-              <FactionAlignmentTab factionPreferences={factionPreferences ?? null} />
+              <FactionAlignmentTab factionPreferences={factionPreferences ?? null} playerAgendas={playerAgendas} />
             </View>
           )}
         </View>

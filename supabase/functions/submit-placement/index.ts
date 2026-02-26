@@ -78,12 +78,8 @@ Deno.serve(async (req) => {
       });
       if (rpcError) throw rpcError;
 
-      const { data: rulingResult, error: rulingError } = await adminClient.rpc('start_ruling_phase', {
-        p_game_id: game_id,
-      });
-      if (rulingError) throw rulingError;
-
-      return jsonResponse({ status: 'resolved', ruling: rulingResult });
+      // resolve_demagogery now transitions directly to leader_election phase
+      return jsonResponse({ status: 'resolved' });
     }
 
     return jsonResponse(submitResult);

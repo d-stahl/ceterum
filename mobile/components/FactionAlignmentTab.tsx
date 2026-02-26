@@ -1,11 +1,13 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { AXIS_KEYS, AXIS_LABELS, AxisKey, AxisPreferences } from '../lib/game-engine/axes';
+import AgendaDots, { PlayerAgendaInfo } from './AgendaDots';
 
 type Props = {
   factionPreferences: AxisPreferences | null;
+  playerAgendas?: PlayerAgendaInfo[];
 };
 
-export default function FactionAlignmentTab({ factionPreferences }: Props) {
+export default function FactionAlignmentTab({ factionPreferences, playerAgendas }: Props) {
   if (!factionPreferences) {
     return <Text style={styles.empty}>No alignment data</Text>;
   }
@@ -17,6 +19,7 @@ export default function FactionAlignmentTab({ factionPreferences }: Props) {
           key={axis}
           axis={axis}
           value={factionPreferences[axis]}
+          playerAgendas={playerAgendas}
         />
       ))}
     </View>
@@ -25,13 +28,17 @@ export default function FactionAlignmentTab({ factionPreferences }: Props) {
 
 const NOTCH_POSITIONS = [0, 25, 50, 75, 100];
 
-function AxisRow({ axis, value }: { axis: AxisKey; value: number }) {
+const clamp = (v: number) => Math.max(0, Math.min(100, ((v + 2) / 4) * 100));
+
+function AxisRow({ axis, value, playerAgendas }: { axis: AxisKey; value: number; playerAgendas?: PlayerAgendaInfo[] }) {
   const labels = AXIS_LABELS[axis];
-  // value ranges from -2 to 2, map to 0-100% position
-  const position = ((value + 2) / 4) * 100;
+  const position = clamp(value);
+
+  // Extra bottom margin when agenda dots + labels are present
+  const hasAgendas = playerAgendas && playerAgendas.some((pa) => pa.agenda[axis] != null);
 
   return (
-    <View style={styles.axisContainer}>
+    <View style={[styles.axisContainer, hasAgendas && { marginBottom: 12 }]}>
       <Text style={styles.axisName}>{labels.negative} — {labels.positive}</Text>
       <View style={styles.axisLineContainer}>
         <View style={styles.axisLine}>
@@ -42,6 +49,9 @@ function AxisRow({ axis, value }: { axis: AxisKey; value: number }) {
         <View style={[styles.marker, { left: `${position}%` }]}>
           <View style={styles.markerTriangle} />
         </View>
+        {playerAgendas && playerAgendas.length > 0 && (
+          <AgendaDots axis={axis} playerAgendas={playerAgendas} clamp={clamp} />
+        )}
       </View>
     </View>
   );

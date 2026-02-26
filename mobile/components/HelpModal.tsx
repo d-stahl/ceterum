@@ -12,7 +12,8 @@ export type HelpId =
   | 'slot-promoter'
   | 'slot-saboteur'
   | 'faction-affinity'
-  | 'faction-alignment';
+  | 'faction-alignment'
+  | 'leader-election';
 
 type HelpEntry = {
   title: string;
@@ -157,6 +158,20 @@ Affinity changes based on your actions each round.`,
 • Militarism vs. Peace
 
 Your own policy positions affect how much affinity you gain with each faction over time.`,
+  },
+  'leader-election': {
+    title: 'Leader Election',
+    body: `At the start of each ruling phase, all players vote for who should become Senate Leader.
+
+Each player selects one candidate (including themselves) and casts their vote. Your vote carries weight equal to your current influence.
+
+The candidate with the highest total backing wins. Ties are broken by personal influence, then randomly.
+
+The Senate Leader is powerful: they choose which controversies are debated, in what order, and which to discard. They also receive an institutional bonus when voting on resolutions.
+
+But power comes at a price — the Senate Leader suffers double affinity penalties with factions upset by the outcomes.
+
+Use the "On the Horizon" tab to preview upcoming controversies and the "Players" tab to see other players' influence and policy positions — this can help you decide who to back.`,
   },
 };
 

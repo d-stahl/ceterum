@@ -22,6 +22,8 @@ import { DragProvider, useDrag } from '../../../components/DragContext';
 import { HelpProvider, useHelp } from '../../../components/HelpContext';
 import SubRoundAnnouncement from '../../../components/SubRoundAnnouncement';
 import SenateLeaderSelection from '../../../components/SenateLeaderSelection';
+import LeaderElection from '../../../components/LeaderElection';
+import PlayersPanel from '../../../components/PlayersPanel';
 import SenateLeaderPoolManager from '../../../components/SenateLeaderPoolManager';
 import ControversyVoting from '../../../components/ControversyVoting';
 import RoundEndSummary from '../../../components/RoundEndSummary';
@@ -30,6 +32,7 @@ import HomeIcon from '../../../components/icons/HomeIcon';
 import HelpIcon from '../../../components/icons/HelpIcon';
 import HelpModal from '../../../components/HelpModal';
 const gameBg = require('../../../assets/images/demagogery-bg.png');
+const leaderElectionBg = require('../../../assets/images/leader-election-bg.png');
 
 type Faction = {
   id: string;
@@ -127,6 +130,8 @@ function GameScreenInner() {
   const [resultInfluence, setResultInfluence] = useState<Record<string, number>>({});
   const [gameStatus, setGameStatus] = useState('in_progress');
   const [onTheHorizonVisible, setOnTheHorizonVisible] = useState(false);
+  const [playersVisible, setPlayersVisible] = useState(false);
+  const [showElectionResults, setShowElectionResults] = useState(false);
   const [showRoundEnd, setShowRoundEnd] = useState(false);
   const [tooltipData, setTooltipData] = useState<{
     effect: WorkerEffect;
@@ -250,9 +255,15 @@ function GameScreenInner() {
         handleShowResolutionResults();
       }
 
-      // New round started → show round-end summary overlay
+      // Election just resolved → hold the results screen
+      if (prev.phase === 'leader_election' && round.phase === 'ruling_pool') {
+        setShowElectionResults(true);
+      }
+
+      // New round started → show round-end summary overlay and auto-open horizon
       if (roundAdvanced) {
         setShowRoundEnd(true);
+        setOnTheHorizonVisible(true);
       }
     }
     prevRoundRef.current = {
@@ -262,9 +273,9 @@ function GameScreenInner() {
     };
   }, [round]);
 
-  // Auto-open On the Horizon at the start of each round's demagogery and ruling pool
+  // Auto-open On the Horizon at the start of ruling phases (not demagogery — avoids flicker on transition)
   useEffect(() => {
-    if (round?.phase === 'demagogery' || round?.phase === 'ruling_pool' || round?.phase === 'ruling_voting_1') {
+    if (round?.phase === 'ruling_pool' || round?.phase === 'ruling_voting_1') {
       setOnTheHorizonVisible(true);
     }
   }, [round?.phase]);
@@ -796,7 +807,7 @@ function GameScreenInner() {
           </View>
 
           <Pressable style={styles.actionButton} onPress={handleContinue}>
-            <Text style={styles.actionButtonText}>Continue to Ruling Phase</Text>
+            <Text style={styles.actionButtonText}>Continue to Leader Election</Text>
           </Pressable>
         </View>
       </ImageBackground>
@@ -810,6 +821,61 @@ function GameScreenInner() {
   // during demagogery, show the upcoming_pool preview from game state.
   const upcomingPoolKeys = round?.upcoming_pool ?? [];
   const horizonKeys = controversyPoolKeys.length > 0 ? controversyPoolKeys : upcomingPoolKeys;
+
+  if (phase === 'leader_election' || showElectionResults) {
+    return (
+      <ImageBackground source={leaderElectionBg} style={styles.background} resizeMode="cover">
+        <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.phaseTitle}>ELECTION</Text>
+              <Text style={styles.roundInfo}>Round {round?.round_number ?? '?'}</Text>
+            </View>
+            <View style={styles.headerRight}>
+              <Pressable style={styles.helpButton} onPress={() => help?.openHelp('leader-election')}>
+                <HelpIcon size={22} color="#e0c097" />
+              </Pressable>
+              <Pressable style={styles.homeButton} onPress={() => router.replace('/(app)/home')}>
+                <HomeIcon size={22} color="#e0c097" />
+              </Pressable>
+              <View style={styles.influenceBox}>
+                <Text style={styles.influenceLabel}>Influence</Text>
+                <Text style={styles.influenceValue}>{myInfluence}</Text>
+              </View>
+            </View>
+          </View>
+          <LeaderElection
+            gameId={gameId!}
+            roundId={round!.id}
+            currentUserId={currentUserId}
+            players={players}
+            playerStates={playerStates}
+            senateLeaderId={senateLeaderId || null}
+            onLeaderSelected={() => { setShowElectionResults(false); loadRound(); }}
+          />
+          <OnTheHorizon
+            poolKeys={horizonKeys}
+            activeFactionKeys={activeFactionKeys}
+            visible={onTheHorizonVisible}
+            onClose={() => setOnTheHorizonVisible((v) => !v)}
+            axisValues={axisValuesMap}
+            factionInfoMap={factionInfoMap}
+            playerAgendas={playerAgendas}
+          />
+          <PlayersPanel
+            players={players}
+            playerStates={playerStates}
+            playerAgendas={playerAgendas}
+            axes={axisValuesMap}
+            visible={playersVisible}
+            onClose={() => setPlayersVisible((v) => !v)}
+          />
+          <HelpModal helpId={help?.activeHelpId ?? null} onDismiss={() => help?.dismissHelp()} />
+        </View>
+      </ImageBackground>
+    );
+  }
 
   if (phase === 'ruling_selection') {
     return (
@@ -838,6 +904,9 @@ function GameScreenInner() {
             poolKeys={controversyPoolKeys}
             activeFactionKeys={activeFactionKeys}
             isSenateLeader={isSenateLeader}
+            axisValues={axisValuesMap}
+            factionInfoMap={factionInfoMap}
+            playerAgendas={playerAgendas}
           />
           <OnTheHorizon
             poolKeys={horizonKeys}
@@ -847,6 +916,14 @@ function GameScreenInner() {
             axisValues={axisValuesMap}
             factionInfoMap={factionInfoMap}
             playerAgendas={playerAgendas}
+          />
+          <PlayersPanel
+            players={players}
+            playerStates={playerStates}
+            playerAgendas={playerAgendas}
+            axes={axisValuesMap}
+            visible={playersVisible}
+            onClose={() => setPlayersVisible((v) => !v)}
           />
         </View>
       </ImageBackground>
@@ -883,6 +960,14 @@ function GameScreenInner() {
             axisValues={axisValuesMap}
             factionInfoMap={factionInfoMap}
             playerAgendas={playerAgendas}
+          />
+          <PlayersPanel
+            players={players}
+            playerStates={playerStates}
+            playerAgendas={playerAgendas}
+            axes={axisValuesMap}
+            visible={playersVisible}
+            onClose={() => setPlayersVisible((v) => !v)}
           />
         </View>
       </ImageBackground>
@@ -963,6 +1048,7 @@ function GameScreenInner() {
               playerColor={playerColor}
               allPlayerAffinities={getAllPlayerAffinities(faction.id)}
               factionPreferences={getFactionPreferences(faction)}
+              playerAgendas={playerAgendas}
               onDragStart={handleDragStart}
               onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
@@ -1033,6 +1119,16 @@ function GameScreenInner() {
           axisValues={axisValuesMap}
           factionInfoMap={factionInfoMap}
           playerAgendas={playerAgendas}
+        />
+
+        {/* Players slide-in panel */}
+        <PlayersPanel
+          players={players}
+          playerStates={playerStates}
+          playerAgendas={playerAgendas}
+          axes={axisValuesMap}
+          visible={playersVisible}
+          onClose={() => setPlayersVisible((v) => !v)}
         />
 
         {/* Round-end summary overlay (absolute, shown at start of new round) */}

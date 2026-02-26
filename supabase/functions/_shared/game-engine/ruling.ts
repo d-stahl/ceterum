@@ -58,6 +58,58 @@ export function resolvePledgeRound(
   return { eliminatedId: minId, remainingIds: remaining };
 }
 
+// --- Leader Election ---
+
+/**
+ * Resolve the leader election: every player votes for one candidate,
+ * weighted by the voter's current influence.
+ * Winner = highest total backing.
+ * Tie-break: personal influence (from influenceMap), then lexicographic player_id.
+ */
+export function resolveLeaderElection(
+  allPlayerIds: string[],
+  votes: { pledgerId: string; candidateId: string; weight: number }[],
+  influenceMap: Record<string, number>,
+): { leaderId: string; totals: Record<string, number> } {
+  // Sum backing per candidate
+  const totals: Record<string, number> = {};
+  for (const id of allPlayerIds) totals[id] = 0;
+  for (const v of votes) {
+    if (v.candidateId in totals) {
+      totals[v.candidateId] += v.weight;
+    }
+  }
+
+  // Find max backing
+  let maxBacking = -1;
+  for (const id of allPlayerIds) {
+    if (totals[id] > maxBacking) maxBacking = totals[id];
+  }
+
+  // Candidates with max backing
+  const topCandidates = allPlayerIds.filter((id) => totals[id] === maxBacking);
+
+  if (topCandidates.length === 1) {
+    return { leaderId: topCandidates[0], totals };
+  }
+
+  // Tie-break by personal influence
+  let maxInfluence = -1;
+  for (const id of topCandidates) {
+    const inf = influenceMap[id] ?? 0;
+    if (inf > maxInfluence) maxInfluence = inf;
+  }
+  const influenceTied = topCandidates.filter((id) => (influenceMap[id] ?? 0) === maxInfluence);
+
+  if (influenceTied.length === 1) {
+    return { leaderId: influenceTied[0], totals };
+  }
+
+  // Final tie-break: lexicographic (sorted) player_id
+  influenceTied.sort();
+  return { leaderId: influenceTied[0], totals };
+}
+
 // --- Controversy Pool Assembly ---
 
 /**

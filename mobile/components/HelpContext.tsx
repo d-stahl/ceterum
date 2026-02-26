@@ -15,6 +15,7 @@ type HelpContextType = {
   isHelpDragging: boolean;
   helpDragPosition: { x: number; y: number };
   openGeneralHelp: () => void;
+  openHelp: (id: string) => void;
   dismissHelp: () => void;
   startHelpDrag: (x: number, y: number) => void;
   updateHelpDrag: (x: number, y: number) => void;
@@ -51,6 +52,7 @@ export function HelpProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const openGeneralHelp = useCallback(() => setActiveHelpId('general'), []);
+  const openHelp = useCallback((id: string) => setActiveHelpId(id), []);
   const dismissHelp = useCallback(() => {
     setActiveHelpId(null);
     setHoveredHelpId(null);
@@ -95,6 +97,7 @@ export function HelpProvider({ children }: { children: React.ReactNode }) {
       isHelpDragging,
       helpDragPosition,
       openGeneralHelp,
+      openHelp,
       dismissHelp,
       startHelpDrag,
       updateHelpDrag,

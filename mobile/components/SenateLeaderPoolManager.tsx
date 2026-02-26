@@ -3,12 +3,22 @@ import { useState } from 'react';
 import { Controversy, CONTROVERSY_MAP } from '../lib/game-engine/controversies';
 import { submitSenateLeaderActions } from '../lib/game-actions';
 import ControversyCard from './ControversyCard';
+import { PlayerAgendaInfo } from './AgendaDots';
+
+type FactionInfo = {
+  key: string;
+  displayName: string;
+  power: number;
+};
 
 type Props = {
   gameId: string;
   poolKeys: string[];
   activeFactionKeys: string[];
   isSenateLeader: boolean;
+  axisValues?: Record<string, number>;
+  factionInfoMap?: Record<string, FactionInfo>;
+  playerAgendas?: PlayerAgendaInfo[];
 };
 
 type Step = 'discard' | 'order' | 'submitting' | 'done';
@@ -18,6 +28,9 @@ export default function SenateLeaderPoolManager({
   poolKeys,
   activeFactionKeys,
   isSenateLeader,
+  axisValues,
+  factionInfoMap,
+  playerAgendas,
 }: Props) {
   const [step, setStep] = useState<Step>('discard');
   const [discardedKey, setDiscardedKey] = useState<string | null>(null);
@@ -101,6 +114,9 @@ export default function SenateLeaderPoolManager({
                 <ControversyCard
                   controversy={c}
                   activeFactionKeys={activeFactionKeys}
+                  axisValues={axisValues}
+                  factionInfoMap={factionInfoMap}
+                  playerAgendas={playerAgendas}
                 />
                 <Pressable style={styles.discardButton} onPress={() => handleDiscard(c.key)}>
                   <Text style={styles.discardButtonText}>Discard This</Text>

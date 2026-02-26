@@ -1,6 +1,17 @@
 import { supabase } from './supabase';
 import { WorkerType, OratorRole } from './game-engine/workers';
 
+export async function submitLeaderVote(
+  gameId: string,
+  candidateId: string,
+): Promise<any> {
+  const { data, error } = await supabase.functions.invoke('submit-pledge', {
+    body: { game_id: gameId, candidate_id: candidateId, pledge_round: 1 },
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function submitPledge(
   gameId: string,
   candidateId: string,

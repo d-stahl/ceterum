@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Image, ImageSourcePropType, Animated, Pressable
 import { Controversy } from '../lib/game-engine/controversies';
 import { AXIS_LABELS, AxisKey } from '../lib/game-engine/axes';
 import { getColorHex } from '../lib/player-colors';
+import AgendaDots, { PlayerAgendaInfo } from './AgendaDots';
 
 // Static require map for controversy illustrations (add new images here as they become available)
 const ILLUSTRATION_MAP: Record<string, ImageSourcePropType> = {
@@ -18,6 +19,14 @@ const ILLUSTRATION_MAP: Record<string, ImageSourcePropType> = {
   pirate_ships: require('../assets/images/controversies/pirate_ships.png'),
   tax_collectors: require('../assets/images/controversies/tax_collectors.png'),
   roman_banquet: require('../assets/images/controversies/roman_banquet.png'),
+  roman_assembly: require('../assets/images/controversies/roman_assembly.png'),
+  roman_dictator: require('../assets/images/controversies/roman_dictator.png'),
+  roman_election: require('../assets/images/controversies/roman_election.png'),
+  provincial_governor: require('../assets/images/controversies/provincial_governor.png'),
+  eastern_temple: require('../assets/images/controversies/eastern_temple.png'),
+  roman_priests: require('../assets/images/controversies/roman_priests.png'),
+  roman_censors: require('../assets/images/controversies/roman_censors.png'),
+  sibylline_books: require('../assets/images/controversies/sibylline_books.png'),
 };
 const FALLBACK_ILLUSTRATION = require('../assets/images/controversies/roman_fields.png');
 
@@ -25,13 +34,6 @@ type FactionInfo = {
   key: string;
   displayName: string;
   power: number;
-};
-
-type PlayerAgendaInfo = {
-  playerId: string;
-  name: string;
-  color: string;
-  agenda: Record<string, number>;
 };
 
 type Props = {
@@ -72,18 +74,10 @@ function AxisEffectSlider({ axis, change, currentValue, playerAgendas }: {
   const linePct = { left: Math.min(fromPct, toPct), right: Math.max(fromPct, toPct) };
   const isPositive = change > 0;
 
-  // Collect player agendas for this axis
-  const agendaEntries: { pa: PlayerAgendaInfo; pct: number }[] = [];
-  if (playerAgendas) {
-    for (const pa of playerAgendas) {
-      const val = pa.agenda[axis];
-      if (val == null) continue;
-      agendaEntries.push({ pa, pct: clamp(val) });
-    }
-  }
+  const hasAgendas = playerAgendas && playerAgendas.some((pa) => pa.agenda[axis] != null);
 
   return (
-    <View style={styles.axisEffect}>
+    <View style={[styles.axisEffect, hasAgendas && { marginBottom: 12 }]}>
       <Text style={styles.axisLabel}>{labels.negative} — {labels.positive}</Text>
       <View style={styles.axisSliderContainer}>
         <View style={styles.axisLine}>
@@ -108,55 +102,10 @@ function AxisEffectSlider({ axis, change, currentValue, playerAgendas }: {
         <View style={[styles.axisMarker, { left: `${toPct}%` }]}>
           <View style={[styles.axisMarkerTriangle, { borderTopColor: '#DAA520' }]} />
         </View>
-        {/* Player agenda dots on the slider line — exploded horizontally when stacked */}
-        {(() => {
-          const groups = new Map<number, PlayerAgendaInfo[]>();
-          for (const { pa, pct } of agendaEntries) {
-            const list = groups.get(pct) ?? [];
-            list.push(pa);
-            groups.set(pct, list);
-          }
-          const dots: { pa: PlayerAgendaInfo; pct: number; offset: number }[] = [];
-          for (const [pct, players] of groups) {
-            const n = players.length;
-            players.forEach((pa, i) => {
-              dots.push({ pa, pct, offset: (i - (n - 1) / 2) * 10 });
-            });
-          }
-          return dots.map(({ pa, pct, offset }) => (
-            <View key={pa.playerId} style={[styles.agendaDotOnLine, { left: `${pct}%`, marginLeft: -4 + offset }]}>
-              <View style={[styles.agendaDot, { backgroundColor: getColorHex(pa.color) }]} />
-            </View>
-          ));
-        })()}
+        {hasAgendas && (
+          <AgendaDots axis={axis} playerAgendas={playerAgendas!} clamp={clamp} />
+        )}
       </View>
-      {/* Player name labels below the slider — stagger when close */}
-      {agendaEntries.length > 0 && (() => {
-        const sorted = [...agendaEntries].sort((a, b) => a.pct - b.pct);
-        const rows: number[] = [];
-        let maxRow = 0;
-        for (let i = 0; i < sorted.length; i++) {
-          let row = 0;
-          for (let j = 0; j < i; j++) {
-            if (Math.abs(sorted[j].pct - sorted[i].pct) < 12 && rows[j] === row) {
-              row++;
-            }
-          }
-          rows.push(row);
-          if (row > maxRow) maxRow = row;
-        }
-        return (
-          <View style={[styles.agendaLabelsRow, { height: 10 + maxRow * 9 }]}>
-            {sorted.map(({ pa, pct }, i) => (
-              <View key={pa.playerId} style={[styles.agendaLabelPositioned, { left: `${pct}%`, top: rows[i] * 9 }]}>
-                <Text style={[styles.agendaDotName, { color: getColorHex(pa.color) }]} numberOfLines={1}>
-                  {pa.name.split(' ')[0]}
-                </Text>
-              </View>
-            ))}
-          </View>
-        );
-      })()}
     </View>
   );
 }
@@ -488,37 +437,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 6,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-  },
-
-  // Player agenda dots (on the slider line)
-  agendaDotOnLine: {
-    position: 'absolute',
-    top: 2,
-    alignItems: 'center',
-  },
-  agendaDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.4)',
-  },
-  // Player name labels below slider
-  agendaLabelsRow: {
-    position: 'relative',
-    marginHorizontal: 4,
-  },
-  agendaLabelPositioned: {
-    position: 'absolute',
-    alignItems: 'center',
-    transform: [{ translateX: -16 }],
-    width: 32,
-  },
-  agendaDotName: {
-    fontSize: 7,
-    fontWeight: '600',
-    opacity: 0.8,
-    textAlign: 'center',
   },
 
   // Power effect
