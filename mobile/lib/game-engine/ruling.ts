@@ -185,22 +185,24 @@ export function computeAffinityMalus(
   for (const playerId of winningVoters) {
     const playerMalus: Record<string, number> = {};
     for (const faction of factions) {
-      let factionMalus = 0;
+      let upset = false;
       for (const [axisStr, shift] of Object.entries(axisEffects)) {
         const axis = axisStr as AxisKey;
         if (!shift || shift === 0) continue;
         const pref = faction.preferences[axis];
 
         if (pref === 0) {
-          // Neutral faction: upset if axis moves away from 0 in either direction
-          factionMalus -= 1;
+          // Neutral faction: any axis movement moves policy away from center
+          upset = true;
         } else if ((pref > 0 && shift < 0) || (pref < 0 && shift > 0)) {
           // Faction has a preference and axis moved opposite to it
-          factionMalus -= 1;
+          upset = true;
         }
+        if (upset) break;
       }
 
-      if (factionMalus < 0) {
+      if (upset) {
+        let factionMalus = -1;
         // Senate Leader suffers double malus
         if (playerId === senateLeaderId) {
           factionMalus *= 2;

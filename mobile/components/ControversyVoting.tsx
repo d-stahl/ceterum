@@ -5,7 +5,7 @@ import { declareResolution, submitControversyVote } from '../lib/game-actions';
 import { CONTROVERSY_MAP } from '../lib/game-engine/controversies';
 import VoteControls from './VoteControls';
 import ResolutionOutcome from './ResolutionOutcome';
-import { AxisEffectSlider, PowerEffectRow } from './ControversyCard';
+import { AxisEffectSlider, PowerEffectRow, getUpsetFactions } from './ControversyCard';
 import { PlayerAgendaInfo } from './AgendaDots';
 import { getColorHex } from '../lib/player-colors';
 import { C, goldBg, navyBg } from '../lib/theme';
@@ -278,6 +278,24 @@ export default function ControversyVoting({
                     })}
                   </View>
                 )}
+
+                {(() => {
+                  const upsetKeys = getUpsetFactions(r.axisEffects, activeFactionKeys);
+                  if (upsetKeys.length === 0) return null;
+                  return (
+                    <View style={styles.effectsSection}>
+                      <Text style={styles.effectsSectionLabel}>Affinity Effects</Text>
+                      <Text style={styles.affinityWarning}>
+                        Backing this resolution will upset:
+                      </Text>
+                      {upsetKeys.map((fkey) => (
+                        <Text key={fkey} style={styles.affinityFactionName}>
+                          {factionInfoMap?.[fkey]?.displayName ?? fkey}
+                        </Text>
+                      ))}
+                    </View>
+                  );
+                })()}
               </Pressable>
             );
           })}
@@ -520,6 +538,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     opacity: 0.4,
     marginBottom: 2,
+  },
+  affinityWarning: {
+    color: C.paleGold,
+    fontSize: 11,
+    opacity: 0.6,
+    fontStyle: 'italic',
+  },
+  affinityFactionName: {
+    color: C.paleGold,
+    fontSize: 12,
+    paddingLeft: 8,
   },
   errorText: {
     color: C.error,

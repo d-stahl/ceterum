@@ -185,17 +185,19 @@ export default function ResolutionOutcome({
       </View>
 
       {/* Policy axes — all axes, with deltas for affected ones */}
+      {/* axisValues are post-resolution (already updated by realtime), so subtract
+          the applied effect to recover the pre-resolution value for visualization. */}
       <Text style={styles.sectionTitle}>Policy Axes</Text>
       <View style={styles.effectsCard}>
         {AXIS_KEYS.map((axis) => {
           const change = axisEffects[axis] ?? 0;
-          const currentVal = axisValues[axis] ?? 0;
+          const preResolutionVal = (axisValues[axis] ?? 0) - change;
           return (
             <AxisEffectSlider
               key={axis}
               axis={axis}
               change={change}
-              currentValue={currentVal}
+              currentValue={preResolutionVal}
               playerAgendas={playerAgendas}
             />
           );
@@ -203,6 +205,7 @@ export default function ResolutionOutcome({
       </View>
 
       {/* Faction power — all factions, with deltas for affected ones */}
+      {/* Same as axes: power levels are post-resolution, so subtract the change. */}
       <Text style={styles.sectionTitle}>Faction Power</Text>
       <View style={styles.effectsCard}>
         {Object.entries(factionInfoMap).map(([fkey, info]) => {
@@ -211,7 +214,7 @@ export default function ResolutionOutcome({
             <PowerEffectRow
               key={fkey}
               factionName={info.displayName}
-              currentPower={info.power}
+              currentPower={info.power - change}
               change={change}
             />
           );

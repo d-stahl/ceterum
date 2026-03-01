@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { C, goldBg } from '../lib/theme';
-import { AxisEffectSlider, PowerEffectRow } from './ControversyCard';
+import { AxisEffectSlider, PowerEffectRow, getUpsetFactions } from './ControversyCard';
 import { PlayerAgendaInfo } from './AgendaDots';
 
 type Resolution = {
@@ -118,7 +118,8 @@ export default function VoteControls({
                   const factionKeys = Object.keys(r.factionPowerEffects).filter((k) =>
                     activeFactionKeys.includes(k)
                   );
-                  if (axisKeys.length === 0 && factionKeys.length === 0) return null;
+                  const upsetKeys = getUpsetFactions(r.axisEffects, activeFactionKeys);
+                  if (axisKeys.length === 0 && factionKeys.length === 0 && upsetKeys.length === 0) return null;
                   return (
                     <View style={styles.effectsBlock}>
                       {axisKeys.length > 0 && (
@@ -154,6 +155,19 @@ export default function VoteControls({
                               />
                             );
                           })}
+                        </View>
+                      )}
+                      {upsetKeys.length > 0 && (
+                        <View style={styles.effectsSection}>
+                          <Text style={styles.effectsSectionLabel}>Affinity Effects</Text>
+                          <Text style={styles.affinityWarning}>
+                            Backing this resolution will upset:
+                          </Text>
+                          {upsetKeys.map((fkey) => (
+                            <Text key={fkey} style={styles.affinityFactionName}>
+                              {factionInfoMap?.[fkey]?.displayName ?? fkey}
+                            </Text>
+                          ))}
                         </View>
                       )}
                     </View>
@@ -352,6 +366,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     opacity: 0.4,
     marginBottom: 2,
+  },
+  affinityWarning: {
+    color: C.paleGold,
+    fontSize: 11,
+    opacity: 0.6,
+    fontStyle: 'italic',
+  },
+  affinityFactionName: {
+    color: C.paleGold,
+    fontSize: 12,
+    paddingLeft: 8,
   },
   errorText: {
     color: C.error,

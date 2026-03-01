@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Image, ImageSourcePropType, Animated, Pressable } from 'react-native';
 import { Controversy, CATEGORY_LABELS, CATEGORY_COLORS } from '../lib/game-engine/controversies';
 import { AXIS_LABELS, AxisKey } from '../lib/game-engine/axes';
+import { FACTIONS } from '../lib/game-engine/factions';
 import { getColorHex } from '../lib/player-colors';
 import AgendaDots, { PlayerAgendaInfo } from './AgendaDots';
 import { C, goldBg, parchmentBg, brownBg } from '../lib/theme';
@@ -49,6 +50,26 @@ type Props = {
 
 function effectSign(n: number): string {
   return n > 0 ? `+${n}` : `${n}`;
+}
+
+/** Compute which active factions would be upset by a resolution's axis effects. */
+export function getUpsetFactions(
+  axisEffects: Partial<Record<string, number>>,
+  activeFactionKeys: string[],
+): string[] {
+  const upset: string[] = [];
+  for (const faction of FACTIONS) {
+    if (!activeFactionKeys.includes(faction.key)) continue;
+    for (const [axis, shift] of Object.entries(axisEffects)) {
+      if (!shift || shift === 0) continue;
+      const pref = faction.defaultPreferences[axis as AxisKey] ?? 0;
+      if (pref === 0 || (pref > 0 && shift < 0) || (pref < 0 && shift > 0)) {
+        upset.push(faction.key);
+        break;
+      }
+    }
+  }
+  return upset;
 }
 
 const NOTCH_POSITIONS = [0, 25, 50, 75, 100];
@@ -260,6 +281,24 @@ export default function ControversyCard({
                     })}
                   </View>
                 )}
+
+                {(() => {
+                  const upsetKeys = getUpsetFactions(r.axisEffects, activeFactionKeys);
+                  if (upsetKeys.length === 0) return null;
+                  return (
+                    <View style={styles.effectsSection}>
+                      <Text style={styles.effectsSectionLabel}>Affinity Effects</Text>
+                      <Text style={styles.affinityWarning}>
+                        Backing this resolution will upset:
+                      </Text>
+                      {upsetKeys.map((fkey) => (
+                        <Text key={fkey} style={styles.affinityFactionName}>
+                          {factionInfoMap?.[fkey]?.displayName ?? fkey}
+                        </Text>
+                      ))}
+                    </View>
+                  );
+                })()}
               </View>
             );
           })}
@@ -381,6 +420,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     opacity: 0.4,
     marginBottom: 2,
+  },
+  affinityWarning: {
+    color: C.paleGold,
+    fontSize: 11,
+    opacity: 0.6,
+    fontStyle: 'italic',
+  },
+  affinityFactionName: {
+    color: C.paleGold,
+    fontSize: 12,
+    paddingLeft: 8,
   },
 
   // Axis effect slider
