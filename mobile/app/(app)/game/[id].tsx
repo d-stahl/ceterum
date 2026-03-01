@@ -28,11 +28,15 @@ import SenateLeaderPoolManager from '../../../components/SenateLeaderPoolManager
 import ControversyVoting from '../../../components/ControversyVoting';
 import RoundEndSummary from '../../../components/RoundEndSummary';
 import OnTheHorizon from '../../../components/OnTheHorizon';
+import { C, parchmentBg, navyBg } from '../../../lib/theme';
 import HomeIcon from '../../../components/icons/HomeIcon';
 import HelpIcon from '../../../components/icons/HelpIcon';
 import HelpModal from '../../../components/HelpModal';
+import { ILLUSTRATION_MAP } from '../../../components/ControversyCard';
+import { CONTROVERSY_MAP } from '../../../lib/game-engine/controversies';
 const gameBg = require('../../../assets/images/demagogery-bg.png');
 const leaderElectionBg = require('../../../assets/images/leader-election-bg.png');
+const rulingBg = require('../../../assets/images/ruling-bg.png');
 
 type Faction = {
   id: string;
@@ -155,6 +159,7 @@ function GameScreenInner() {
   const prevRoundRef = useRef<{ roundNumber: number; subRound: number; phase: string } | null>(null);
   const preResolutionInfluenceRef = useRef<Record<string, number> | null>(null);
   const preRoundEndInfluenceRef = useRef<Record<string, number>>({});
+  const preRoundEndFactionPowerRef = useRef<Record<string, number>>({});
 
   const myPlayer = players.find((p) => p.player_id === currentUserId);
   const playerColor = myPlayer?.color ?? 'ivory';
@@ -165,9 +170,17 @@ function GameScreenInner() {
   const activeFactionKeys = factions.map((f) => f.faction_key);
   const controversyPoolKeys = round?.controversy_pool ?? [];
   const myInfluence = playerStates.find((ps) => ps.player_id === currentUserId)?.influence ?? 0;
-  const activeControversyKey = controversyStates.find(
+  // Prefer showing a resolved controversy (so the player sees the results screen)
+  // before showing the next declared/voting one.
+  const resolvedControversy = controversyStates.find((cs) => cs.status === 'resolved');
+  const pendingControversy = controversyStates.find(
     (cs) => cs.status === 'declared' || cs.status === 'voting',
-  )?.controversy_key ?? '';
+  );
+  const [dismissedResolvedKey, setDismissedResolvedKey] = useState('');
+  const activeControversyKey =
+    (resolvedControversy && resolvedControversy.controversy_key !== dismissedResolvedKey
+      ? resolvedControversy.controversy_key
+      : pendingControversy?.controversy_key) ?? '';
   const maxInfluence = playerStates.length > 0 ? Math.max(...playerStates.map((ps) => ps.influence)) : 0;
   const pledgeContenders = !round?.senate_leader_id
     ? playerStates.filter((ps) => ps.influence === maxInfluence).map((ps) => ps.player_id)
@@ -264,6 +277,7 @@ function GameScreenInner() {
       if (roundAdvanced) {
         setShowRoundEnd(true);
         setOnTheHorizonVisible(true);
+        setDismissedResolvedKey('');
       }
     }
     prevRoundRef.current = {
@@ -273,11 +287,9 @@ function GameScreenInner() {
     };
   }, [round]);
 
-  // Auto-open On the Horizon at the start of ruling phases (not demagogery — avoids flicker on transition)
+  // Close On the Horizon when phase changes (players can reopen manually)
   useEffect(() => {
-    if (round?.phase === 'ruling_pool' || round?.phase === 'ruling_voting_1') {
-      setOnTheHorizonVisible(true);
-    }
+    setOnTheHorizonVisible(false);
   }, [round?.phase]);
 
   // Reload controversy states when round or phase changes
@@ -304,14 +316,17 @@ function GameScreenInner() {
     }
   }, [playerStates, round?.phase]);
 
-  // Snapshot influence during ruling_voting_2 — used for round-end "before halving" display
+  // Snapshot influence + faction powers during ruling_voting_2 — used for round-end display
   useEffect(() => {
     if (round?.phase === 'ruling_voting_2') {
-      const snapshot: Record<string, number> = {};
-      playerStates.forEach((ps) => { snapshot[ps.player_id] = ps.influence; });
-      preRoundEndInfluenceRef.current = snapshot;
+      const infSnapshot: Record<string, number> = {};
+      playerStates.forEach((ps) => { infSnapshot[ps.player_id] = ps.influence; });
+      preRoundEndInfluenceRef.current = infSnapshot;
+      const powerSnapshot: Record<string, number> = {};
+      factions.forEach((f) => { powerSnapshot[f.faction_key] = f.power_level; });
+      preRoundEndFactionPowerRef.current = powerSnapshot;
     }
-  }, [playerStates, round?.phase]);
+  }, [playerStates, factions, round?.phase]);
 
   async function loadGameState() {
     setLoading(true);
@@ -454,6 +469,7 @@ function GameScreenInner() {
   }
 
   async function handleShowResolutionResults() {
+    setShowResults(true);
     setResolving(true);
     try {
       const preInfluence = preResolutionInfluenceRef.current ?? {};
@@ -743,7 +759,7 @@ function GameScreenInner() {
     return (
       <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#e0c097" />
+          <ActivityIndicator size="large" color={C.parchment} />
         </View>
       </ImageBackground>
     );
@@ -834,10 +850,10 @@ function GameScreenInner() {
             </View>
             <View style={styles.headerRight}>
               <Pressable style={styles.helpButton} onPress={() => help?.openHelp('leader-election')}>
-                <HelpIcon size={22} color="#e0c097" />
+                <HelpIcon size={22} color={C.parchment} />
               </Pressable>
               <Pressable style={styles.homeButton} onPress={() => router.replace('/(app)/home')}>
-                <HomeIcon size={22} color="#e0c097" />
+                <HomeIcon size={22} color={C.parchment} />
               </Pressable>
               <View style={styles.influenceBox}>
                 <Text style={styles.influenceLabel}>Influence</Text>
@@ -868,6 +884,7 @@ function GameScreenInner() {
             playerStates={playerStates}
             playerAgendas={playerAgendas}
             axes={axisValuesMap}
+            currentUserId={currentUserId}
             visible={playersVisible}
             onClose={() => setPlayersVisible((v) => !v)}
           />
@@ -897,13 +914,15 @@ function GameScreenInner() {
 
   if (phase === 'ruling_pool') {
     return (
-      <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
+      <ImageBackground source={rulingBg} style={styles.background} resizeMode="cover">
         <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: 0 }]}>
           <SenateLeaderPoolManager
             gameId={gameId!}
             poolKeys={controversyPoolKeys}
             activeFactionKeys={activeFactionKeys}
             isSenateLeader={isSenateLeader}
+            senateLeaderName={players.find((p) => p.player_id === senateLeaderId)?.player_name}
+            senateLeaderColor={players.find((p) => p.player_id === senateLeaderId)?.color}
             axisValues={axisValuesMap}
             factionInfoMap={factionInfoMap}
             playerAgendas={playerAgendas}
@@ -922,6 +941,7 @@ function GameScreenInner() {
             playerStates={playerStates}
             playerAgendas={playerAgendas}
             axes={axisValuesMap}
+            currentUserId={currentUserId}
             visible={playersVisible}
             onClose={() => setPlayersVisible((v) => !v)}
           />
@@ -931,8 +951,12 @@ function GameScreenInner() {
   }
 
   if (phase === 'ruling_voting_1' || phase === 'ruling_voting_2') {
+    const controversyObj = activeControversyKey ? CONTROVERSY_MAP[activeControversyKey] : null;
+    const controversyIllustration = controversyObj ? ILLUSTRATION_MAP[controversyObj.illustration] : null;
+    const votingBg = controversyIllustration ?? rulingBg;
+
     return (
-      <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
+      <ImageBackground source={votingBg} style={styles.background} resizeMode="cover">
         <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: 0 }]}>
           {activeControversyKey ? (
             <ControversyVoting
@@ -944,11 +968,17 @@ function GameScreenInner() {
               currentInfluence={myInfluence}
               players={players}
               activeFactionKeys={activeFactionKeys}
-              onContinue={loadRound}
+              factionInfoMap={factionInfoMap}
+              axisValues={axisValuesMap}
+              playerAgendas={playerAgendas}
+              onContinue={() => {
+                setDismissedResolvedKey(activeControversyKey);
+                loadRound();
+              }}
             />
           ) : (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator color="#c9a84c" size="large" />
+              <ActivityIndicator color={C.gold} size="large" />
             </View>
           )}
           <OnTheHorizon
@@ -966,6 +996,7 @@ function GameScreenInner() {
             playerStates={playerStates}
             playerAgendas={playerAgendas}
             axes={axisValuesMap}
+            currentUserId={currentUserId}
             visible={playersVisible}
             onClose={() => setPlayersVisible((v) => !v)}
           />
@@ -989,11 +1020,11 @@ function GameScreenInner() {
           <View style={styles.headerRight}>
             <GestureDetector gesture={helpIconGesture}>
               <Animated.View style={styles.helpButton}>
-                <HelpIcon size={22} color="#e0c097" />
+                <HelpIcon size={22} color={C.parchment} />
               </Animated.View>
             </GestureDetector>
             <Pressable style={styles.homeButton} onPress={() => router.replace('/(app)/home')}>
-              <HomeIcon size={22} color="#e0c097" />
+              <HomeIcon size={22} color={C.parchment} />
             </Pressable>
             <View style={styles.influenceBox}>
               <Text style={styles.influenceLabel}>Influence</Text>
@@ -1090,7 +1121,7 @@ function GameScreenInner() {
 
         {/* Help icon drag overlay */}
         <Animated.View style={helpDragOverlayStyle}>
-          <HelpIcon size={32} color="#e0c097" />
+          <HelpIcon size={32} color={C.parchment} />
         </Animated.View>
 
         {/* Worker tooltip */}
@@ -1127,6 +1158,7 @@ function GameScreenInner() {
           playerStates={playerStates}
           playerAgendas={playerAgendas}
           axes={axisValuesMap}
+          currentUserId={currentUserId}
           visible={playersVisible}
           onClose={() => setPlayersVisible((v) => !v)}
         />
@@ -1148,6 +1180,12 @@ function GameScreenInner() {
               };
             })}
             axes={axes}
+            factionPowers={factions.map((f) => ({
+              faction_key: f.faction_key,
+              display_name: f.display_name,
+              power_level: f.power_level,
+              change: f.power_level - (preRoundEndFactionPowerRef.current[f.faction_key] ?? f.power_level),
+            }))}
             onContinue={() => setShowRoundEnd(false)}
           />
         )}
@@ -1196,13 +1234,13 @@ const styles = StyleSheet.create({
   background: { flex: 1 },
   loadingContainer: {
     flex: 1,
-    backgroundColor: 'rgba(26, 26, 46, 0.7)',
+    backgroundColor: navyBg(0.7),
     justifyContent: 'center',
     alignItems: 'center',
   },
   container: {
     flex: 1,
-    backgroundColor: 'rgba(26, 26, 46, 0.7)',
+    backgroundColor: navyBg(0.7),
     paddingHorizontal: 16,
   },
   header: {
@@ -1213,21 +1251,21 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   phaseTitle: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 22,
     fontWeight: 'bold',
     letterSpacing: 4,
     textAlign: 'center',
   },
   subTitle: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 14,
     opacity: 0.6,
     textAlign: 'center',
     marginBottom: 20,
   },
   roundInfo: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 12,
     opacity: 0.5,
     marginTop: 2,
@@ -1240,43 +1278,43 @@ const styles = StyleSheet.create({
   helpButton: {
     padding: 6,
     borderRadius: 8,
-    backgroundColor: 'rgba(224, 192, 151, 0.08)',
+    backgroundColor: parchmentBg(0.08),
   },
   homeButton: {
     padding: 6,
     borderRadius: 8,
-    backgroundColor: 'rgba(224, 192, 151, 0.08)',
+    backgroundColor: parchmentBg(0.08),
   },
   influenceBox: {
     alignItems: 'center',
-    backgroundColor: 'rgba(224, 192, 151, 0.1)',
+    backgroundColor: parchmentBg(0.1),
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: 'rgba(224, 192, 151, 0.2)',
+    borderColor: parchmentBg(0.2),
   },
   influenceLabel: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 10,
     opacity: 0.5,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   influenceValue: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 20,
     fontWeight: '700',
   },
   statusBar: {
-    backgroundColor: 'rgba(224, 192, 151, 0.1)',
+    backgroundColor: parchmentBg(0.1),
     borderRadius: 6,
     paddingVertical: 8,
     paddingHorizontal: 12,
     marginBottom: 8,
   },
   statusText: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 13,
     textAlign: 'center',
     fontStyle: 'italic',
@@ -1289,7 +1327,7 @@ const styles = StyleSheet.create({
   submitButton: {
     backgroundColor: 'rgba(218, 165, 32, 0.25)',
     borderWidth: 1,
-    borderColor: '#DAA520',
+    borderColor: C.accentGold,
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
@@ -1300,7 +1338,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   submitButtonText: {
-    color: '#DAA520',
+    color: C.accentGold,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 1,
@@ -1311,7 +1349,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   resultSectionHeader: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 13,
     opacity: 0.5,
     textTransform: 'uppercase',
@@ -1324,10 +1362,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(224, 192, 151, 0.08)',
+    borderBottomColor: parchmentBg(0.08),
   },
   resultRank: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 16,
     fontWeight: '600',
     width: 28,
@@ -1340,12 +1378,12 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   resultName: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 15,
     flex: 1,
   },
   resultDelta: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 14,
     fontWeight: '600',
     opacity: 0.5,
@@ -1356,30 +1394,30 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   resultTotal: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 16,
     fontWeight: '700',
     minWidth: 30,
     textAlign: 'right',
   },
   resultInfluence: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 18,
     fontWeight: '700',
     minWidth: 40,
     textAlign: 'right',
   },
   actionButton: {
-    backgroundColor: 'rgba(224, 192, 151, 0.15)',
+    backgroundColor: parchmentBg(0.15),
     borderWidth: 1,
-    borderColor: '#e0c097',
+    borderColor: C.parchment,
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 16,
   },
   actionButtonText: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 18,
     fontWeight: '600',
   },

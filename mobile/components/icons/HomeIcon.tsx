@@ -1,11 +1,12 @@
 import Svg, { Path } from 'react-native-svg';
+import { C } from '../../lib/theme';
 
 type Props = {
   size?: number;
   color?: string;
 };
 
-export default function HomeIcon({ size = 24, color = '#e0c097' }: Props) {
+export default function HomeIcon({ size = 24, color = C.parchment }: Props) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path

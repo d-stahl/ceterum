@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { UserProfileIcon, NotificationBellIcon } from '../../lib/icons';
 import { getUnreadCount } from '../../lib/events';
+import { C, parchmentBg, navyBg } from '../../lib/theme';
 
 const homeBg = require('../../assets/images/home-bg.png');
 
@@ -104,7 +105,7 @@ const styles = StyleSheet.create({
   background: { flex: 1 },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(26, 26, 46, 0.7)',
+    backgroundColor: navyBg(0.7),
     paddingHorizontal: 32,
   },
   headerRow: {
@@ -120,7 +121,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     right: 6,
-    backgroundColor: '#ff6b6b',
+    backgroundColor: C.error,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -141,13 +142,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: '#e0c097',
+    color: C.parchment,
     letterSpacing: 8,
     marginBottom: 8,
   },
   welcome: {
     fontSize: 16,
-    color: '#e0c097',
+    color: C.parchment,
     marginBottom: 48,
     opacity: 0.8,
   },
@@ -156,15 +157,15 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   button: {
-    backgroundColor: 'rgba(224, 192, 151, 0.15)',
+    backgroundColor: parchmentBg(0.15),
     borderWidth: 1,
-    borderColor: '#e0c097',
+    borderColor: C.parchment,
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
   },
   buttonText: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 18,
     fontWeight: '600',
   },

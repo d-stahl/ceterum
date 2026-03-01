@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getEvents, markAllRead, type GameEvent } from '../../lib/events';
+import { C, parchmentBg, navyBg } from '../../lib/theme';
 
 const eventsBg = require('../../assets/images/events-bg.png');
 
@@ -44,7 +45,7 @@ export default function EventsScreen() {
     return (
       <ImageBackground source={eventsBg} style={styles.background} resizeMode="cover">
         <View style={styles.container}>
-          <ActivityIndicator size="large" color="#e0c097" />
+          <ActivityIndicator size="large" color={C.parchment} />
         </View>
       </ImageBackground>
     );
@@ -89,13 +90,13 @@ const styles = StyleSheet.create({
   background: { flex: 1 },
   container: {
     flex: 1,
-    backgroundColor: 'rgba(26, 26, 46, 0.7)',
+    backgroundColor: navyBg(0.7),
     paddingHorizontal: 32,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#e0c097',
+    color: C.parchment,
     marginBottom: 20,
   },
   emptyContainer: {
@@ -104,7 +105,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.5,
     fontSize: 16,
   },
@@ -115,13 +116,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   eventCard: {
-    backgroundColor: 'rgba(224, 192, 151, 0.08)',
+    backgroundColor: parchmentBg(0.08),
     borderRadius: 8,
     padding: 14,
   },
   eventCardUnread: {
     borderLeftWidth: 3,
-    borderLeftColor: '#e0c097',
+    borderLeftColor: C.parchment,
   },
   eventHeader: {
     flexDirection: 'row',
@@ -130,19 +131,19 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   eventTitle: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 15,
     fontWeight: '600',
     flex: 1,
   },
   eventTime: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.5,
     fontSize: 12,
     marginLeft: 8,
   },
   eventBody: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.8,
     fontSize: 14,
   },
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
   backText: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.6,
     fontSize: 16,
   },

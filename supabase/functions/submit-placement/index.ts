@@ -6,13 +6,17 @@ import {
 } from '../_shared/db-transforms.ts';
 import { resolveDemagogery } from '../_shared/game-engine/demagogery.ts';
 
+console.log('[submit-placement] Function loaded successfully');
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const { game_id, faction_id, worker_type, orator_role } = await req.json();
+    const body = await req.json();
+    console.log('[submit-placement] Request body:', JSON.stringify(body));
+    const { game_id, faction_id, worker_type, orator_role } = body;
     if (!game_id || !faction_id || !worker_type) {
       return errorResponse('Missing required fields', 400);
     }
@@ -27,10 +31,12 @@ Deno.serve(async (req) => {
       p_orator_role: orator_role ?? null,
     });
 
+    console.log('[submit-placement] submit_placement result:', JSON.stringify(submitResult), 'error:', JSON.stringify(submitError));
     if (submitError) return errorResponse(submitError.message, 422);
 
     // All 3 sub-rounds complete — resolve immediately, server-side
     if (submitResult?.status === 'ready_for_resolution') {
+      console.log('[submit-placement] Ready for resolution, fetching round...');
       // Get current round
       const { data: round, error: roundError } = await adminClient
         .from('game_rounds')
@@ -85,9 +91,9 @@ Deno.serve(async (req) => {
     return jsonResponse(submitResult);
 
   } catch (err) {
+    console.error('[submit-placement] Caught error:', err);
     if (err instanceof Response) return err;
     const message = err instanceof Error ? err.message : 'Internal server error';
-    console.error('[submit-placement] Resolution error:', err);
     return errorResponse(message);
   }
 });

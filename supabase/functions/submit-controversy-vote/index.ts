@@ -174,6 +174,7 @@ Deno.serve(async (req) => {
         resolved_at: new Date().toISOString(),
         axis_effects_applied: result.axisEffects,
         faction_power_effects_applied: result.factionPowerEffects,
+        affinity_effects_applied: malusMap,
       })
       .eq('round_id', round.id)
       .eq('controversy_key', controversy_key);

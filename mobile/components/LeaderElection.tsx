@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { submitLeaderVote } from '../lib/game-actions';
 import { supabase } from '../lib/supabase';
 import { getColorHex } from '../lib/player-colors';
+import { C, goldBg } from '../lib/theme';
 
 type PlayerInfo = {
   player_id: string;
@@ -175,7 +176,7 @@ export default function LeaderElection({
           You voted for {selectedCandidate ? playerName(selectedCandidate) : '...'}.
         </Text>
         <View style={styles.waitingContainer}>
-          <ActivityIndicator color="#c9a84c" size="small" />
+          <ActivityIndicator color={C.gold} size="small" />
           <Text style={styles.waitText}>Waiting for other players…</Text>
         </View>
       </View>
@@ -222,7 +223,7 @@ export default function LeaderElection({
         disabled={!selectedCandidate || submitting}
       >
         {submitting ? (
-          <ActivityIndicator color="#1a1209" size="small" />
+          <ActivityIndicator color={C.darkText} size="small" />
         ) : (
           <Text style={styles.submitButtonText}>Support</Text>
         )}
@@ -240,14 +241,14 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   title: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 22,
     fontWeight: '700',
     textAlign: 'center',
     fontFamily: 'serif',
   },
   body: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 14,
     textAlign: 'center',
     opacity: 0.7,
@@ -262,26 +263,26 @@ const styles = StyleSheet.create({
   candidateCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(201,168,76,0.08)',
+    backgroundColor: goldBg(0.08),
     borderWidth: 1,
-    borderColor: 'rgba(201,168,76,0.3)',
+    borderColor: goldBg(0.3),
     borderRadius: 10,
     padding: 14,
     gap: 12,
   },
   candidateCardSelected: {
-    backgroundColor: 'rgba(201,168,76,0.22)',
-    borderColor: '#c9a84c',
+    backgroundColor: goldBg(0.22),
+    borderColor: C.gold,
   },
   candidateInfo: {
     flex: 1,
   },
   candidateName: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 16,
   },
   candidateInfluence: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 12,
     opacity: 0.6,
     marginTop: 2,
@@ -292,11 +293,11 @@ const styles = StyleSheet.create({
     borderRadius: 7,
   },
   selectedMark: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 18,
   },
   submitButton: {
-    backgroundColor: '#c9a84c',
+    backgroundColor: C.gold,
     borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 40,
@@ -307,7 +308,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   submitButtonText: {
-    color: '#1a1209',
+    color: C.darkText,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -318,12 +319,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   waitText: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 14,
     opacity: 0.7,
   },
   errorText: {
-    color: '#ff6b6b',
+    color: C.error,
     fontSize: 13,
     textAlign: 'center',
   },
@@ -342,22 +343,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   resultName: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 14,
     flex: 1,
   },
   resultNameWinner: {
-    color: '#c9a84c',
+    color: C.gold,
     fontWeight: '700',
   },
   resultTotal: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 14,
     opacity: 0.6,
   },
   barContainer: {
     height: 18,
-    backgroundColor: 'rgba(201,168,76,0.1)',
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   winnerBadge: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1,

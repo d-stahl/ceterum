@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, ImageB
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { joinGame } from '../../lib/games';
+import { C, parchmentBg, navyBg } from '../../lib/theme';
 
 const joinGameBg = require('../../assets/images/join-game-bg.png');
 
@@ -36,7 +37,7 @@ export default function JoinGameScreen() {
       <TextInput
         style={styles.input}
         placeholder="ABCDEF"
-        placeholderTextColor="rgba(224, 192, 151, 0.3)"
+        placeholderTextColor={parchmentBg(0.3)}
         value={code}
         onChangeText={(text) => setCode(text.toUpperCase())}
         maxLength={6}
@@ -45,7 +46,7 @@ export default function JoinGameScreen() {
       />
 
       {loading ? (
-        <ActivityIndicator size="large" color="#e0c097" />
+        <ActivityIndicator size="large" color={C.parchment} />
       ) : (
         <Pressable style={styles.button} onPress={handleJoin}>
           <Text style={styles.buttonText}>Join</Text>
@@ -68,50 +69,50 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(26, 26, 46, 0.7)',
+    backgroundColor: navyBg(0.7),
     paddingHorizontal: 32,
   },
   heading: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#e0c097',
+    color: C.parchment,
     marginBottom: 32,
   },
   input: {
     width: '100%',
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#e0c097',
+    color: C.parchment,
     textAlign: 'center',
     letterSpacing: 8,
     borderBottomWidth: 2,
-    borderBottomColor: '#e0c097',
+    borderBottomColor: C.parchment,
     paddingVertical: 12,
     marginBottom: 32,
   },
   button: {
-    backgroundColor: 'rgba(224, 192, 151, 0.15)',
+    backgroundColor: parchmentBg(0.15),
     borderWidth: 1,
-    borderColor: '#e0c097',
+    borderColor: C.parchment,
     borderRadius: 8,
     paddingVertical: 16,
     paddingHorizontal: 48,
     alignItems: 'center',
   },
   buttonText: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 18,
     fontWeight: '600',
   },
   error: {
-    color: '#ff6b6b',
+    color: C.error,
     marginTop: 16,
   },
   backButton: {
     marginTop: 32,
   },
   backText: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.6,
     fontSize: 16,
   },

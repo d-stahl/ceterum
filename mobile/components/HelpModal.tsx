@@ -1,4 +1,5 @@
 import { Modal, View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { C, parchmentBg, darkNavyBg } from '../lib/theme';
 
 export type HelpId =
   | 'general'
@@ -219,11 +220,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   sheet: {
-    backgroundColor: 'rgba(20, 20, 36, 0.98)',
+    backgroundColor: darkNavyBg(0.98),
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(224, 192, 151, 0.2)',
+    borderColor: parchmentBg(0.2),
     paddingHorizontal: 20,
     paddingBottom: 32,
     paddingTop: 12,
@@ -233,12 +234,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(224, 192, 151, 0.3)',
+    backgroundColor: parchmentBg(0.3),
     alignSelf: 'center',
     marginBottom: 16,
   },
   title: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: 1,
@@ -247,25 +248,25 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(224, 192, 151, 0.15)',
+    backgroundColor: parchmentBg(0.15),
     marginBottom: 14,
   },
   body: {
-    color: '#c4a882',
+    color: C.warmGold,
     fontSize: 14,
     lineHeight: 22,
   },
   closeButton: {
     marginTop: 20,
-    backgroundColor: 'rgba(224, 192, 151, 0.12)',
+    backgroundColor: parchmentBg(0.12),
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(224, 192, 151, 0.25)',
+    borderColor: parchmentBg(0.25),
   },
   closeButtonText: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 15,
     fontWeight: '600',
   },

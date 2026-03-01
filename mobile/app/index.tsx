@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, ImageBackground } from 'react-native';
+import { C, navyBg } from '../lib/theme';
 
 const homeBg = require('../assets/images/home-bg.png');
 
@@ -19,17 +20,17 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(26, 26, 46, 0.7)',
+    backgroundColor: navyBg(0.7),
   },
   title: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: '#e0c097',
+    color: C.parchment,
     letterSpacing: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#e0c097',
+    color: C.parchment,
     marginTop: 16,
     opacity: 0.7,
   },

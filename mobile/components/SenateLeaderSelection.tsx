@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { useEffect, useState } from 'react';
 import { submitPledge } from '../lib/game-actions';
+import { C, goldBg } from '../lib/theme';
 
 type Contender = {
   playerId: string;
@@ -82,7 +83,7 @@ export default function SenateLeaderSelection({
   if (pledgeContenders.length === 0) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator color="#c9a84c" size="large" />
+        <ActivityIndicator color={C.gold} size="large" />
         <Text style={styles.waitText}>Determining Senate Leader…</Text>
       </View>
     );
@@ -137,14 +138,14 @@ export default function SenateLeaderSelection({
           disabled={!selectedCandidate || submitting}
         >
           {submitting ? (
-            <ActivityIndicator color="#1a1209" size="small" />
+            <ActivityIndicator color={C.darkText} size="small" />
           ) : (
             <Text style={styles.submitButtonText}>Pledge Support</Text>
           )}
         </Pressable>
       ) : (
         <View style={styles.waitingContainer}>
-          <ActivityIndicator color="#c9a84c" size="small" />
+          <ActivityIndicator color={C.gold} size="small" />
           <Text style={styles.waitText}>Waiting for other players…</Text>
         </View>
       )}
@@ -161,19 +162,19 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   title: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 22,
     fontWeight: '700',
     textAlign: 'center',
     fontFamily: 'serif',
   },
   subtitle: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 15,
     opacity: 0.8,
   },
   body: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 14,
     textAlign: 'center',
     opacity: 0.7,
@@ -188,16 +189,16 @@ const styles = StyleSheet.create({
   contenderCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(201,168,76,0.08)',
+    backgroundColor: goldBg(0.08),
     borderWidth: 1,
-    borderColor: 'rgba(201,168,76,0.3)',
+    borderColor: goldBg(0.3),
     borderRadius: 10,
     padding: 14,
     gap: 12,
   },
   contenderCardSelected: {
-    backgroundColor: 'rgba(201,168,76,0.22)',
-    borderColor: '#c9a84c',
+    backgroundColor: goldBg(0.22),
+    borderColor: C.gold,
   },
   colorDot: {
     width: 14,
@@ -205,16 +206,16 @@ const styles = StyleSheet.create({
     borderRadius: 7,
   },
   contenderName: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 16,
     flex: 1,
   },
   selectedMark: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 18,
   },
   submitButton: {
-    backgroundColor: '#c9a84c',
+    backgroundColor: C.gold,
     borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 40,
@@ -225,7 +226,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   submitButtonText: {
-    color: '#1a1209',
+    color: C.darkText,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -236,12 +237,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   waitText: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 14,
     opacity: 0.7,
   },
   errorText: {
-    color: '#ff6b6b',
+    color: C.error,
     fontSize: 13,
     textAlign: 'center',
   },

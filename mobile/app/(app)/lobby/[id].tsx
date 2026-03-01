@@ -6,6 +6,7 @@ import * as Clipboard from 'expo-clipboard';
 import { getGamePlayers, leaveGame, kickPlayer, deleteGame, launchGame } from '../../../lib/games';
 import { supabase } from '../../../lib/supabase';
 import { PLAYER_COLORS, getColorHex } from '../../../lib/player-colors';
+import { C, parchmentBg, navyBg } from '../../../lib/theme';
 
 const lobbyBg = require('../../../assets/images/lobby-bg.png');
 
@@ -178,7 +179,7 @@ export default function LobbyScreen() {
     return (
       <ImageBackground source={lobbyBg} style={styles.background} resizeMode="cover">
         <View style={styles.container}>
-          <ActivityIndicator size="large" color="#e0c097" />
+          <ActivityIndicator size="large" color={C.parchment} />
         </View>
       </ImageBackground>
     );
@@ -308,14 +309,14 @@ const styles = StyleSheet.create({
   background: { flex: 1 },
   container: {
     flex: 1,
-    backgroundColor: 'rgba(26, 26, 46, 0.7)',
+    backgroundColor: navyBg(0.7),
     paddingHorizontal: 32,
     paddingTop: 16,
   },
   gameName: {
     fontSize: 22,
     fontWeight: '600',
-    color: '#e0c097',
+    color: C.parchment,
     fontStyle: 'italic',
     textAlign: 'center',
     marginBottom: 20,
@@ -324,13 +325,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 32,
     padding: 16,
-    backgroundColor: 'rgba(224, 192, 151, 0.1)',
+    backgroundColor: parchmentBg(0.1),
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(224, 192, 151, 0.3)',
+    borderColor: parchmentBg(0.3),
   },
   codeLabel: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.6,
     fontSize: 14,
     marginBottom: 4,
@@ -338,17 +339,17 @@ const styles = StyleSheet.create({
   code: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#e0c097',
+    color: C.parchment,
     letterSpacing: 8,
   },
   copyHint: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.5,
     fontSize: 12,
     marginTop: 6,
   },
   playersLabel: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 12,
@@ -360,7 +361,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   playerCard: {
-    backgroundColor: 'rgba(224, 192, 151, 0.08)',
+    backgroundColor: parchmentBg(0.08),
     borderRadius: 8,
     padding: 14,
     flexDirection: 'row',
@@ -373,10 +374,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: 'rgba(224, 192, 151, 0.2)',
+    borderColor: parchmentBg(0.2),
   },
   emptySlotText: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.3,
     fontSize: 14,
     fontStyle: 'italic',
@@ -388,11 +389,11 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   playerName: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 16,
   },
   changeColorHint: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.4,
     fontSize: 11,
     marginTop: 2,
@@ -404,15 +405,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#1a1a2e',
+    backgroundColor: C.screenBg,
     borderRadius: 12,
     padding: 24,
     width: '80%',
     borderWidth: 1,
-    borderColor: 'rgba(224, 192, 151, 0.3)',
+    borderColor: parchmentBg(0.3),
   },
   modalTitle: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
@@ -434,9 +435,9 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   colorOptionSelected: {
-    backgroundColor: 'rgba(224, 192, 151, 0.15)',
+    backgroundColor: parchmentBg(0.15),
     borderWidth: 1,
-    borderColor: '#e0c097',
+    borderColor: C.parchment,
   },
   colorSwatch: {
     width: 28,
@@ -445,7 +446,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   colorLabel: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 10,
   },
   modalDismiss: {
@@ -454,30 +455,30 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   modalDismissText: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.6,
     fontSize: 14,
   },
   kickIcon: {
-    color: '#ff6b6b',
+    color: C.error,
     fontSize: 18,
     fontWeight: 'bold',
   },
   launchButton: {
-    backgroundColor: 'rgba(224, 192, 151, 0.15)',
+    backgroundColor: parchmentBg(0.15),
     borderWidth: 1,
-    borderColor: '#e0c097',
+    borderColor: C.parchment,
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 12,
   },
   launchButtonDisabled: {
-    borderColor: 'rgba(224, 192, 151, 0.2)',
-    backgroundColor: 'rgba(224, 192, 151, 0.05)',
+    borderColor: parchmentBg(0.2),
+    backgroundColor: parchmentBg(0.05),
   },
   launchButtonText: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 18,
     fontWeight: '600',
   },
@@ -490,12 +491,12 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
   homeText: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.6,
     fontSize: 16,
   },
   leaveText: {
-    color: '#ff6b6b',
+    color: C.error,
     fontSize: 16,
   },
 });

@@ -18,6 +18,24 @@ export interface Controversy {
   resolutions: [ControversyResolution, ControversyResolution, ControversyResolution];
 }
 
+export type ControversyCategory = Controversy['category'];
+
+export const CATEGORY_LABELS: Record<ControversyCategory, string> = {
+  military: 'Military',
+  social: 'Social',
+  economic: 'Economic',
+  political: 'Political',
+  religious: 'Religious',
+};
+
+export const CATEGORY_COLORS: Record<ControversyCategory, string> = {
+  military: '#e53935',
+  social: '#7cb342',
+  economic: '#ffa726',
+  political: '#5c6bc0',
+  religious: '#ab47bc',
+};
+
 export const CONTROVERSIES: Controversy[] = [
   // === MILITARY & FOREIGN POLICY ===
   {

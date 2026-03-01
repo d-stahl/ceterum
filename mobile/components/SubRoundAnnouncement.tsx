@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
+import { C, navyBg } from '../lib/theme';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -51,18 +52,18 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(26, 26, 46, 0.85)',
+    backgroundColor: navyBg(0.85),
     zIndex: 10000,
   },
   title: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 32,
     fontWeight: 'bold',
     letterSpacing: 6,
     marginBottom: 8,
   },
   step: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 20,
     opacity: 0.7,
     letterSpacing: 2,

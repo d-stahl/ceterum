@@ -192,6 +192,15 @@ const factions = (data as FactionRow[] ?? []).map((f) => ...);
 
 Prefer narrow `as` casts (e.g., `data as FactionRow[]`) over `as any`.
 
+### Color palette
+
+All colors live in `mobile/lib/theme.ts`. Never use raw hex or rgba strings in components.
+
+- `C.gold`, `C.paleGold`, etc. for solid colors
+- `goldBg(opacity)`, `navyBg(opacity)`, etc. for translucent backgrounds/borders
+- Player colors: `mobile/lib/player-colors.ts`
+- Category colors: `mobile/lib/game-engine/controversies.ts`
+
 ---
 
 ## Game Engine Conventions

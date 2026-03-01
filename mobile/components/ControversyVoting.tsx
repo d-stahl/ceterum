@@ -5,11 +5,21 @@ import { declareResolution, submitControversyVote } from '../lib/game-actions';
 import { CONTROVERSY_MAP } from '../lib/game-engine/controversies';
 import VoteControls from './VoteControls';
 import ResolutionOutcome from './ResolutionOutcome';
+import { AxisEffectSlider, PowerEffectRow } from './ControversyCard';
+import { PlayerAgendaInfo } from './AgendaDots';
+import { getColorHex } from '../lib/player-colors';
+import { C, goldBg, navyBg } from '../lib/theme';
 
 type PlayerInfo = {
   player_id: string;
   player_name: string;
   color: string;
+};
+
+type FactionInfo = {
+  key: string;
+  displayName: string;
+  power: number;
 };
 
 type Props = {
@@ -21,6 +31,9 @@ type Props = {
   currentInfluence: number;
   players: PlayerInfo[];
   activeFactionKeys: string[];
+  factionInfoMap: Record<string, FactionInfo>;
+  axisValues?: Record<string, number>;
+  playerAgendas?: PlayerAgendaInfo[];
   onContinue: () => void;
 };
 
@@ -31,6 +44,7 @@ type ControversyStateRow = {
   winning_total_influence: number | null;
   axis_effects_applied: Record<string, number> | null;
   faction_power_effects_applied: Record<string, number> | null;
+  affinity_effects_applied: Record<string, Record<string, number>> | null;
 };
 
 type VoteRow = {
@@ -48,6 +62,9 @@ export default function ControversyVoting({
   currentInfluence,
   players,
   activeFactionKeys,
+  factionInfoMap,
+  axisValues,
+  playerAgendas,
   onContinue,
 }: Props) {
   const [csState, setCsState] = useState<ControversyStateRow | null>(null);
@@ -63,7 +80,7 @@ export default function ControversyVoting({
   const fetchState = useCallback(async () => {
     const { data } = await supabase
       .from('game_controversy_state')
-      .select('status, senate_leader_declaration, winning_resolution_key, winning_total_influence, axis_effects_applied, faction_power_effects_applied')
+      .select('status, senate_leader_declaration, winning_resolution_key, winning_total_influence, axis_effects_applied, faction_power_effects_applied, affinity_effects_applied')
       .eq('round_id', roundId)
       .eq('controversy_key', controversyKey)
       .single();
@@ -137,7 +154,7 @@ export default function ControversyVoting({
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator color="#c9a84c" size="large" />
+        <ActivityIndicator color={C.gold} size="large" />
       </View>
     );
   }
@@ -173,8 +190,7 @@ export default function ControversyVoting({
 
     return (
       <ResolutionOutcome
-        controversyTitle={controversy.title}
-        resolutions={controversy.resolutions}
+        controversy={controversy}
         resolutionTotals={resolutionTotals}
         winningResolutionKey={csState!.winning_resolution_key!}
         senateLeaderDeclaration={slDeclaration ?? ''}
@@ -182,7 +198,11 @@ export default function ControversyVoting({
         votes={voteRows}
         axisEffects={csState?.axis_effects_applied ?? {}}
         factionPowerEffects={csState?.faction_power_effects_applied ?? {}}
-        affinityMalus={{}}
+        affinityEffects={csState?.affinity_effects_applied ?? {}}
+        axisValues={axisValues ?? {}}
+        factionInfoMap={factionInfoMap}
+        players={players}
+        playerAgendas={playerAgendas}
         onContinue={onContinue}
       />
     );
@@ -201,19 +221,66 @@ export default function ControversyVoting({
         {declareError && <Text style={styles.errorText}>{declareError}</Text>}
 
         <View style={styles.resolutionCards}>
-          {controversy.resolutions.map((r) => (
-            <Pressable
-              key={r.key}
-              style={[styles.resCard, declaringKey === r.key && styles.resCardSelected]}
-              onPress={() => setDeclaringKey(r.key)}
-            >
-              <View style={[styles.resCardRadio, declaringKey === r.key && styles.resCardRadioSelected]} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.resCardTitle}>{r.title}</Text>
-                <Text style={styles.resCardDesc} numberOfLines={2}>{r.description}</Text>
-              </View>
-            </Pressable>
-          ))}
+          {controversy.resolutions.map((r) => {
+            const axisKeys = Object.keys(r.axisEffects) as string[];
+            const factionKeys = Object.keys(r.factionPowerEffects).filter((k) =>
+              activeFactionKeys.includes(k)
+            );
+            const isSelected = declaringKey === r.key;
+
+            return (
+              <Pressable
+                key={r.key}
+                style={[styles.resCard, isSelected && styles.resCardSelected]}
+                onPress={() => setDeclaringKey(r.key)}
+              >
+                <View style={styles.resCardHeader}>
+                  <View style={[styles.resCardRadio, isSelected && styles.resCardRadioSelected]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.resCardTitle}>{r.title}</Text>
+                    <Text style={styles.resCardDesc} numberOfLines={2}>{r.description}</Text>
+                  </View>
+                </View>
+
+                {axisKeys.length > 0 && (
+                  <View style={styles.effectsSection}>
+                    <Text style={styles.effectsSectionLabel}>Policy Effects</Text>
+                    {axisKeys.map((axis) => {
+                      const change = r.axisEffects[axis as keyof typeof r.axisEffects] ?? 0;
+                      const currentVal = axisValues?.[axis] ?? 0;
+                      return (
+                        <AxisEffectSlider
+                          key={axis}
+                          axis={axis}
+                          change={change}
+                          currentValue={currentVal}
+                          playerAgendas={playerAgendas}
+                        />
+                      );
+                    })}
+                  </View>
+                )}
+
+                {factionKeys.length > 0 && (
+                  <View style={styles.effectsSection}>
+                    <Text style={styles.effectsSectionLabel}>Power Effects</Text>
+                    {factionKeys.map((fkey) => {
+                      const change = r.factionPowerEffects[fkey] ?? 0;
+                      const info = factionInfoMap?.[fkey];
+                      return (
+                        <PowerEffectRow
+                          key={fkey}
+                          factionName={info?.displayName ?? fkey}
+                          currentPower={info?.power ?? 3}
+                          change={change}
+                        />
+                      );
+                    })}
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
         </View>
 
         <Pressable
@@ -222,7 +289,7 @@ export default function ControversyVoting({
           disabled={!declaringKey || declaring}
         >
           {declaring ? (
-            <ActivityIndicator color="#1a1209" size="small" />
+            <ActivityIndicator color={C.darkText} size="small" />
           ) : (
             <Text style={styles.declareButtonText}>Declare Resolution</Text>
           )}
@@ -232,11 +299,20 @@ export default function ControversyVoting({
   }
 
   if (status === 'declared' && !isSL) {
+    const slPlayer = players.find((p) => p.player_id === senateLeaderId);
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator color="#c9a84c" size="large" />
-        <Text style={styles.waitText}>Waiting for the Senate Leader to declare…</Text>
-        <Text style={styles.controversySubtitle}>{controversy.title}</Text>
+        <Text style={styles.phaseTitle}>Senate Leader Phase</Text>
+        <View style={styles.upcomingBlock}>
+          <Text style={styles.upcomingLabel}>Upcoming controversy:</Text>
+          <Text style={styles.upcomingName}>{controversy.title}</Text>
+        </View>
+        <View style={styles.waitRow}>
+          <Text style={styles.waitText}>Waiting for </Text>
+          {slPlayer && <View style={[styles.slDot, { backgroundColor: getColorHex(slPlayer.color) }]} />}
+          <Text style={styles.waitTextBold}>{slPlayer?.player_name ?? 'Senate Leader'}</Text>
+          <Text style={styles.waitText}> to declare…</Text>
+        </View>
       </View>
     );
   }
@@ -261,6 +337,10 @@ export default function ControversyVoting({
         forcedResolutionKey={isSL ? slDeclaration : null}
         currentInfluence={currentInfluence}
         senateLeaderDeclaration={slDeclaration}
+        activeFactionKeys={activeFactionKeys}
+        factionInfoMap={factionInfoMap}
+        axisValues={axisValues}
+        playerAgendas={playerAgendas}
         onSubmit={(resKey, inf) => submitControversyVote(gameId, controversyKey, resKey, inf)}
       />
     </ScrollView>
@@ -278,27 +358,27 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   title: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 20,
     fontWeight: '700',
     fontFamily: 'serif',
     textAlign: 'center',
   },
   controversySubtitle: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 14,
     opacity: 0.6,
     textAlign: 'center',
   },
   instruction: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 14,
     opacity: 0.7,
     lineHeight: 20,
     textAlign: 'center',
   },
   flavor: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 13,
     fontStyle: 'italic',
     opacity: 0.6,
@@ -307,82 +387,142 @@ const styles = StyleSheet.create({
   },
   resolutionCards: { gap: 10 },
   resCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: 'rgba(201,168,76,0.06)',
+    backgroundColor: navyBg(0.88),
     borderWidth: 1,
-    borderColor: 'rgba(201,168,76,0.2)',
+    borderColor: goldBg(0.25),
     borderRadius: 10,
     padding: 12,
-    gap: 10,
+    gap: 8,
   },
   resCardSelected: {
-    backgroundColor: 'rgba(201,168,76,0.18)',
-    borderColor: '#c9a84c',
+    backgroundColor: navyBg(0.95),
+    borderColor: C.gold,
+    borderWidth: 2,
+  },
+  resCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
   },
   resCardRadio: {
     width: 18,
     height: 18,
     borderRadius: 9,
     borderWidth: 2,
-    borderColor: 'rgba(201,168,76,0.5)',
+    borderColor: goldBg(0.5),
     marginTop: 2,
   },
   resCardRadioSelected: {
-    backgroundColor: '#c9a84c',
-    borderColor: '#c9a84c',
+    backgroundColor: C.gold,
+    borderColor: C.gold,
   },
   resCardTitle: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 15,
     fontWeight: '700',
   },
   resCardDesc: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 12,
     opacity: 0.65,
     lineHeight: 16,
     marginTop: 2,
   },
   declareButton: {
-    backgroundColor: '#c9a84c',
+    backgroundColor: C.gold,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
   },
   declareButtonText: {
-    color: '#1a1209',
+    color: C.darkText,
     fontSize: 16,
     fontWeight: '700',
   },
   slDeclarationBanner: {
-    backgroundColor: 'rgba(201,168,76,0.12)',
+    backgroundColor: goldBg(0.12),
     borderWidth: 1,
-    borderColor: 'rgba(201,168,76,0.4)',
+    borderColor: goldBg(0.4),
     borderRadius: 8,
     padding: 12,
     gap: 2,
   },
   slDeclarationLabel: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   slDeclarationValue: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 15,
     fontWeight: '600',
   },
-  waitText: {
-    color: '#c9a84c',
-    fontSize: 14,
-    opacity: 0.7,
+  phaseTitle: {
+    color: C.gold,
+    fontSize: 22,
+    fontWeight: '700',
+    fontFamily: 'serif',
     textAlign: 'center',
   },
+  upcomingBlock: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  upcomingLabel: {
+    color: C.paleGold,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    opacity: 0.5,
+  },
+  upcomingName: {
+    color: C.paleGold,
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  waitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  slDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 5,
+  },
+  waitText: {
+    color: C.gold,
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  waitTextBold: {
+    color: C.gold,
+    fontSize: 14,
+    fontWeight: '700',
+    opacity: 0.7,
+  },
+  effectsSection: {
+    gap: 6,
+    marginTop: 4,
+    paddingLeft: 28,
+  },
+  effectsSectionLabel: {
+    color: C.parchment,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    opacity: 0.4,
+    marginBottom: 2,
+  },
   errorText: {
-    color: '#ff6b6b',
+    color: C.error,
     fontSize: 13,
     textAlign: 'center',
   },

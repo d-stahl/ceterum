@@ -5,6 +5,7 @@ import {
 import { useEffect, useRef, useMemo, useState } from 'react';
 import { CONTROVERSY_MAP, Controversy } from '../lib/game-engine/controversies';
 import ControversyCard from './ControversyCard';
+import { C, goldBg, darkBrownBg } from '../lib/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PANEL_WIDTH = Math.min(SCREEN_WIDTH * 0.88, 380);
@@ -146,9 +147,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: -1,
     top: '25%',
-    backgroundColor: 'rgba(201,168,76,0.15)',
+    backgroundColor: goldBg(0.15),
     borderWidth: 1,
-    borderColor: 'rgba(201,168,76,0.4)',
+    borderColor: goldBg(0.4),
     borderRightWidth: 0,
     borderTopLeftRadius: 8,
     borderBottomLeftRadius: 8,
@@ -158,7 +159,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   tabText: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 9,
     fontWeight: '700',
     lineHeight: 11,
@@ -167,7 +168,7 @@ const styles = StyleSheet.create({
     width: 2,
     height: 2,
     borderRadius: 1,
-    backgroundColor: 'rgba(201,168,76,0.4)',
+    backgroundColor: goldBg(0.4),
     marginVertical: 2,
   },
   panel: {
@@ -176,9 +177,9 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: PANEL_WIDTH,
-    backgroundColor: 'rgba(12,8,2,0.97)',
+    backgroundColor: darkBrownBg(0.97),
     borderLeftWidth: 1,
-    borderLeftColor: 'rgba(201,168,76,0.4)',
+    borderLeftColor: goldBg(0.4),
     zIndex: 20,
   },
   panelHeader: {
@@ -187,16 +188,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(201,168,76,0.2)',
+    borderBottomColor: goldBg(0.2),
   },
   panelTitle: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 18,
     fontWeight: '700',
     fontFamily: 'serif',
   },
   panelSubtitle: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 11,
     opacity: 0.5,
     marginTop: 2,
@@ -205,7 +206,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   closeText: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 18,
     opacity: 0.6,
   },
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   emptyText: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     opacity: 0.5,
     textAlign: 'center',
     marginTop: 40,

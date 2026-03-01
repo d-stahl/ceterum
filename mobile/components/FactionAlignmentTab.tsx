@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { AXIS_KEYS, AXIS_LABELS, AxisKey, AxisPreferences } from '../lib/game-engine/axes';
+import { C, parchmentBg } from '../lib/theme';
 import AgendaDots, { PlayerAgendaInfo } from './AgendaDots';
 
 type Props = {
@@ -62,7 +63,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   empty: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 11,
     opacity: 0.3,
     textAlign: 'center',
@@ -72,7 +73,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   axisName: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 10,
     opacity: 0.5,
     textAlign: 'center',
@@ -88,7 +89,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 7,
     height: 2,
-    backgroundColor: 'rgba(224, 192, 151, 0.2)',
+    backgroundColor: parchmentBg(0.2),
     borderRadius: 1,
   },
   notch: {
@@ -96,7 +97,7 @@ const styles = StyleSheet.create({
     top: -3,
     width: 1,
     height: 8,
-    backgroundColor: 'rgba(224, 192, 151, 0.3)',
+    backgroundColor: parchmentBg(0.3),
     marginLeft: -0.5,
   },
   marker: {
@@ -113,6 +114,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 8,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderTopColor: '#DAA520',
+    borderTopColor: C.accentGold,
   },
 });

@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { getColorHex } from '../lib/player-colors';
+import { C } from '../lib/theme';
 
 type PlayerAffinity = {
   playerId: string;
@@ -51,13 +52,13 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   name: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 12,
     flex: 1,
     opacity: 0.7,
   },
   value: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 12,
     fontWeight: '600',
     opacity: 0.6,
@@ -69,11 +70,11 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   valueNegative: {
-    color: '#ff6b6b',
+    color: C.error,
     opacity: 1,
   },
   empty: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 11,
     opacity: 0.3,
     textAlign: 'center',

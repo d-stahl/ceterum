@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { createGame } from '../../lib/games';
 import { generateCrisisName } from '../../lib/crisis-names';
+import { C, parchmentBg, navyBg } from '../../lib/theme';
 
 const createGameBg = require('../../assets/images/create-game-bg.png');
 
@@ -57,7 +58,7 @@ export default function CreateGameScreen() {
             style={styles.nameInput}
             value={gameName}
             onChangeText={setGameName}
-            placeholderTextColor="rgba(224, 192, 151, 0.3)"
+            placeholderTextColor={parchmentBg(0.3)}
             autoCorrect={false}
           />
 
@@ -81,7 +82,7 @@ export default function CreateGameScreen() {
           </View>
 
           {loading ? (
-            <ActivityIndicator size="large" color="#e0c097" />
+            <ActivityIndicator size="large" color={C.parchment} />
           ) : (
             <Pressable style={styles.button} onPress={handleCreate}>
               <Text style={styles.buttonText}>Create Game</Text>
@@ -120,13 +121,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(26, 26, 46, 0.7)',
+    backgroundColor: navyBg(0.7),
     paddingHorizontal: 32,
   },
   heading: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#e0c097',
+    color: C.parchment,
     marginBottom: 32,
   },
   form: {
@@ -135,7 +136,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 14,
     opacity: 0.6,
     alignSelf: 'flex-start',
@@ -143,13 +144,13 @@ const styles = StyleSheet.create({
   nameInput: {
     width: '100%',
     fontSize: 18,
-    color: '#e0c097',
+    color: C.parchment,
     fontStyle: 'italic',
     borderWidth: 1,
-    borderColor: 'rgba(224, 192, 151, 0.3)',
+    borderColor: parchmentBg(0.3),
     borderRadius: 8,
     padding: 14,
-    backgroundColor: 'rgba(224, 192, 151, 0.08)',
+    backgroundColor: parchmentBg(0.08),
   },
   counterRow: {
     flexDirection: 'row',
@@ -161,8 +162,8 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#e0c097',
-    backgroundColor: 'rgba(224, 192, 151, 0.15)',
+    borderColor: C.parchment,
+    backgroundColor: parchmentBg(0.15),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -170,7 +171,7 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   counterButtonText: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 22,
     fontWeight: '600',
   },
@@ -178,16 +179,16 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   counterValue: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 28,
     fontWeight: 'bold',
     minWidth: 40,
     textAlign: 'center',
   },
   button: {
-    backgroundColor: 'rgba(224, 192, 151, 0.15)',
+    backgroundColor: parchmentBg(0.15),
     borderWidth: 1,
-    borderColor: '#e0c097',
+    borderColor: C.parchment,
     borderRadius: 8,
     paddingVertical: 16,
     paddingHorizontal: 32,
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   buttonText: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 18,
     fontWeight: '600',
   },
@@ -207,25 +208,25 @@ const styles = StyleSheet.create({
   gameName: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#e0c097',
+    color: C.parchment,
     fontStyle: 'italic',
     marginBottom: 8,
     textAlign: 'center',
   },
   shareLabel: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 16,
     opacity: 0.8,
   },
   code: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: '#e0c097',
+    color: C.parchment,
     letterSpacing: 8,
     textAlign: 'center',
   },
   copyHint: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.5,
     fontSize: 12,
     textAlign: 'center',
@@ -233,13 +234,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   error: {
-    color: '#ff6b6b',
+    color: C.error,
   },
   backButton: {
     marginTop: 32,
   },
   backText: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.6,
     fontSize: 16,
   },

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
 import { WorkerEffect } from '../lib/game-engine/demagogery';
 import { getColorHex } from '../lib/player-colors';
+import { C, darkNavyBg, parchmentBg } from '../lib/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const TOOLTIP_WIDTH = 240;
@@ -96,10 +97,10 @@ const styles = StyleSheet.create({
   tooltip: {
     position: 'absolute',
     width: TOOLTIP_WIDTH,
-    backgroundColor: 'rgba(20, 20, 36, 0.95)',
+    backgroundColor: darkNavyBg(0.95),
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(224, 192, 151, 0.4)',
+    borderColor: parchmentBg(0.4),
     padding: 12,
   },
   header: {
@@ -120,20 +121,20 @@ const styles = StyleSheet.create({
   },
   roleLabel: {
     fontSize: 11,
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.7,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   factionName: {
     fontSize: 11,
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.5,
     marginBottom: 4,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(224, 192, 151, 0.15)',
+    backgroundColor: parchmentBg(0.15),
     marginVertical: 6,
   },
   lineItemRow: {
@@ -144,13 +145,13 @@ const styles = StyleSheet.create({
   },
   lineItemLabel: {
     fontSize: 12,
-    color: '#c4a882',
+    color: C.warmGold,
     flex: 1,
     marginRight: 8,
   },
   lineItemValue: {
     fontSize: 12,
-    color: '#e0c097',
+    color: C.parchment,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
@@ -162,13 +163,13 @@ const styles = StyleSheet.create({
   },
   totalDivider: {
     height: 1,
-    backgroundColor: 'rgba(224, 192, 151, 0.25)',
+    backgroundColor: parchmentBg(0.25),
     marginTop: 6,
     marginBottom: 4,
   },
   totalLine: {
     fontSize: 13,
-    color: '#e0c097',
+    color: C.parchment,
     fontWeight: '700',
     textAlign: 'right',
   },

@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
+import { C, parchmentBg, navyBg } from '../../lib/theme';
 
 const profileBg = require('../../assets/images/profile-bg.png');
 
@@ -63,7 +64,7 @@ export default function ProfileScreen() {
     return (
       <ImageBackground source={profileBg} style={styles.background} resizeMode="cover">
         <View style={styles.container}>
-          <ActivityIndicator size="large" color="#e0c097" />
+          <ActivityIndicator size="large" color={C.parchment} />
         </View>
       </ImageBackground>
     );
@@ -98,7 +99,7 @@ export default function ProfileScreen() {
         </View>
 
         {saving ? (
-          <ActivityIndicator size="small" color="#e0c097" />
+          <ActivityIndicator size="small" color={C.parchment} />
         ) : (
           <Pressable
             style={[styles.saveButton, !hasChanges && styles.saveButtonDisabled]}
@@ -124,14 +125,14 @@ const styles = StyleSheet.create({
   background: { flex: 1 },
   container: {
     flex: 1,
-    backgroundColor: 'rgba(26, 26, 46, 0.7)',
+    backgroundColor: navyBg(0.7),
     paddingHorizontal: 32,
     paddingTop: 16,
   },
   heading: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#e0c097',
+    color: C.parchment,
     marginBottom: 32,
     textAlign: 'center',
   },
@@ -142,42 +143,42 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   label: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 14,
     opacity: 0.6,
   },
   input: {
     fontSize: 18,
-    color: '#e0c097',
+    color: C.parchment,
     borderWidth: 1,
-    borderColor: 'rgba(224, 192, 151, 0.3)',
+    borderColor: parchmentBg(0.3),
     borderRadius: 8,
     padding: 14,
-    backgroundColor: 'rgba(224, 192, 151, 0.08)',
+    backgroundColor: parchmentBg(0.08),
   },
   inputDisabled: {
     opacity: 0.4,
   },
   hint: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 12,
     opacity: 0.4,
     marginTop: 2,
   },
   saveButton: {
-    backgroundColor: 'rgba(224, 192, 151, 0.15)',
+    backgroundColor: parchmentBg(0.15),
     borderWidth: 1,
-    borderColor: '#e0c097',
+    borderColor: C.parchment,
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
   },
   saveButtonDisabled: {
-    borderColor: 'rgba(224, 192, 151, 0.2)',
-    backgroundColor: 'rgba(224, 192, 151, 0.05)',
+    borderColor: parchmentBg(0.2),
+    backgroundColor: parchmentBg(0.05),
   },
   saveButtonText: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 18,
     fontWeight: '600',
   },
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backText: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.6,
     fontSize: 16,
   },

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkerType, OratorRole } from '../lib/game-engine/workers';
 import DraggableWorker from './DraggableWorker';
 import { useHelp } from './HelpContext';
+import { C, navyBg, parchmentBg } from '../lib/theme';
 
 export type WorkerSelection = {
   workerType: WorkerType;
@@ -191,12 +192,12 @@ const styles = StyleSheet.create({
   container: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(26, 26, 46, 0.92)',
+    backgroundColor: navyBg(0.92),
     borderTopWidth: 1,
-    borderTopColor: 'rgba(224, 192, 151, 0.2)',
+    borderTopColor: parchmentBg(0.2),
   },
   title: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 12,
     opacity: 0.5,
     textAlign: 'center',
@@ -218,19 +219,19 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   slotHelpHighlighted: {
-    borderColor: 'rgba(224, 192, 151, 0.25)',
+    borderColor: parchmentBg(0.25),
   },
   slotHelpHovered: {
-    borderColor: '#e0c097',
-    backgroundColor: 'rgba(224, 192, 151, 0.1)',
-    shadowColor: '#e0c097',
+    borderColor: C.parchment,
+    backgroundColor: parchmentBg(0.1),
+    shadowColor: C.parchment,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 6,
     elevation: 4,
   },
   slotLabel: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 9,
     opacity: 0.6,
   },

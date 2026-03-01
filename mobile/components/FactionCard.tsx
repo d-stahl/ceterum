@@ -11,6 +11,7 @@ import FactionAlignmentTab from './FactionAlignmentTab';
 import { WorkerType, OratorRole } from '../lib/game-engine/workers';
 import { AxisPreferences } from '../lib/game-engine/axes';
 import { PlayerAgendaInfo } from './AgendaDots';
+import { C, navyBg, parchmentBg } from '../lib/theme';
 
 // Stable array references to prevent useCallback/useEffect churn
 const ACCEPTS_ORATOR: WorkerType[] = ['orator'];
@@ -170,7 +171,7 @@ export default function FactionCard({
           {totalWorkers > 0 && (
             <View style={styles.workerCountBadgeOuter}>
               {hasPreliminaryPlacement && (
-                <ShineEffect color="#DAA520" size={26} />
+                <ShineEffect color={C.accentGold} size={26} />
               )}
               <View style={styles.workerCountBadge}>
                 <Text style={styles.workerCountText}>{totalWorkers}</Text>
@@ -558,10 +559,10 @@ function WorkerIcon({ workerType, playerColor, size }: { workerType: string; pla
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(26, 26, 46, 0.92)',
+    backgroundColor: navyBg(0.92),
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(224, 192, 151, 0.15)',
+    borderColor: parchmentBg(0.15),
     overflow: 'hidden',
   },
   header: {
@@ -580,7 +581,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   factionName: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -591,7 +592,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   powerLabel: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 10,
     opacity: 0.5,
     marginRight: 2,
@@ -601,11 +602,11 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: 'rgba(224, 192, 151, 0.4)',
+    borderColor: parchmentBg(0.4),
   },
   powerPipFilled: {
-    backgroundColor: '#e0c097',
-    borderColor: '#e0c097',
+    backgroundColor: C.parchment,
+    borderColor: C.parchment,
   },
   workerCountBadgeOuter: {
     width: 26,
@@ -614,24 +615,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   workerCountBadge: {
-    backgroundColor: 'rgba(224, 192, 151, 0.2)',
+    backgroundColor: parchmentBg(0.2),
     borderRadius: 10,
     paddingHorizontal: 7,
     paddingVertical: 2,
   },
   workerCountText: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 12,
     fontWeight: '600',
   },
   expandIcon: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 14,
     opacity: 0.5,
   },
   body: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(224, 192, 151, 0.1)',
+    borderTopColor: parchmentBg(0.1),
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
@@ -639,7 +640,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   slotRow: {
-    backgroundColor: 'rgba(224, 192, 151, 0.04)',
+    backgroundColor: parchmentBg(0.04),
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -651,18 +652,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   slotRowHighlighted: {
-    borderColor: '#DAA520',
-    shadowColor: '#DAA520',
+    borderColor: C.accentGold,
+    shadowColor: C.accentGold,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 6,
     elevation: 4,
   },
   slotRowHovered: {
-    borderColor: '#DAA520',
+    borderColor: C.accentGold,
     borderWidth: 2.5,
-    backgroundColor: 'rgba(218, 165, 32, 0.12)',
-    shadowColor: '#DAA520',
+    backgroundColor: 'rgba(218,165,32,0.12)',
+    shadowColor: C.accentGold,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.9,
     shadowRadius: 10,
@@ -673,7 +674,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   slotLabel: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 11,
     opacity: 0.5,
     textTransform: 'uppercase',
@@ -696,7 +697,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   emptySlot: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.2,
     fontSize: 12,
   },
@@ -706,20 +707,20 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(224, 192, 151, 0.08)',
+    borderTopColor: parchmentBg(0.08),
   },
   tabButton: {
     flex: 1,
     paddingVertical: 6,
     borderRadius: 4,
-    backgroundColor: 'rgba(224, 192, 151, 0.04)',
+    backgroundColor: parchmentBg(0.04),
     alignItems: 'center',
   },
   tabButtonActive: {
-    backgroundColor: 'rgba(224, 192, 151, 0.12)',
+    backgroundColor: parchmentBg(0.12),
   },
   tabButtonText: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 11,
     opacity: 0.4,
     textTransform: 'uppercase',
@@ -734,25 +735,25 @@ const styles = StyleSheet.create({
   // Help drag highlights
   headerHelpHighlighted: {
     borderWidth: 1,
-    borderColor: 'rgba(224, 192, 151, 0.25)',
+    borderColor: parchmentBg(0.25),
   },
   headerHelpHovered: {
     borderWidth: 1.5,
-    borderColor: '#e0c097',
-    backgroundColor: 'rgba(224, 192, 151, 0.1)',
-    shadowColor: '#e0c097',
+    borderColor: C.parchment,
+    backgroundColor: parchmentBg(0.1),
+    shadowColor: C.parchment,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 6,
     elevation: 4,
   },
   slotRowHelpHighlighted: {
-    borderColor: 'rgba(224, 192, 151, 0.25)',
+    borderColor: parchmentBg(0.25),
   },
   slotRowHelpHovered: {
-    borderColor: '#e0c097',
-    backgroundColor: 'rgba(224, 192, 151, 0.1)',
-    shadowColor: '#e0c097',
+    borderColor: C.parchment,
+    backgroundColor: parchmentBg(0.1),
+    shadowColor: C.parchment,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 6,
@@ -760,13 +761,13 @@ const styles = StyleSheet.create({
   },
   tabHelpHighlighted: {
     borderWidth: 1,
-    borderColor: 'rgba(224, 192, 151, 0.25)',
+    borderColor: parchmentBg(0.25),
   },
   tabHelpHovered: {
     borderWidth: 1,
-    borderColor: '#e0c097',
-    backgroundColor: 'rgba(224, 192, 151, 0.12)',
-    shadowColor: '#e0c097',
+    borderColor: C.parchment,
+    backgroundColor: parchmentBg(0.12),
+    shadowColor: C.parchment,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4,
     shadowRadius: 4,

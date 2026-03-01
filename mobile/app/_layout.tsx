@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ensureAuthenticated } from '../lib/auth';
+import { C } from '../lib/theme';
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
@@ -50,7 +51,7 @@ export default function RootLayout() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#e0c097" />
+        <ActivityIndicator size="large" color={C.parchment} />
         <Text style={styles.status}>Connecting...</Text>
       </View>
     );
@@ -82,28 +83,28 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: C.screenBg,
     paddingHorizontal: 32,
   },
   status: {
-    color: '#e0c097',
+    color: C.parchment,
     marginTop: 16,
     opacity: 0.6,
   },
   errorTitle: {
-    color: '#ff6b6b',
+    color: C.error,
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 12,
   },
   errorText: {
-    color: '#ff6b6b',
+    color: C.error,
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 12,
   },
   errorHint: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 12,
     opacity: 0.5,
     textAlign: 'center',

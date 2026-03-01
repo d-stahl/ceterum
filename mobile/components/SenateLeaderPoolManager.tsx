@@ -1,9 +1,13 @@
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView } from 'react-native';
-import { useState } from 'react';
-import { Controversy, CONTROVERSY_MAP } from '../lib/game-engine/controversies';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView, Image } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Controversy, CONTROVERSY_MAP, CATEGORY_LABELS, CATEGORY_COLORS } from '../lib/game-engine/controversies';
 import { submitSenateLeaderActions } from '../lib/game-actions';
-import ControversyCard from './ControversyCard';
+import ControversyCard, { ILLUSTRATION_MAP } from './ControversyCard';
 import { PlayerAgendaInfo } from './AgendaDots';
+import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { getColorHex } from '../lib/player-colors';
+import { C, goldBg } from '../lib/theme';
 
 type FactionInfo = {
   key: string;
@@ -16,6 +20,8 @@ type Props = {
   poolKeys: string[];
   activeFactionKeys: string[];
   isSenateLeader: boolean;
+  senateLeaderName?: string;
+  senateLeaderColor?: string;
   axisValues?: Record<string, number>;
   factionInfoMap?: Record<string, FactionInfo>;
   playerAgendas?: PlayerAgendaInfo[];
@@ -28,6 +34,8 @@ export default function SenateLeaderPoolManager({
   poolKeys,
   activeFactionKeys,
   isSenateLeader,
+  senateLeaderName,
+  senateLeaderColor,
   axisValues,
   factionInfoMap,
   playerAgendas,
@@ -38,26 +46,11 @@ export default function SenateLeaderPoolManager({
   const [error, setError] = useState<string | null>(null);
 
   const controversies = poolKeys.map((k) => CONTROVERSY_MAP[k]).filter(Boolean);
-  const remainingKeys = poolKeys.filter((k) => k !== discardedKey);
 
   function handleDiscard(key: string) {
     setDiscardedKey(key);
     setOrderedKeys(poolKeys.filter((k) => k !== key));
     setStep('order');
-  }
-
-  function moveUp(index: number) {
-    if (index === 0) return;
-    const next = [...orderedKeys];
-    [next[index - 1], next[index]] = [next[index], next[index - 1]];
-    setOrderedKeys(next);
-  }
-
-  function moveDown(index: number) {
-    if (index === orderedKeys.length - 1) return;
-    const next = [...orderedKeys];
-    [next[index], next[index + 1]] = [next[index + 1], next[index]];
-    setOrderedKeys(next);
   }
 
   async function handleConfirm() {
@@ -73,15 +66,46 @@ export default function SenateLeaderPoolManager({
     }
   }
 
+  const ITEM_HEIGHT = 76; // 64px card + 12px margin
+
+  const renderOrderItem = useCallback(({ item, drag, isActive }: RenderItemParams<string>) => {
+    const c = CONTROVERSY_MAP[item];
+    if (!c) return null;
+    const illustration = ILLUSTRATION_MAP[c.illustration];
+    const catLabel = CATEGORY_LABELS[c.category] ?? c.category;
+    const catColor = CATEGORY_COLORS[c.category] ?? '#888';
+
+    return (
+      <ScaleDecorator>
+        <Pressable
+          onLongPress={drag}
+          disabled={isActive}
+          style={[styles.orderCard, isActive && styles.orderCardActive, { marginBottom: 12, marginLeft: 44 }]}
+        >
+          {illustration && (
+            <Image source={illustration} style={styles.orderIllustration} resizeMode="cover" />
+          )}
+          <View style={styles.orderCardContent}>
+            <Text style={styles.orderTitle} numberOfLines={2}>{c.title}</Text>
+            <View style={[styles.categoryTag, { backgroundColor: catColor + '30', borderColor: catColor + '60' }]}>
+              <Text style={[styles.categoryText, { color: catColor }]}>{catLabel}</Text>
+            </View>
+          </View>
+        </Pressable>
+      </ScaleDecorator>
+    );
+  }, []);
+
   if (!isSenateLeader) {
     return (
       <View style={styles.waitContainer}>
-        <ActivityIndicator color="#c9a84c" size="large" />
-        <Text style={styles.waitTitle}>Awaiting the Senate Leader</Text>
-        <Text style={styles.waitBody}>
-          The Senate Leader is reviewing the controversy pool and will select which matters
-          to debate this round.
-        </Text>
+        <Text style={styles.waitPhaseTitle}>Senate Leader Phase</Text>
+        <View style={styles.waitRow}>
+          <Text style={styles.waitBody}>Waiting for </Text>
+          {senateLeaderColor && <View style={[styles.slDot, { backgroundColor: getColorHex(senateLeaderColor) }]} />}
+          <Text style={styles.waitBodyBold}>{senateLeaderName ?? 'Senate Leader'}</Text>
+          <Text style={styles.waitBody}> to discard &amp; order…</Text>
+        </View>
       </View>
     );
   }
@@ -89,9 +113,53 @@ export default function SenateLeaderPoolManager({
   if (step === 'done') {
     return (
       <View style={styles.waitContainer}>
-        <Text style={styles.waitTitle}>Order Submitted</Text>
+        <Text style={styles.waitPhaseTitle}>Order Submitted</Text>
         <Text style={styles.waitBody}>The controversies are being prepared for debate.</Text>
       </View>
+    );
+  }
+
+  if (step === 'order') {
+    return (
+      <GestureHandlerRootView style={styles.container}>
+        <View style={styles.orderHeader}>
+          <Text style={styles.title}>Order the Controversies</Text>
+          <Text style={styles.senateLeaderBadge}>You are the Senate Leader</Text>
+          {error && <Text style={styles.errorText}>{error}</Text>}
+          <Text style={styles.instruction}>
+            Set the order for the remaining three controversies. Two will be randomly chosen
+            for debate this round, but they will be heard in the order you set.
+          </Text>
+          <Text style={styles.dragHint}>Long press and drag to reorder</Text>
+        </View>
+        <View style={styles.orderListContainer}>
+          {/* Static slot numbers positioned on the left */}
+          <View style={styles.slotNumberColumn} pointerEvents="none">
+            {[1, 2, 3].map((n, i) => (
+              <View key={n} style={[styles.slotNumber, { top: i * ITEM_HEIGHT + (64 - 32) / 2 }]}>
+                <Text style={styles.slotNumberText}>{n}</Text>
+              </View>
+            ))}
+          </View>
+          <DraggableFlatList
+          data={orderedKeys}
+          onDragEnd={({ data }) => setOrderedKeys(data)}
+          keyExtractor={(item) => item}
+          renderItem={renderOrderItem}
+          contentContainerStyle={styles.orderListContent}
+          ListFooterComponent={
+            <View style={styles.orderFooter}>
+              <Pressable style={styles.confirmButton} onPress={handleConfirm}>
+                <Text style={styles.confirmButtonText}>Confirm Order</Text>
+              </Pressable>
+              <Pressable style={styles.backButton} onPress={() => setStep('discard')}>
+                <Text style={styles.backButtonText}>← Change Discard</Text>
+              </Pressable>
+            </View>
+          }
+        />
+        </View>
+      </GestureHandlerRootView>
     );
   }
 
@@ -105,8 +173,8 @@ export default function SenateLeaderPoolManager({
       {step === 'discard' && (
         <>
           <Text style={styles.instruction}>
-            Select one controversy to discard. The Senate will debate the remaining three,
-            but only the top two you order will come to a vote this round.
+            Select one controversy to discard. Two of the remaining three will be randomly
+            chosen for debate this round.
           </Text>
           <View style={styles.cards}>
             {controversies.map((c) => (
@@ -127,63 +195,9 @@ export default function SenateLeaderPoolManager({
         </>
       )}
 
-      {step === 'order' && (
-        <>
-          <Text style={styles.instruction}>
-            Order the remaining three controversies. The top two will be voted on this round.
-            The third will carry over to the next round.
-          </Text>
-
-          <View style={styles.orderList}>
-            {orderedKeys.map((key, index) => {
-              const c = CONTROVERSY_MAP[key];
-              if (!c) return null;
-              const isLeftover = index === 2;
-              return (
-                <View key={key} style={[styles.orderItem, isLeftover && styles.orderItemLeftover]}>
-                  <View style={styles.orderRank}>
-                    <Text style={styles.orderRankText}>{index + 1}</Text>
-                  </View>
-                  <View style={styles.orderInfo}>
-                    <Text style={styles.orderTitle}>{c.title}</Text>
-                    {isLeftover && (
-                      <Text style={styles.leftoverNote}>Carries over to next round</Text>
-                    )}
-                  </View>
-                  <View style={styles.orderControls}>
-                    <Pressable
-                      onPress={() => moveUp(index)}
-                      style={[styles.arrowButton, index === 0 && styles.arrowDisabled]}
-                      disabled={index === 0}
-                    >
-                      <Text style={styles.arrowText}>▲</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => moveDown(index)}
-                      style={[styles.arrowButton, index === 2 && styles.arrowDisabled]}
-                      disabled={index === 2}
-                    >
-                      <Text style={styles.arrowText}>▼</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-
-          <Pressable style={styles.confirmButton} onPress={handleConfirm}>
-            <Text style={styles.confirmButtonText}>Confirm Order</Text>
-          </Pressable>
-
-          <Pressable style={styles.backButton} onPress={() => setStep('discard')}>
-            <Text style={styles.backButtonText}>← Change Discard</Text>
-          </Pressable>
-        </>
-      )}
-
       {step === 'submitting' && (
         <View style={styles.waitContainer}>
-          <ActivityIndicator color="#c9a84c" size="large" />
+          <ActivityIndicator color={C.gold} size="large" />
           <Text style={styles.waitBody}>Submitting your choices…</Text>
         </View>
       )}
@@ -202,7 +216,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   title: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 22,
     fontWeight: '700',
     fontFamily: 'serif',
@@ -210,25 +224,33 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   senateLeaderBadge: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 13,
     textAlign: 'center',
     opacity: 0.7,
     marginBottom: 12,
   },
   instruction: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 14,
     opacity: 0.7,
     lineHeight: 20,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 8,
+  },
+  dragHint: {
+    color: C.gold,
+    fontSize: 12,
+    opacity: 0.5,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginBottom: 4,
   },
   cards: { gap: 0 },
   discardButton: {
     backgroundColor: 'rgba(229,57,53,0.15)',
     borderWidth: 1,
-    borderColor: '#e53935',
+    borderColor: C.negative,
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',
@@ -236,69 +258,104 @@ const styles = StyleSheet.create({
     marginTop: -4,
   },
   discardButtonText: {
-    color: '#e53935',
+    color: C.negative,
     fontSize: 14,
     fontWeight: '700',
   },
-  orderList: { gap: 10, marginBottom: 24 },
-  orderItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(201,168,76,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(201,168,76,0.3)',
-    borderRadius: 10,
-    padding: 12,
-    gap: 12,
+  // Order step
+  orderHeader: {
+    padding: 20,
+    paddingBottom: 8,
   },
-  orderItemLeftover: {
-    opacity: 0.6,
-    borderStyle: 'dashed',
+  orderListContainer: {
+    flex: 1,
+    position: 'relative',
   },
-  orderRank: {
+  orderListContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  slotNumberColumn: {
+    position: 'absolute',
+    left: 20,
+    top: 0,
+    zIndex: 10,
+  },
+  slotNumber: {
+    position: 'absolute',
+    left: 0,
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(201,168,76,0.2)',
+    backgroundColor: goldBg(0.2),
     justifyContent: 'center',
     alignItems: 'center',
   },
-  orderRankText: {
-    color: '#c9a84c',
+  slotNumberText: {
+    color: C.gold,
     fontSize: 16,
     fontWeight: '700',
   },
-  orderInfo: { flex: 1 },
+  orderCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: goldBg(0.08),
+    borderWidth: 1,
+    borderColor: goldBg(0.3),
+    borderRadius: 10,
+    overflow: 'hidden',
+    gap: 12,
+  },
+  orderCardActive: {
+    backgroundColor: goldBg(0.22),
+    borderColor: C.gold,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  orderIllustration: {
+    width: 64,
+    height: 64,
+  },
+  orderCardContent: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingRight: 12,
+    gap: 6,
+  },
   orderTitle: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 14,
     fontWeight: '600',
   },
-  leftoverNote: {
-    color: '#e8d5a3',
-    fontSize: 11,
-    opacity: 0.5,
-    marginTop: 2,
+  categoryTag: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
-  orderControls: { flexDirection: 'column', gap: 4 },
-  arrowButton: {
-    padding: 4,
-    alignItems: 'center',
+  categoryText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  arrowDisabled: { opacity: 0.2 },
-  arrowText: {
-    color: '#c9a84c',
-    fontSize: 16,
+  orderFooter: {
+    marginTop: 12,
   },
   confirmButton: {
-    backgroundColor: '#c9a84c',
+    backgroundColor: C.gold,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
     marginBottom: 12,
   },
   confirmButtonText: {
-    color: '#1a1209',
+    color: C.darkText,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -307,27 +364,44 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   backButtonText: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 14,
     opacity: 0.6,
   },
-  waitTitle: {
-    color: '#c9a84c',
-    fontSize: 20,
+  waitPhaseTitle: {
+    color: C.gold,
+    fontSize: 22,
     fontWeight: '700',
     fontFamily: 'serif',
     textAlign: 'center',
+    marginBottom: 8,
+  },
+  waitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  slDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 5,
   },
   waitBody: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 14,
     opacity: 0.65,
-    textAlign: 'center',
     lineHeight: 20,
-    maxWidth: 300,
+  },
+  waitBodyBold: {
+    color: C.paleGold,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
   },
   errorText: {
-    color: '#ff6b6b',
+    color: C.error,
     fontSize: 13,
     textAlign: 'center',
     marginBottom: 12,

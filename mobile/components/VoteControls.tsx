@@ -1,10 +1,21 @@
 import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
+import { C, goldBg } from '../lib/theme';
+import { AxisEffectSlider, PowerEffectRow } from './ControversyCard';
+import { PlayerAgendaInfo } from './AgendaDots';
 
 type Resolution = {
   key: string;
   title: string;
   description: string;
+  axisEffects: Partial<Record<string, number>>;
+  factionPowerEffects: Partial<Record<string, number>>;
+};
+
+type FactionInfo = {
+  key: string;
+  displayName: string;
+  power: number;
 };
 
 type Props = {
@@ -12,6 +23,10 @@ type Props = {
   forcedResolutionKey: string | null;  // Senate Leader is forced to vote for their declaration
   currentInfluence: number;
   senateLeaderDeclaration: string | null;
+  activeFactionKeys: string[];
+  factionInfoMap: Record<string, FactionInfo>;
+  axisValues?: Record<string, number>;
+  playerAgendas?: PlayerAgendaInfo[];
   onSubmit: (resolutionKey: string, influenceSpent: number) => Promise<void>;
 };
 
@@ -20,6 +35,10 @@ export default function VoteControls({
   forcedResolutionKey,
   currentInfluence,
   senateLeaderDeclaration,
+  activeFactionKeys,
+  factionInfoMap,
+  axisValues,
+  playerAgendas,
   onSubmit,
 }: Props) {
   const [selectedKey, setSelectedKey] = useState<string>(
@@ -49,7 +68,7 @@ export default function VoteControls({
   if (submitted) {
     return (
       <View style={styles.submittedContainer}>
-        <ActivityIndicator color="#c9a84c" size="small" />
+        <ActivityIndicator color={C.gold} size="small" />
         <Text style={styles.submittedText}>Vote submitted — waiting for others…</Text>
       </View>
     );
@@ -93,6 +112,53 @@ export default function VoteControls({
                     </View>
                   )}
                 </View>
+
+                {(() => {
+                  const axisKeys = Object.keys(r.axisEffects);
+                  const factionKeys = Object.keys(r.factionPowerEffects).filter((k) =>
+                    activeFactionKeys.includes(k)
+                  );
+                  if (axisKeys.length === 0 && factionKeys.length === 0) return null;
+                  return (
+                    <View style={styles.effectsBlock}>
+                      {axisKeys.length > 0 && (
+                        <View style={styles.effectsSection}>
+                          <Text style={styles.effectsSectionLabel}>Policy Effects</Text>
+                          {axisKeys.map((axis) => {
+                            const change = r.axisEffects[axis] ?? 0;
+                            const currentVal = axisValues?.[axis] ?? 0;
+                            return (
+                              <AxisEffectSlider
+                                key={axis}
+                                axis={axis}
+                                change={change}
+                                currentValue={currentVal}
+                                playerAgendas={playerAgendas}
+                              />
+                            );
+                          })}
+                        </View>
+                      )}
+                      {factionKeys.length > 0 && (
+                        <View style={styles.effectsSection}>
+                          <Text style={styles.effectsSectionLabel}>Power Effects</Text>
+                          {factionKeys.map((fkey) => {
+                            const change = r.factionPowerEffects[fkey] ?? 0;
+                            const info = factionInfoMap?.[fkey];
+                            return (
+                              <PowerEffectRow
+                                key={fkey}
+                                factionName={info?.displayName ?? fkey}
+                                currentPower={info?.power ?? 3}
+                                change={change}
+                              />
+                            );
+                          })}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })()}
               </View>
             </Pressable>
           );
@@ -136,7 +202,7 @@ export default function VoteControls({
         disabled={submitting}
       >
         {submitting ? (
-          <ActivityIndicator color="#1a1209" size="small" />
+          <ActivityIndicator color={C.darkText} size="small" />
         ) : (
           <Text style={styles.submitButtonText}>Submit Vote</Text>
         )}
@@ -148,33 +214,33 @@ export default function VoteControls({
 const styles = StyleSheet.create({
   container: { gap: 14, paddingVertical: 12 },
   sectionTitle: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 16,
     fontWeight: '700',
   },
   influenceLabel: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 13,
     opacity: 0.7,
   },
   influenceValue: {
-    color: '#c9a84c',
+    color: C.gold,
     fontWeight: '700',
   },
   resolutionList: { gap: 8 },
   resolutionOption: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(201,168,76,0.06)',
+    alignItems: 'flex-start',
+    backgroundColor: goldBg(0.06),
     borderWidth: 1,
-    borderColor: 'rgba(201,168,76,0.2)',
+    borderColor: goldBg(0.2),
     borderRadius: 8,
     padding: 10,
     gap: 10,
   },
   resolutionOptionSelected: {
-    backgroundColor: 'rgba(201,168,76,0.18)',
-    borderColor: '#c9a84c',
+    backgroundColor: goldBg(0.18),
+    borderColor: C.gold,
   },
   resolutionOptionDisabled: {
     opacity: 0.35,
@@ -184,33 +250,34 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     borderWidth: 2,
-    borderColor: 'rgba(201,168,76,0.5)',
+    borderColor: goldBg(0.5),
+    marginTop: 2,
   },
   radioSelected: {
-    backgroundColor: '#c9a84c',
-    borderColor: '#c9a84c',
+    backgroundColor: C.gold,
+    borderColor: C.gold,
   },
-  resolutionInfo: { flex: 1 },
+  resolutionInfo: { flex: 1, gap: 8 },
   resolutionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   resolutionTitle: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 14,
     fontWeight: '600',
     flex: 1,
   },
   slBadge: {
-    backgroundColor: 'rgba(201,168,76,0.2)',
+    backgroundColor: goldBg(0.2),
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
   slBadgeText: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 10,
     fontWeight: '700',
   },
   influenceSection: { gap: 6 },
-  influenceSpendLabel: { color: '#e8d5a3', fontSize: 13 },
+  influenceSpendLabel: { color: C.paleGold, fontSize: 13 },
   influenceInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -219,22 +286,22 @@ const styles = StyleSheet.create({
   stepButton: {
     width: 36,
     height: 36,
-    backgroundColor: 'rgba(201,168,76,0.15)',
+    backgroundColor: goldBg(0.15),
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   stepButtonText: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 20,
     lineHeight: 24,
   },
   influenceInput: {
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(201,168,76,0.3)',
+    borderColor: goldBg(0.3),
     borderRadius: 8,
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
@@ -243,19 +310,19 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   abstainNote: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 11,
     opacity: 0.45,
   },
   submitButton: {
-    backgroundColor: '#c9a84c',
+    backgroundColor: C.gold,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
   },
   submitButtonDisabled: { opacity: 0.5 },
   submitButtonText: {
-    color: '#1a1209',
+    color: C.darkText,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -266,12 +333,28 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   submittedText: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 14,
     opacity: 0.8,
   },
+  effectsBlock: {
+    gap: 8,
+    marginTop: 2,
+  },
+  effectsSection: {
+    gap: 6,
+  },
+  effectsSectionLabel: {
+    color: C.parchment,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    opacity: 0.4,
+    marginBottom: 2,
+  },
   errorText: {
-    color: '#ff6b6b',
+    color: C.error,
     fontSize: 13,
     textAlign: 'center',
   },

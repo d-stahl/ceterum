@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getMyGames } from '../../lib/games';
+import { C, parchmentBg, navyBg } from '../../lib/theme';
 
 const myGamesBg = require('../../assets/images/my-games-bg.png');
 
@@ -86,7 +87,7 @@ export default function MyGamesScreen() {
       <Text style={styles.heading}>My Games</Text>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#e0c097" />
+        <ActivityIndicator size="large" color={C.parchment} />
       ) : games.length === 0 ? (
         <Text style={styles.empty}>No games yet. Create or join one!</Text>
       ) : (
@@ -111,14 +112,14 @@ const styles = StyleSheet.create({
   background: { flex: 1 },
   container: {
     flex: 1,
-    backgroundColor: 'rgba(26, 26, 46, 0.7)',
+    backgroundColor: navyBg(0.7),
     paddingHorizontal: 32,
     paddingTop: 16,
   },
   heading: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#e0c097',
+    color: C.parchment,
     marginBottom: 24,
     textAlign: 'center',
   },
@@ -129,14 +130,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   gameCard: {
-    backgroundColor: 'rgba(224, 192, 151, 0.1)',
+    backgroundColor: parchmentBg(0.1),
     borderWidth: 1,
-    borderColor: 'rgba(224, 192, 151, 0.3)',
+    borderColor: parchmentBg(0.3),
     borderRadius: 8,
     padding: 16,
   },
   gameName: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 17,
     fontWeight: '600',
     fontStyle: 'italic',
@@ -148,18 +149,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   gameStatus: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 13,
     opacity: 0.5,
   },
   gameCode: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 13,
     opacity: 0.5,
     letterSpacing: 2,
   },
   empty: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.6,
     textAlign: 'center',
     marginTop: 48,
@@ -170,7 +171,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backText: {
-    color: '#e0c097',
+    color: C.parchment,
     opacity: 0.6,
     fontSize: 16,
   },

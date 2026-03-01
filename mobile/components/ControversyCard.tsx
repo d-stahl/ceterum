@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Image, ImageSourcePropType, Animated, Pressable } from 'react-native';
-import { Controversy } from '../lib/game-engine/controversies';
+import { Controversy, CATEGORY_LABELS, CATEGORY_COLORS } from '../lib/game-engine/controversies';
 import { AXIS_LABELS, AxisKey } from '../lib/game-engine/axes';
 import { getColorHex } from '../lib/player-colors';
 import AgendaDots, { PlayerAgendaInfo } from './AgendaDots';
+import { C, goldBg, parchmentBg, brownBg } from '../lib/theme';
 
 // Static require map for controversy illustrations (add new images here as they become available)
-const ILLUSTRATION_MAP: Record<string, ImageSourcePropType> = {
+export const ILLUSTRATION_MAP: Record<string, ImageSourcePropType> = {
   carthage_fleet: require('../assets/images/controversies/carthage_fleet.png'),
   gallic_raiders: require('../assets/images/controversies/gallic_raiders.png'),
   eastern_king: require('../assets/images/controversies/eastern_king.png'),
@@ -45,13 +46,6 @@ type Props = {
   playerAgendas?: PlayerAgendaInfo[];
 };
 
-const CATEGORY_COLORS: Record<string, string> = {
-  military:  '#c0392b',
-  social:    '#2980b9',
-  economic:  '#c9a84c',
-  political: '#8e44ad',
-  religious: '#27ae60',
-};
 
 function effectSign(n: number): string {
   return n > 0 ? `+${n}` : `${n}`;
@@ -59,7 +53,7 @@ function effectSign(n: number): string {
 
 const NOTCH_POSITIONS = [0, 25, 50, 75, 100];
 
-function AxisEffectSlider({ axis, change, currentValue, playerAgendas }: {
+export function AxisEffectSlider({ axis, change, currentValue, playerAgendas }: {
   axis: string;
   change: number;
   currentValue: number;
@@ -91,16 +85,16 @@ function AxisEffectSlider({ axis, change, currentValue, playerAgendas }: {
           {
             left: `${linePct.left}%`,
             width: `${linePct.right - linePct.left}%`,
-            backgroundColor: isPositive ? 'rgba(76,175,80,0.6)' : 'rgba(229,57,53,0.6)',
+            backgroundColor: isPositive ? C.axisPositive : C.axisNegative,
           },
         ]} />
         {/* Old position marker (dimmed) */}
         <View style={[styles.axisMarker, { left: `${fromPct}%` }]}>
-          <View style={[styles.axisMarkerTriangle, { borderTopColor: 'rgba(201,168,76,0.35)' }]} />
+          <View style={[styles.axisMarkerTriangle, { borderTopColor: goldBg(0.35) }]} />
         </View>
         {/* New position marker (bright) */}
         <View style={[styles.axisMarker, { left: `${toPct}%` }]}>
-          <View style={[styles.axisMarkerTriangle, { borderTopColor: '#DAA520' }]} />
+          <View style={[styles.axisMarkerTriangle, { borderTopColor: C.accentGold }]} />
         </View>
         {hasAgendas && (
           <AgendaDots axis={axis} playerAgendas={playerAgendas!} clamp={clamp} />
@@ -110,7 +104,7 @@ function AxisEffectSlider({ axis, change, currentValue, playerAgendas }: {
   );
 }
 
-function PowerEffectRow({ factionName, currentPower, change }: {
+export function PowerEffectRow({ factionName, currentPower, change }: {
   factionName: string;
   currentPower: number;
   change: number;
@@ -123,9 +117,13 @@ function PowerEffectRow({ factionName, currentPower, change }: {
     <View style={styles.powerEffect}>
       <View style={styles.powerEffectHeader}>
         <Text style={styles.powerFactionName}>{factionName}:</Text>
-        <Text style={[styles.powerChangeText, { color: isGain ? '#4caf50' : '#e53935' }]}>
-          {effectSign(change)} Power
-        </Text>
+        {change === 0 ? (
+          <Text style={[styles.powerChangeText, { opacity: 0.4 }]}>No change</Text>
+        ) : (
+          <Text style={[styles.powerChangeText, { color: isGain ? C.positive : C.negative }]}>
+            {effectSign(change)} Power
+          </Text>
+        )}
       </View>
       <View style={styles.powerPipsRow}>
         {Array.from({ length: maxPips }, (_, i) => {
@@ -134,9 +132,9 @@ function PowerEffectRow({ factionName, currentPower, change }: {
           const isFilledAfter = pipNum <= newPower;
 
           if (isGain && !wasFilledBefore && isFilledAfter) {
-            return <PulsingPip key={i} color="#4caf50" />;
+            return <PulsingPip key={i} color={C.positive} />;
           } else if (!isGain && wasFilledBefore && !isFilledAfter) {
-            return <PulsingPip key={i} color="#e53935" />;
+            return <PulsingPip key={i} color={C.negative} />;
           } else {
             return (
               <View key={i} style={[
@@ -190,8 +188,8 @@ export default function ControversyCard({
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>{controversy.title}</Text>
-        <View style={[styles.categoryBadge, { backgroundColor: catColor }]}>
-          <Text style={styles.categoryText}>{controversy.category}</Text>
+        <View style={[styles.categoryBadge, { backgroundColor: catColor + '30', borderColor: catColor + '60' }]}>
+          <Text style={[styles.categoryText, { color: catColor }]}>{CATEGORY_LABELS[controversy.category] ?? controversy.category}</Text>
         </View>
       </View>
 
@@ -273,15 +271,15 @@ export default function ControversyCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(20,14,5,0.92)',
+    backgroundColor: brownBg(0.92),
     borderWidth: 1,
-    borderColor: 'rgba(201,168,76,0.3)',
+    borderColor: goldBg(0.3),
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
   },
   cardActive: {
-    borderColor: '#c9a84c',
+    borderColor: C.gold,
     borderWidth: 2,
   },
   header: {
@@ -292,7 +290,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   title: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 16,
     fontWeight: '700',
     fontFamily: 'serif',
@@ -305,19 +303,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   categoryBadge: {
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    borderRadius: 4,
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   categoryText: {
-    color: '#fff',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   flavor: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 12,
     fontStyle: 'italic',
     opacity: 0.65,
@@ -331,42 +329,42 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 8,
     borderRadius: 6,
-    backgroundColor: 'rgba(201,168,76,0.08)',
+    backgroundColor: goldBg(0.08),
     borderWidth: 1,
-    borderColor: 'rgba(201,168,76,0.2)',
+    borderColor: goldBg(0.2),
   },
   detailsButtonActive: {
-    backgroundColor: 'rgba(201,168,76,0.12)',
-    borderColor: 'rgba(201,168,76,0.35)',
+    backgroundColor: goldBg(0.12),
+    borderColor: goldBg(0.35),
     marginBottom: 10,
   },
   detailsButtonText: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 12,
     fontWeight: '600',
   },
   detailsChevron: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 12,
   },
   resolutionsSection: {
     gap: 10,
   },
   resolution: {
-    backgroundColor: 'rgba(201,168,76,0.06)',
+    backgroundColor: goldBg(0.06),
     borderRadius: 8,
     padding: 10,
     borderLeftWidth: 3,
-    borderLeftColor: 'rgba(201,168,76,0.4)',
+    borderLeftColor: goldBg(0.4),
     gap: 6,
   },
   resolutionTitle: {
-    color: '#c9a84c',
+    color: C.gold,
     fontSize: 13,
     fontWeight: '700',
   },
   resolutionDesc: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 12,
     opacity: 0.75,
     lineHeight: 16,
@@ -376,7 +374,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   effectsSectionLabel: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -390,7 +388,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   axisLabel: {
-    color: '#e0c097',
+    color: C.parchment,
     fontSize: 9,
     opacity: 0.5,
     textAlign: 'center',
@@ -406,7 +404,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 6,
     height: 2,
-    backgroundColor: 'rgba(224, 192, 151, 0.2)',
+    backgroundColor: parchmentBg(0.2),
     borderRadius: 1,
   },
   axisNotch: {
@@ -414,7 +412,7 @@ const styles = StyleSheet.create({
     top: -2,
     width: 1,
     height: 6,
-    backgroundColor: 'rgba(224, 192, 151, 0.25)',
+    backgroundColor: parchmentBg(0.25),
     marginLeft: -0.5,
   },
   axisMovementLine: {
@@ -449,7 +447,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   powerFactionName: {
-    color: '#e8d5a3',
+    color: C.paleGold,
     fontSize: 11,
     fontWeight: '600',
   },
@@ -467,10 +465,10 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: 'rgba(224, 192, 151, 0.4)',
+    borderColor: parchmentBg(0.4),
   },
   powerPipFilled: {
-    backgroundColor: '#e0c097',
-    borderColor: '#e0c097',
+    backgroundColor: C.parchment,
+    borderColor: C.parchment,
   },
 });
