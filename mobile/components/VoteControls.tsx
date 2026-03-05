@@ -16,6 +16,7 @@ type FactionInfo = {
   key: string;
   displayName: string;
   power: number;
+  preferences: Record<string, number>;
 };
 
 type Props = {
@@ -118,7 +119,7 @@ export default function VoteControls({
                   const factionKeys = Object.keys(r.factionPowerEffects).filter((k) =>
                     activeFactionKeys.includes(k)
                   );
-                  const upsetKeys = getUpsetFactions(r.axisEffects, activeFactionKeys);
+                  const upsetKeys = getUpsetFactions(r.axisEffects, activeFactionKeys, factionInfoMap);
                   if (axisKeys.length === 0 && factionKeys.length === 0 && upsetKeys.length === 0) return null;
                   return (
                     <View style={styles.effectsBlock}>

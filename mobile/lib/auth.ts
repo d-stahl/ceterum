@@ -2,19 +2,23 @@ import { supabase } from './supabase';
 import { generateUniqueName } from './name-generator';
 
 export async function ensureAuthenticated() {
-  const { data: { session } } = await supabase.auth.getSession();
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
 
-  if (session) {
-    // Validate the session is still good (user exists in DB after a reset)
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', session.user.id)
-      .single();
+    if (session) {
+      // Validate the session is still good (user exists in DB after a reset)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', session.user.id)
+        .single();
 
-    if (profile) {
-      return session;
+      if (profile) {
+        return session;
+      }
     }
+  } catch {
+    // Stale session (e.g. after db reset) — fall through to re-authenticate
   }
 
   // Clear any stale tokens from local storage before attempting fresh sign-in.

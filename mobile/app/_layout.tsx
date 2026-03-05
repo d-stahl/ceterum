@@ -27,7 +27,14 @@ export default function RootLayout() {
       .finally(() => setLoading(false));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        if (event === 'TOKEN_REFRESHED' && !session) {
+          // Stale refresh token — silently re-authenticate
+          ensureAuthenticated()
+            .then((s) => setSession(s))
+            .catch(() => {});
+          return;
+        }
         setSession(session);
       }
     );

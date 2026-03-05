@@ -14,6 +14,7 @@ type FactionInfo = {
   key: string;
   displayName: string;
   power: number;
+  preferences: Record<string, number>;
 };
 
 type PlayerAgendaInfo = {
@@ -21,6 +22,12 @@ type PlayerAgendaInfo = {
   name: string;
   color: string;
   agenda: Record<string, number>;
+};
+
+type ResolvedInfo = {
+  winningResolutionKey: string;
+  axisEffects: Record<string, number>;
+  factionPowerEffects: Record<string, number>;
 };
 
 type Props = {
@@ -32,6 +39,8 @@ type Props = {
   axisValues?: Record<string, number>;
   factionInfoMap?: Record<string, FactionInfo>;
   playerAgendas?: PlayerAgendaInfo[];
+  resolvedMap?: Record<string, ResolvedInfo>;
+  hideTab?: boolean;
 };
 
 export default function OnTheHorizon({
@@ -43,6 +52,8 @@ export default function OnTheHorizon({
   axisValues,
   factionInfoMap,
   playerAgendas,
+  resolvedMap,
+  hideTab,
 }: Props) {
   const slideAnim = useRef(new Animated.Value(PANEL_WIDTH)).current;
 
@@ -75,22 +86,24 @@ export default function OnTheHorizon({
   return (
     <>
       {/* Tab trigger — always visible on right edge */}
-      <Pressable style={styles.tabTrigger} onPress={onClose}>
-        <Text style={styles.tabText}>O</Text>
-        <Text style={styles.tabText}>N</Text>
-        <Text style={styles.tabDot} />
-        <Text style={styles.tabText}>T</Text>
-        <Text style={styles.tabText}>H</Text>
-        <Text style={styles.tabText}>E</Text>
-        <Text style={styles.tabDot} />
-        <Text style={styles.tabText}>H</Text>
-        <Text style={styles.tabText}>O</Text>
-        <Text style={styles.tabText}>R</Text>
-        <Text style={styles.tabText}>I</Text>
-        <Text style={styles.tabText}>Z</Text>
-        <Text style={styles.tabText}>O</Text>
-        <Text style={styles.tabText}>N</Text>
-      </Pressable>
+      {!hideTab && (
+        <Pressable style={styles.tabTrigger} onPress={onClose}>
+          <Text style={styles.tabText}>O</Text>
+          <Text style={styles.tabText}>N</Text>
+          <Text style={styles.tabDot} />
+          <Text style={styles.tabText}>T</Text>
+          <Text style={styles.tabText}>H</Text>
+          <Text style={styles.tabText}>E</Text>
+          <Text style={styles.tabDot} />
+          <Text style={styles.tabText}>H</Text>
+          <Text style={styles.tabText}>O</Text>
+          <Text style={styles.tabText}>R</Text>
+          <Text style={styles.tabText}>I</Text>
+          <Text style={styles.tabText}>Z</Text>
+          <Text style={styles.tabText}>O</Text>
+          <Text style={styles.tabText}>N</Text>
+        </Pressable>
+      )}
 
       {/* Backdrop */}
       {visible && (
@@ -109,7 +122,7 @@ export default function OnTheHorizon({
         <View style={styles.panelHeader}>
           <View>
             <Text style={styles.panelTitle}>On the Horizon</Text>
-            <Text style={styles.panelSubtitle}>Upcoming controversies</Text>
+            <Text style={styles.panelSubtitle}>Controversies this round</Text>
           </View>
           <Pressable onPress={onClose} style={styles.closeButton}>
             <Text style={styles.closeText}>✕</Text>
@@ -133,6 +146,7 @@ export default function OnTheHorizon({
                 axisValues={axisValues}
                 factionInfoMap={factionInfoMap}
                 playerAgendas={playerAgendas}
+                resolvedInfo={resolvedMap?.[c.key]}
               />
             ))
           )}
@@ -146,7 +160,7 @@ const styles = StyleSheet.create({
   tabTrigger: {
     position: 'absolute',
     right: -1,
-    top: '25%',
+    top: '43%',
     backgroundColor: goldBg(0.15),
     borderWidth: 1,
     borderColor: goldBg(0.4),

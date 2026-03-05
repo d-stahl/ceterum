@@ -20,6 +20,7 @@ type FactionInfo = {
   key: string;
   displayName: string;
   power: number;
+  preferences: Record<string, number>;
 };
 
 type Props = {
@@ -280,7 +281,7 @@ export default function ControversyVoting({
                 )}
 
                 {(() => {
-                  const upsetKeys = getUpsetFactions(r.axisEffects, activeFactionKeys);
+                  const upsetKeys = getUpsetFactions(r.axisEffects, activeFactionKeys, factionInfoMap);
                   if (upsetKeys.length === 0) return null;
                   return (
                     <View style={styles.effectsSection}>

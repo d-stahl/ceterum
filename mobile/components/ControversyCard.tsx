@@ -36,6 +36,13 @@ type FactionInfo = {
   key: string;
   displayName: string;
   power: number;
+  preferences: Record<string, number>;
+};
+
+type ResolvedInfo = {
+  winningResolutionKey: string;
+  axisEffects: Record<string, number>;
+  factionPowerEffects: Record<string, number>;
 };
 
 type Props = {
@@ -45,6 +52,7 @@ type Props = {
   axisValues?: Record<string, number>;
   factionInfoMap?: Record<string, FactionInfo>;
   playerAgendas?: PlayerAgendaInfo[];
+  resolvedInfo?: ResolvedInfo;
 };
 
 
@@ -56,15 +64,18 @@ function effectSign(n: number): string {
 export function getUpsetFactions(
   axisEffects: Partial<Record<string, number>>,
   activeFactionKeys: string[],
+  factionInfoMap?: Record<string, FactionInfo>,
 ): string[] {
   const upset: string[] = [];
-  for (const faction of FACTIONS) {
-    if (!activeFactionKeys.includes(faction.key)) continue;
+  for (const fkey of activeFactionKeys) {
+    const prefs = factionInfoMap?.[fkey]?.preferences
+      ?? FACTIONS.find((f) => f.key === fkey)?.defaultPreferences;
+    if (!prefs) continue;
     for (const [axis, shift] of Object.entries(axisEffects)) {
       if (!shift || shift === 0) continue;
-      const pref = faction.defaultPreferences[axis as AxisKey] ?? 0;
+      const pref = prefs[axis as AxisKey] ?? 0;
       if (pref === 0 || (pref > 0 && shift < 0) || (pref < 0 && shift > 0)) {
-        upset.push(faction.key);
+        upset.push(fkey);
         break;
       }
     }
@@ -199,13 +210,19 @@ export default function ControversyCard({
   axisValues,
   factionInfoMap,
   playerAgendas,
+  resolvedInfo,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const catColor = CATEGORY_COLORS[controversy.category] ?? '#888';
   const illustrationSource = ILLUSTRATION_MAP[controversy.illustration] ?? FALLBACK_ILLUSTRATION;
+  const isResolved = !!resolvedInfo;
+
+  const winningResolution = isResolved
+    ? controversy.resolutions.find((r) => r.key === resolvedInfo.winningResolutionKey)
+    : null;
 
   return (
-    <View style={[styles.card, isActive && styles.cardActive]}>
+    <View style={[styles.card, isActive && styles.cardActive, isResolved && styles.cardResolved]}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>{controversy.title}</Text>
@@ -220,89 +237,153 @@ export default function ControversyCard({
       {/* Flavor text */}
       <Text style={styles.flavor}>{controversy.flavor}</Text>
 
-      {/* Expand/collapse toggle */}
-      <Pressable
-        style={[styles.detailsButton, expanded && styles.detailsButtonActive]}
-        onPress={() => setExpanded((v) => !v)}
-      >
-        <Text style={styles.detailsButtonText}>
-          {expanded ? 'Hide Resolutions' : 'Show Resolutions'}
-        </Text>
-        <Text style={styles.detailsChevron}>{expanded ? '▴' : '▾'}</Text>
-      </Pressable>
+      {isResolved && winningResolution ? (
+        <>
+          {/* Enacted resolution label */}
+          <Text style={styles.enactedLabel}>Enacted Resolution</Text>
 
-      {/* Resolutions (expandable) */}
-      {expanded && (
-        <View style={styles.resolutionsSection}>
-          {controversy.resolutions.map((r) => {
-            const axisKeys = Object.keys(r.axisEffects) as string[];
-            const factionKeys = Object.keys(r.factionPowerEffects).filter((k) =>
-              activeFactionKeys.includes(k)
-            );
+          {/* Winning resolution card — uses stored applied effects */}
+          <View style={styles.resolution}>
+            <Text style={styles.resolutionTitle}>{winningResolution.title}</Text>
+            <Text style={styles.resolutionDesc}>{winningResolution.description}</Text>
 
-            return (
-              <View key={r.key} style={styles.resolution}>
-                <Text style={styles.resolutionTitle}>{r.title}</Text>
-                <Text style={styles.resolutionDesc}>{r.description}</Text>
+            {(() => {
+              const axisKeys = Object.keys(resolvedInfo.axisEffects).filter((k) => resolvedInfo.axisEffects[k] !== 0);
+              if (axisKeys.length === 0) return null;
+              return (
+                <View style={styles.effectsSection}>
+                  <Text style={styles.effectsSectionLabel}>Policy Effects</Text>
+                  {axisKeys.map((axis) => {
+                    const change = resolvedInfo.axisEffects[axis] ?? 0;
+                    // axisValues are current (post-resolution), subtract change to get pre-resolution
+                    const preResolutionVal = (axisValues?.[axis] ?? 0) - change;
+                    return (
+                      <AxisEffectSlider
+                        key={axis}
+                        axis={axis}
+                        change={change}
+                        currentValue={preResolutionVal}
+                        playerAgendas={playerAgendas}
+                      />
+                    );
+                  })}
+                </View>
+              );
+            })()}
 
-                {axisKeys.length > 0 && (
-                  <View style={styles.effectsSection}>
-                    <Text style={styles.effectsSectionLabel}>Policy Effects</Text>
-                    {axisKeys.map((axis) => {
-                      const change = r.axisEffects[axis as keyof typeof r.axisEffects] ?? 0;
-                      const currentVal = axisValues?.[axis] ?? 0;
+            {(() => {
+              const factionKeys = Object.keys(resolvedInfo.factionPowerEffects).filter(
+                (k) => activeFactionKeys.includes(k) && resolvedInfo.factionPowerEffects[k] !== 0
+              );
+              if (factionKeys.length === 0) return null;
+              return (
+                <View style={styles.effectsSection}>
+                  <Text style={styles.effectsSectionLabel}>Power Effects</Text>
+                  {factionKeys.map((fkey) => {
+                    const change = resolvedInfo.factionPowerEffects[fkey] ?? 0;
+                    const info = factionInfoMap?.[fkey];
+                    // power is current (post-resolution), subtract change to get pre-resolution
+                    return (
+                      <PowerEffectRow
+                        key={fkey}
+                        factionName={info?.displayName ?? fkey}
+                        currentPower={(info?.power ?? 3) - change}
+                        change={change}
+                      />
+                    );
+                  })}
+                </View>
+              );
+            })()}
+          </View>
+        </>
+      ) : (
+        <>
+          {/* Expand/collapse toggle */}
+          <Pressable
+            style={[styles.detailsButton, expanded && styles.detailsButtonActive]}
+            onPress={() => setExpanded((v) => !v)}
+          >
+            <Text style={styles.detailsButtonText}>
+              {expanded ? 'Hide Resolutions' : 'Show Resolutions'}
+            </Text>
+            <Text style={styles.detailsChevron}>{expanded ? '▴' : '▾'}</Text>
+          </Pressable>
+
+          {/* Resolutions (expandable) */}
+          {expanded && (
+            <View style={styles.resolutionsSection}>
+              {controversy.resolutions.map((r) => {
+                const axisKeys = Object.keys(r.axisEffects) as string[];
+                const factionKeys = Object.keys(r.factionPowerEffects).filter((k) =>
+                  activeFactionKeys.includes(k)
+                );
+
+                return (
+                  <View key={r.key} style={styles.resolution}>
+                    <Text style={styles.resolutionTitle}>{r.title}</Text>
+                    <Text style={styles.resolutionDesc}>{r.description}</Text>
+
+                    {axisKeys.length > 0 && (
+                      <View style={styles.effectsSection}>
+                        <Text style={styles.effectsSectionLabel}>Policy Effects</Text>
+                        {axisKeys.map((axis) => {
+                          const change = r.axisEffects[axis as keyof typeof r.axisEffects] ?? 0;
+                          const currentVal = axisValues?.[axis] ?? 0;
+                          return (
+                            <AxisEffectSlider
+                              key={axis}
+                              axis={axis}
+                              change={change}
+                              currentValue={currentVal}
+                              playerAgendas={playerAgendas}
+                            />
+                          );
+                        })}
+                      </View>
+                    )}
+
+                    {factionKeys.length > 0 && (
+                      <View style={styles.effectsSection}>
+                        <Text style={styles.effectsSectionLabel}>Power Effects</Text>
+                        {factionKeys.map((fkey) => {
+                          const change = r.factionPowerEffects[fkey] ?? 0;
+                          const info = factionInfoMap?.[fkey];
+                          return (
+                            <PowerEffectRow
+                              key={fkey}
+                              factionName={info?.displayName ?? fkey}
+                              currentPower={info?.power ?? 3}
+                              change={change}
+                            />
+                          );
+                        })}
+                      </View>
+                    )}
+
+                    {(() => {
+                      const upsetKeys = getUpsetFactions(r.axisEffects, activeFactionKeys, factionInfoMap);
+                      if (upsetKeys.length === 0) return null;
                       return (
-                        <AxisEffectSlider
-                          key={axis}
-                          axis={axis}
-                          change={change}
-                          currentValue={currentVal}
-                          playerAgendas={playerAgendas}
-                        />
+                        <View style={styles.effectsSection}>
+                          <Text style={styles.effectsSectionLabel}>Affinity Effects</Text>
+                          <Text style={styles.affinityWarning}>
+                            Backing this resolution will upset:
+                          </Text>
+                          {upsetKeys.map((fkey) => (
+                            <Text key={fkey} style={styles.affinityFactionName}>
+                              {factionInfoMap?.[fkey]?.displayName ?? fkey}
+                            </Text>
+                          ))}
+                        </View>
                       );
-                    })}
+                    })()}
                   </View>
-                )}
-
-                {factionKeys.length > 0 && (
-                  <View style={styles.effectsSection}>
-                    <Text style={styles.effectsSectionLabel}>Power Effects</Text>
-                    {factionKeys.map((fkey) => {
-                      const change = r.factionPowerEffects[fkey] ?? 0;
-                      const info = factionInfoMap?.[fkey];
-                      return (
-                        <PowerEffectRow
-                          key={fkey}
-                          factionName={info?.displayName ?? fkey}
-                          currentPower={info?.power ?? 3}
-                          change={change}
-                        />
-                      );
-                    })}
-                  </View>
-                )}
-
-                {(() => {
-                  const upsetKeys = getUpsetFactions(r.axisEffects, activeFactionKeys);
-                  if (upsetKeys.length === 0) return null;
-                  return (
-                    <View style={styles.effectsSection}>
-                      <Text style={styles.effectsSectionLabel}>Affinity Effects</Text>
-                      <Text style={styles.affinityWarning}>
-                        Backing this resolution will upset:
-                      </Text>
-                      {upsetKeys.map((fkey) => (
-                        <Text key={fkey} style={styles.affinityFactionName}>
-                          {factionInfoMap?.[fkey]?.displayName ?? fkey}
-                        </Text>
-                      ))}
-                    </View>
-                  );
-                })()}
-              </View>
-            );
-          })}
-        </View>
+                );
+              })}
+            </View>
+          )}
+        </>
       )}
     </View>
   );
@@ -320,6 +401,9 @@ const styles = StyleSheet.create({
   cardActive: {
     borderColor: C.gold,
     borderWidth: 2,
+  },
+  cardResolved: {
+    opacity: 0.75,
   },
   header: {
     flexDirection: 'row',
@@ -360,6 +444,15 @@ const styles = StyleSheet.create({
     opacity: 0.65,
     marginBottom: 10,
     lineHeight: 17,
+  },
+  enactedLabel: {
+    color: C.gold,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    marginTop: 4,
   },
   detailsButton: {
     flexDirection: 'row',

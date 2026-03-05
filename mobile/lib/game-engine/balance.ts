@@ -11,8 +11,65 @@ export interface BalancedFaction {
 }
 
 /**
- * Select numPlayers + 1 factions randomly and balance their axis preferences
- * so each axis nets to 0 across the selected factions.
+ * Curated zero-sum spread profiles per faction count (4–9).
+ * Each profile is a sorted array of preference slots that sums to 0.
+ * Asymmetric profiles include their mirror (negated) counterpart.
+ */
+const SPREAD_PROFILES: Record<number, number[][]> = {
+  4: [
+    [-2, -1, +1, +2],
+    [-1, -1, +1, +1],
+    [-2, 0, 0, +2],
+    [-2, 0, +1, +1],
+    [-1, -1, 0, +2],   // mirror of above
+  ],
+  5: [
+    [-2, -1, 0, +1, +2],
+    [-1, -1, 0, +1, +1],
+    [-2, -1, +1, +1, +1],
+    [-1, -1, -1, +1, +2],   // mirror of above
+    [-2, -2, +1, +1, +2],
+    [-2, -1, -1, +2, +2],   // mirror of above
+  ],
+  6: [
+    [-2, -1, -1, +1, +1, +2],
+    [-1, -1, -1, +1, +1, +1],
+    [-2, -1, 0, 0, +1, +2],
+    [-2, -1, 0, +1, +1, +1],
+    [-1, -1, -1, 0, +1, +2],   // mirror of above
+    [-2, -2, 0, +1, +1, +2],
+    [-2, -1, -1, 0, +2, +2],   // mirror of above
+  ],
+  7: [
+    [-2, -1, -1, 0, +1, +1, +2],
+    [-1, -1, -1, 0, +1, +1, +1],
+    [-2, -1, 0, 0, 0, +1, +2],
+    [-2, -2, -1, 0, +1, +2, +2],
+    [-2, -1, -1, +1, +1, +1, +1],
+    [-1, -1, -1, -1, +1, +1, +2],   // mirror of above
+  ],
+  8: [
+    [-2, -2, -1, -1, +1, +1, +2, +2],
+    [-1, -1, -1, -1, +1, +1, +1, +1],
+    [-2, -1, -1, 0, 0, +1, +1, +2],
+    [-2, -1, -1, -1, +1, +1, +1, +2],
+    [-2, -2, -1, 0, +1, +1, +1, +2],
+    [-2, -1, -1, -1, 0, +1, +2, +2],   // mirror of above
+  ],
+  9: [
+    [-2, -2, -1, -1, 0, +1, +1, +2, +2],
+    [-1, -1, -1, -1, 0, +1, +1, +1, +1],
+    [-2, -1, -1, -1, 0, +1, +1, +1, +2],
+    [-2, -1, -1, 0, 0, 0, +1, +1, +2],
+    [-2, -2, -2, -1, +1, +1, +1, +2, +2],
+    [-2, -2, -1, -1, -1, +1, +2, +2, +2],   // mirror of above
+  ],
+};
+
+/**
+ * Select numPlayers + 1 factions randomly and assign balanced axis preferences
+ * using curated spread profiles. For each axis, a random profile is chosen and
+ * factions are slotted into it by their default preference ordering.
  */
 export function selectAndBalanceFactions(
   numPlayers: number,
@@ -27,52 +84,54 @@ export function selectAndBalanceFactions(
   const shuffled = [...FACTIONS].sort(() => rng() - 0.5);
   const selected = shuffled.slice(0, count);
 
-  // Clone preferences for nudging
+  // Build result with empty preferences
   const balanced: BalancedFaction[] = selected.map((f) => ({
     key: f.key,
     displayName: f.displayName,
     latinName: f.latinName,
     description: f.description,
     power: f.defaultPower,
-    preferences: { ...f.defaultPreferences },
+    preferences: {} as AxisPreferences,
   }));
 
-  // Balance each axis to net 0
+  const profiles = SPREAD_PROFILES[count];
+
+  // For each axis, pick a random spread profile and slot factions by default preference order
   for (const axis of AXIS_KEYS) {
-    balanceAxis(balanced, axis);
+    const profile = profiles
+      ? profiles[Math.floor(rng() * profiles.length)]
+      : generateFallbackProfile(count, rng);
+
+    // Sort faction indices by their default preference for this axis
+    const indices = balanced.map((_, i) => i);
+    indices.sort((a, b) => selected[a].defaultPreferences[axis] - selected[b].defaultPreferences[axis]);
+
+    // Assign slots in order
+    const sortedSlots = [...profile].sort((a, b) => a - b);
+    for (let i = 0; i < indices.length; i++) {
+      balanced[indices[i]].preferences[axis] = sortedSlots[i] as number;
+    }
   }
 
   return balanced;
 }
 
 /**
- * Nudge faction preferences on a single axis until the net is 0.
- * Each nudge moves a faction's preference by 1 toward 0 (or away from 0
- * if the axis is skewed the other way). Nudges are applied to the most
- * extreme factions first to minimize identity distortion.
+ * Fallback for faction counts outside the curated profiles.
+ * Generates a random zero-sum profile by pairing ±k values.
  */
-function balanceAxis(factions: BalancedFaction[], axis: AxisKey): void {
-  let net = factions.reduce((sum, f) => sum + f.preferences[axis], 0);
+function generateFallbackProfile(count: number, rng: () => number): number[] {
+  const slots: number[] = [];
+  let remaining = count;
 
-  // Iteratively nudge until balanced
-  let maxIterations = 100; // safety valve
-  while (net !== 0 && maxIterations-- > 0) {
-    if (net > 0) {
-      // Need to reduce: find faction with highest positive preference
-      const target = factions
-        .filter((f) => f.preferences[axis] > 0)
-        .sort((a, b) => b.preferences[axis] - a.preferences[axis])[0];
-      if (!target) break; // can't reduce further
-      target.preferences[axis] -= 1;
-      net -= 1;
-    } else {
-      // Need to increase: find faction with lowest negative preference
-      const target = factions
-        .filter((f) => f.preferences[axis] < 0)
-        .sort((a, b) => a.preferences[axis] - b.preferences[axis])[0];
-      if (!target) break; // can't increase further
-      target.preferences[axis] += 1;
-      net += 1;
-    }
+  while (remaining > 1) {
+    const k = rng() < 0.6 ? 2 : 1;
+    slots.push(-k, +k);
+    remaining -= 2;
   }
+  if (remaining === 1) {
+    slots.push(0);
+  }
+
+  return slots;
 }

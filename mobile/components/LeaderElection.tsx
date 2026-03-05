@@ -60,6 +60,7 @@ export default function LeaderElection({
   // When senateLeaderId appears, fetch vote results and show them
   useEffect(() => {
     if (!senateLeaderId) return;
+    setError(null);
 
     (async () => {
       const { data: pledges } = await supabase
@@ -100,7 +101,10 @@ export default function LeaderElection({
       await submitLeaderVote(gameId, selectedCandidate);
       setHasSubmitted(true);
     } catch (e: any) {
-      setError(e.message ?? 'Failed to submit vote');
+      // Don't show errors if the election already resolved (race with other players)
+      if (!senateLeaderId) {
+        setError(e.message ?? 'Failed to submit vote');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -191,7 +195,7 @@ export default function LeaderElection({
         Vote for the player who should lead the Senate this round. Your influence ({playerInfluence(currentUserId)}) is your voting weight.
       </Text>
 
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && !senateLeaderId && <Text style={styles.errorText}>{error}</Text>}
 
       <View style={styles.candidatesSection}>
         {players.map((p) => {

@@ -13,6 +13,7 @@ type FactionInfo = {
   key: string;
   displayName: string;
   power: number;
+  preferences: Record<string, number>;
 };
 
 type Props = {

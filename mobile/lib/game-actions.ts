@@ -70,6 +70,14 @@ export async function submitSenateLeaderActions(
   return data;
 }
 
+export async function advanceRound(gameId: string): Promise<any> {
+  const { data, error } = await supabase.functions.invoke('advance-round', {
+    body: { game_id: gameId },
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function submitPlacement(
   gameId: string,
   factionId: string,

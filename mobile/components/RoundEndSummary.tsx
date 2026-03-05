@@ -1,5 +1,7 @@
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
-import { AXIS_KEYS, AXIS_LABELS, AxisKey } from '../lib/game-engine/axes';
+import { AXIS_KEYS } from '../lib/game-engine/axes';
+import { AxisEffectSlider } from './ControversyCard';
+import { PlayerAgendaInfo } from './AgendaDots';
 import { C, goldBg, parchmentBg } from '../lib/theme';
 
 type AxisState = {
@@ -28,32 +30,9 @@ type Props = {
   playerInfluences: PlayerInfluence[];
   axes: AxisState[];
   factionPowers: FactionPower[];
+  playerAgendas?: PlayerAgendaInfo[];
   onContinue: () => void;
 };
-
-const NOTCH_POSITIONS = [0, 25, 50, 75, 100];
-const clamp = (v: number) => Math.max(0, Math.min(100, ((v + 2) / 4) * 100));
-
-function AxisSlider({ axis, value }: { axis: AxisKey; value: number }) {
-  const labels = AXIS_LABELS[axis];
-  const position = clamp(value);
-
-  return (
-    <View style={styles.axisContainer}>
-      <Text style={styles.axisName}>{labels.negative} — {labels.positive}</Text>
-      <View style={styles.axisLineContainer}>
-        <View style={styles.axisLine}>
-          {NOTCH_POSITIONS.map((pct) => (
-            <View key={pct} style={[styles.notch, { left: `${pct}%` }]} />
-          ))}
-        </View>
-        <View style={[styles.marker, { left: `${position}%` }]}>
-          <View style={styles.markerTriangle} />
-        </View>
-      </View>
-    </View>
-  );
-}
 
 function PowerPips({ level }: { level: number }) {
   return (
@@ -74,6 +53,7 @@ export default function RoundEndSummary({
   playerInfluences,
   axes,
   factionPowers,
+  playerAgendas,
   onContinue,
 }: Props) {
   return (
@@ -130,7 +110,15 @@ export default function RoundEndSummary({
           {AXIS_KEYS.map((axis) => {
             const axisState = axes.find((a) => a.axis_key === axis);
             const value = axisState?.current_value ?? 0;
-            return <AxisSlider key={axis} axis={axis} value={value} />;
+            return (
+              <AxisEffectSlider
+                key={axis}
+                axis={axis}
+                change={0}
+                currentValue={value}
+                playerAgendas={playerAgendas}
+              />
+            );
           })}
         </View>
 
@@ -243,53 +231,7 @@ const styles = StyleSheet.create({
     minWidth: 28,
     textAlign: 'right',
   },
-  // Axis sliders (same pattern as FactionAlignmentTab)
   axesList: { gap: 12 },
-  axisContainer: { gap: 4 },
-  axisName: {
-    color: C.parchment,
-    fontSize: 10,
-    opacity: 0.5,
-    textAlign: 'center',
-  },
-  axisLineContainer: {
-    height: 16,
-    position: 'relative',
-    marginHorizontal: 8,
-  },
-  axisLine: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 7,
-    height: 2,
-    backgroundColor: parchmentBg(0.2),
-    borderRadius: 1,
-  },
-  notch: {
-    position: 'absolute',
-    top: -3,
-    width: 1,
-    height: 8,
-    backgroundColor: parchmentBg(0.3),
-    marginLeft: -0.5,
-  },
-  marker: {
-    position: 'absolute',
-    top: 0,
-    marginLeft: -5,
-    alignItems: 'center',
-  },
-  markerTriangle: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 5,
-    borderRightWidth: 5,
-    borderTopWidth: 8,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: C.accentGold,
-  },
   decayNote: {
     color: C.paleGold,
     fontSize: 12,

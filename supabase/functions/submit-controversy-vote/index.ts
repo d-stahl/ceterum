@@ -197,13 +197,6 @@ Deno.serve(async (req) => {
     });
     if (advanceError) throw advanceError;
 
-    if (advanceResult?.status === 'round_end') {
-      const { error: roundEndError } = await adminClient.rpc('advance_round', {
-        p_game_id: game_id,
-      });
-      if (roundEndError) throw roundEndError;
-    }
-
     return jsonResponse({ status: 'resolved', result: advanceResult });
 
   } catch (err) {

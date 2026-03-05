@@ -79,6 +79,17 @@ export default function LobbyScreen() {
           }
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+        },
+        () => {
+          loadPlayers();
+        }
+      )
       .subscribe();
 
     return () => {

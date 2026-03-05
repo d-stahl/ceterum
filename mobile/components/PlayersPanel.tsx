@@ -31,6 +31,7 @@ type Props = {
   currentUserId: string;
   visible: boolean;
   onClose: () => void;
+  hideTab?: boolean;
 };
 
 export default function PlayersPanel({
@@ -41,6 +42,7 @@ export default function PlayersPanel({
   currentUserId,
   visible,
   onClose,
+  hideTab,
 }: Props) {
   const slideAnim = useRef(new Animated.Value(PANEL_WIDTH)).current;
 
@@ -76,15 +78,17 @@ export default function PlayersPanel({
   return (
     <>
       {/* Tab trigger */}
-      <Pressable style={styles.tabTrigger} onPress={onClose}>
-        <Text style={styles.tabText}>P</Text>
-        <Text style={styles.tabText}>L</Text>
-        <Text style={styles.tabText}>A</Text>
-        <Text style={styles.tabText}>Y</Text>
-        <Text style={styles.tabText}>E</Text>
-        <Text style={styles.tabText}>R</Text>
-        <Text style={styles.tabText}>S</Text>
-      </Pressable>
+      {!hideTab && (
+        <Pressable style={styles.tabTrigger} onPress={onClose}>
+          <Text style={styles.tabText}>P</Text>
+          <Text style={styles.tabText}>L</Text>
+          <Text style={styles.tabText}>A</Text>
+          <Text style={styles.tabText}>Y</Text>
+          <Text style={styles.tabText}>E</Text>
+          <Text style={styles.tabText}>R</Text>
+          <Text style={styles.tabText}>S</Text>
+        </Pressable>
+      )}
 
       {/* Backdrop */}
       {visible && (
@@ -155,7 +159,7 @@ const styles = StyleSheet.create({
   tabTrigger: {
     position: 'absolute',
     right: -1,
-    top: '50%',
+    top: '30%',
     backgroundColor: goldBg(0.15),
     borderWidth: 1,
     borderColor: goldBg(0.4),

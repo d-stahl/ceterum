@@ -1,6 +1,6 @@
 import {
   View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator,
-  Alert, ImageBackground, Image, BackHandler,
+  Alert, ImageBackground, Image, BackHandler, ScrollView,
 } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -8,7 +8,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../../lib/supabase';
-import { submitPlacement } from '../../../lib/game-actions';
+import { submitPlacement, advanceRound } from '../../../lib/game-actions';
 import { getColorHex } from '../../../lib/player-colors';
 import { getSenatorIcon, getSaboteurIcon, getPromoterIcon } from '../../../lib/worker-icons';
 import { WorkerType, Placement } from '../../../lib/game-engine/workers';
@@ -24,19 +24,23 @@ import SubRoundAnnouncement from '../../../components/SubRoundAnnouncement';
 import SenateLeaderSelection from '../../../components/SenateLeaderSelection';
 import LeaderElection from '../../../components/LeaderElection';
 import PlayersPanel from '../../../components/PlayersPanel';
+import FactionsPanel from '../../../components/FactionsPanel';
 import SenateLeaderPoolManager from '../../../components/SenateLeaderPoolManager';
 import ControversyVoting from '../../../components/ControversyVoting';
 import RoundEndSummary from '../../../components/RoundEndSummary';
 import OnTheHorizon from '../../../components/OnTheHorizon';
-import { C, parchmentBg, navyBg } from '../../../lib/theme';
+import { C, parchmentBg, navyBg, goldBg } from '../../../lib/theme';
 import HomeIcon from '../../../components/icons/HomeIcon';
 import HelpIcon from '../../../components/icons/HelpIcon';
 import HelpModal from '../../../components/HelpModal';
-import { ILLUSTRATION_MAP } from '../../../components/ControversyCard';
+import { ILLUSTRATION_MAP, AxisEffectSlider } from '../../../components/ControversyCard';
+import ResolvedControversySummary from '../../../components/ResolvedControversySummary';
 import { CONTROVERSY_MAP } from '../../../lib/game-engine/controversies';
+import { AXIS_KEYS, AXIS_LABELS, AxisKey, computeAxisScore } from '../../../lib/game-engine/axes';
 const gameBg = require('../../../assets/images/demagogery-bg.png');
 const leaderElectionBg = require('../../../assets/images/leader-election-bg.png');
 const rulingBg = require('../../../assets/images/ruling-bg.png');
+const gameOverBg = require('../../../assets/images/game-over-bg.png');
 
 type Faction = {
   id: string;
@@ -60,6 +64,8 @@ type Round = {
   controversy_pool: string[];
   controversies_resolved: string[];
   upcoming_pool: string[];
+  initial_faction_powers: Record<string, number> | null;
+  initial_influence: Record<string, number> | null;
 };
 
 type PlayerInfo = {
@@ -97,6 +103,10 @@ type AxisState = {
 type ControversyStateRow = {
   controversy_key: string;
   status: string;
+  winning_resolution_key: string | null;
+  axis_effects_applied: Record<string, number> | null;
+  faction_power_effects_applied: Record<string, number> | null;
+  resolved_at?: string | null;
 };
 
 export default function GameScreen() {
@@ -135,8 +145,10 @@ function GameScreenInner() {
   const [gameStatus, setGameStatus] = useState('in_progress');
   const [onTheHorizonVisible, setOnTheHorizonVisible] = useState(false);
   const [playersVisible, setPlayersVisible] = useState(false);
+  const [factionsVisible, setFactionsVisible] = useState(false);
   const [showElectionResults, setShowElectionResults] = useState(false);
-  const [showRoundEnd, setShowRoundEnd] = useState(false);
+  const [allResolvedStates, setAllResolvedStates] = useState<ControversyStateRow[]>([]);
+  const [showResolutions, setShowResolutions] = useState(false);
   const [tooltipData, setTooltipData] = useState<{
     effect: WorkerEffect;
     playerName: string;
@@ -157,9 +169,9 @@ function GameScreenInner() {
   const helpDragVisible = useSharedValue(false);
 
   const prevRoundRef = useRef<{ roundNumber: number; subRound: number; phase: string } | null>(null);
+  const placementsRoundIdRef = useRef<string | null>(null);
+  const showElectionResultsRef = useRef(false);
   const preResolutionInfluenceRef = useRef<Record<string, number> | null>(null);
-  const preRoundEndInfluenceRef = useRef<Record<string, number>>({});
-  const preRoundEndFactionPowerRef = useRef<Record<string, number>>({});
 
   const myPlayer = players.find((p) => p.player_id === currentUserId);
   const playerColor = myPlayer?.color ?? 'ivory';
@@ -176,9 +188,9 @@ function GameScreenInner() {
   const pendingControversy = controversyStates.find(
     (cs) => cs.status === 'declared' || cs.status === 'voting',
   );
-  const [dismissedResolvedKey, setDismissedResolvedKey] = useState('');
+  const [dismissedResolvedKeys, setDismissedResolvedKeys] = useState<Set<string>>(new Set());
   const activeControversyKey =
-    (resolvedControversy && resolvedControversy.controversy_key !== dismissedResolvedKey
+    (resolvedControversy && !dismissedResolvedKeys.has(resolvedControversy.controversy_key)
       ? resolvedControversy.controversy_key
       : pendingControversy?.controversy_key) ?? '';
   const maxInfluence = playerStates.length > 0 ? Math.max(...playerStates.map((ps) => ps.influence)) : 0;
@@ -189,13 +201,26 @@ function GameScreenInner() {
   // Derived values for controversy card visualizations
   const axisValuesMap: Record<string, number> = {};
   axes.forEach((a) => { axisValuesMap[a.axis_key] = a.current_value; });
-  const factionInfoMap: Record<string, { key: string; displayName: string; power: number }> = {};
-  factions.forEach((f) => { factionInfoMap[f.faction_key] = { key: f.faction_key, displayName: f.display_name, power: f.power_level }; });
+  const factionInfoMap: Record<string, { key: string; displayName: string; power: number; preferences: Record<string, number> }> = {};
+  factions.forEach((f) => { factionInfoMap[f.faction_key] = { key: f.faction_key, displayName: f.display_name, power: f.power_level, preferences: { centralization: f.pref_centralization, expansion: f.pref_expansion, commerce: f.pref_commerce, patrician: f.pref_patrician, tradition: f.pref_tradition, militarism: f.pref_militarism } }; });
+  const factionIdMap: Record<string, string> = {};
+  factions.forEach((f) => { factionIdMap[f.id] = f.faction_key; });
+  const factionInfoList = Object.values(factionInfoMap);
   const playerAgendas: { playerId: string; name: string; color: string; agenda: Record<string, number> }[] = [];
   playerStates.forEach((ps) => {
     if (!ps.agenda) return;
     const p = players.find((pl) => pl.player_id === ps.player_id);
     if (p) playerAgendas.push({ playerId: ps.player_id, name: p.player_name, color: p.color, agenda: ps.agenda });
+  });
+  const resolvedMap: Record<string, { winningResolutionKey: string; axisEffects: Record<string, number>; factionPowerEffects: Record<string, number> }> = {};
+  controversyStates.forEach((cs) => {
+    if (cs.status === 'resolved' && cs.winning_resolution_key) {
+      resolvedMap[cs.controversy_key] = {
+        winningResolutionKey: cs.winning_resolution_key,
+        axisEffects: cs.axis_effects_applied ?? {},
+        factionPowerEffects: cs.faction_power_effects_applied ?? {},
+      };
+    }
   });
 
   // Intercept hardware back button — lobby uses router.replace so the back
@@ -234,6 +259,10 @@ function GameScreenInner() {
         filter: `game_id=eq.${gameId}`,
       }, () => { loadAxes(); })
       .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'game_player_faction_affinity',
+        filter: `game_id=eq.${gameId}`,
+      }, () => { loadAffinities(); })
+      .on('postgres_changes', {
         event: '*', schema: 'public', table: 'game_controversy_state',
         filter: `game_id=eq.${gameId}`,
       }, () => { loadControversyStates(); })
@@ -243,6 +272,7 @@ function GameScreenInner() {
       }, (payload: any) => {
         if (payload.new?.status === 'finished') {
           setGameStatus('finished');
+          loadAllResolvedControversies();
         }
       })
       .subscribe();
@@ -268,16 +298,20 @@ function GameScreenInner() {
         handleShowResolutionResults();
       }
 
-      // Election just resolved → hold the results screen
+      // Election just resolved → hold the results screen.
+      // Set this synchronously via ref so the very first render with ruling_pool
+      // doesn't flash the discard screen before the state update takes effect.
       if (prev.phase === 'leader_election' && round.phase === 'ruling_pool') {
+        showElectionResultsRef.current = true;
         setShowElectionResults(true);
       }
 
-      // New round started → show round-end summary overlay and auto-open horizon
+      // New round started → clear stale state
       if (roundAdvanced) {
-        setShowRoundEnd(true);
+        placementsRoundIdRef.current = null;
+        setPlacements([]);  // Clear stale placements from previous round
         setOnTheHorizonVisible(true);
-        setDismissedResolvedKey('');
+        setDismissedResolvedKeys(new Set());
       }
     }
     prevRoundRef.current = {
@@ -300,33 +334,26 @@ function GameScreenInner() {
   }, [round?.id, round?.phase]);
 
   useEffect(() => {
-    if (!round || !currentUserId) return;
+    if (!round || !currentUserId || round.phase !== 'demagogery') return;
+    // Only check placements that belong to the current round to avoid stale data races
+    if (placementsRoundIdRef.current !== round.id) return;
     const alreadySubmitted = placements.some(
       (p) => p.player_id === currentUserId && p.sub_round === round.sub_round
     );
     if (alreadySubmitted) setHasSubmittedThisSubRound(true);
   }, [placements, round, currentUserId]);
 
-  // Rolling snapshot of influence during demagogery — used for results delta
+  // Snapshot influence on first render in demagogery phase — used for results delta.
+  // Only capture once (when ref is null) to avoid overwriting with post-resolution values
+  // that arrive before the phase change propagates via realtime.
   useEffect(() => {
-    if (round?.phase === 'demagogery') {
+    if (round?.phase === 'demagogery' && !preResolutionInfluenceRef.current && playerStates.length > 0) {
       const snapshot: Record<string, number> = {};
       playerStates.forEach((ps) => { snapshot[ps.player_id] = ps.influence; });
       preResolutionInfluenceRef.current = snapshot;
     }
   }, [playerStates, round?.phase]);
 
-  // Snapshot influence + faction powers during ruling_voting_2 — used for round-end display
-  useEffect(() => {
-    if (round?.phase === 'ruling_voting_2') {
-      const infSnapshot: Record<string, number> = {};
-      playerStates.forEach((ps) => { infSnapshot[ps.player_id] = ps.influence; });
-      preRoundEndInfluenceRef.current = infSnapshot;
-      const powerSnapshot: Record<string, number> = {};
-      factions.forEach((f) => { powerSnapshot[f.faction_key] = f.power_level; });
-      preRoundEndFactionPowerRef.current = powerSnapshot;
-    }
-  }, [playerStates, factions, round?.phase]);
 
   async function loadGameState() {
     setLoading(true);
@@ -339,7 +366,10 @@ function GameScreenInner() {
         .select('status')
         .eq('id', gameId)
         .single();
-      if (game) setGameStatus(game.status);
+      if (game) {
+        setGameStatus(game.status);
+        if (game.status === 'finished') loadAllResolvedControversies();
+      }
 
       await Promise.all([
         loadFactions(),
@@ -367,7 +397,7 @@ function GameScreenInner() {
   async function loadRound() {
     const { data } = await supabase
       .from('game_rounds')
-      .select('id, round_number, phase, sub_round, senate_leader_id, controversy_pool, controversies_resolved, upcoming_pool')
+      .select('id, round_number, phase, sub_round, senate_leader_id, controversy_pool, controversies_resolved, upcoming_pool, initial_faction_powers, initial_influence')
       .eq('game_id', gameId)
       .order('round_number', { ascending: false })
       .limit(1)
@@ -398,7 +428,10 @@ function GameScreenInner() {
       .from('game_placements')
       .select('id, player_id, faction_id, worker_type, orator_role, sub_round')
       .eq('round_id', currentRound.id);
-    if (data) setPlacements(data);
+    if (data) {
+      placementsRoundIdRef.current = currentRound.id;
+      setPlacements(data);
+    }
   }
 
   async function loadPlayerStates() {
@@ -437,9 +470,19 @@ function GameScreenInner() {
 
     const { data } = await supabase
       .from('game_controversy_state')
-      .select('controversy_key, status')
+      .select('controversy_key, status, winning_resolution_key, axis_effects_applied, faction_power_effects_applied')
       .eq('round_id', currentRound.id);
     if (data) setControversyStates(data as ControversyStateRow[]);
+  }
+
+  async function loadAllResolvedControversies() {
+    const { data } = await supabase
+      .from('game_controversy_state')
+      .select('controversy_key, status, winning_resolution_key, axis_effects_applied, faction_power_effects_applied, resolved_at')
+      .eq('game_id', gameId)
+      .eq('status', 'resolved')
+      .order('resolved_at', { ascending: true });
+    if (data) setAllResolvedStates(data as ControversyStateRow[]);
   }
 
   // Submit the preliminary placement
@@ -766,13 +809,51 @@ function GameScreenInner() {
   }
 
   // Game finished screen
-  if (gameStatus === 'finished' && !showRoundEnd) {
-    const sorted = [...playerStates].sort((a, b) => b.influence - a.influence);
+  if (gameStatus === 'finished') {
+    // Compute agenda scores per player per axis
+    const playerScores: Record<string, { perAxis: Record<string, number>; total: number }> = {};
+    for (const pa of playerAgendas) {
+      const perAxis: Record<string, number> = {};
+      let total = 0;
+      for (const axis of AXIS_KEYS) {
+        const agendaPos = pa.agenda[axis];
+        if (agendaPos == null) continue;
+        const policyPos = axisValuesMap[axis] ?? 0;
+        const score = computeAxisScore(policyPos, agendaPos);
+        perAxis[axis] = score;
+        total += score;
+      }
+      playerScores[pa.playerId] = { perAxis, total };
+    }
+
+    const sorted = [...playerStates]
+      .map((ps) => ({ ...ps, score: playerScores[ps.player_id]?.total ?? 0 }))
+      .sort((a, b) => b.score - a.score);
+
+    const allResolvedMap: Record<string, { winningResolutionKey: string; axisEffects: Record<string, number>; factionPowerEffects: Record<string, number> }> = {};
+    allResolvedStates.forEach((cs) => {
+      if (cs.winning_resolution_key) {
+        allResolvedMap[cs.controversy_key] = {
+          winningResolutionKey: cs.winning_resolution_key,
+          axisEffects: cs.axis_effects_applied ?? {},
+          factionPowerEffects: cs.faction_power_effects_applied ?? {},
+        };
+      }
+    });
+    const resolvedControversies = allResolvedStates
+      .map((cs) => CONTROVERSY_MAP[cs.controversy_key])
+      .filter(Boolean);
+
     return (
-      <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
-        <View style={[styles.container, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
+      <ImageBackground source={gameOverBg} style={styles.background} resizeMode="cover">
+        <ScrollView
+          style={[styles.container, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}
+          contentContainerStyle={styles.gameOverContent}
+        >
           <Text style={styles.phaseTitle}>GAME OVER</Text>
           <Text style={styles.subTitle}>Final Standings</Text>
+
+          {/* Scores */}
           <View style={styles.resultsList}>
             {sorted.map((ps, i) => {
               const player = players.find((p) => p.player_id === ps.player_id);
@@ -781,15 +862,97 @@ function GameScreenInner() {
                   <Text style={styles.resultRank}>{i + 1}.</Text>
                   <View style={[styles.resultDot, { backgroundColor: getColorHex(player?.color ?? 'ivory') }]} />
                   <Text style={styles.resultName}>{player?.player_name ?? 'Unknown'}</Text>
-                  <Text style={styles.resultInfluence}>{ps.influence}</Text>
+                  <Text style={styles.resultInfluence}>{ps.score}</Text>
                 </View>
               );
             })}
           </View>
+
+          {/* Score Breakdown */}
+          {playerAgendas.length > 0 && (
+            <View style={styles.gameOverSection}>
+              <Text style={styles.gameOverSectionTitle}>Score Breakdown</Text>
+              {AXIS_KEYS.map((axis) => {
+                const labels = AXIS_LABELS[axis as AxisKey];
+                // Collect scores for players who have an agenda on this axis
+                const axisScorers = playerAgendas
+                  .map((pa) => {
+                    const score = playerScores[pa.playerId]?.perAxis[axis];
+                    if (score == null || score === 0) return null;
+                    return { playerId: pa.playerId, name: pa.name, color: pa.color, score };
+                  })
+                  .filter(Boolean) as { playerId: string; name: string; color: string; score: number }[];
+
+                const val = axisValuesMap[axis] ?? 0;
+                const positionLabel = val === 0
+                  ? 'Neutral'
+                  : `${Math.abs(val) >= 2 ? 'Extreme' : 'Moderate'} ${val > 0 ? labels.positive : labels.negative}`;
+
+                return (
+                  <View key={axis} style={styles.axisBreakdownBlock}>
+                    <AxisEffectSlider
+                      axis={axis}
+                      change={0}
+                      currentValue={val}
+                      playerAgendas={playerAgendas}
+                    />
+                    <Text style={styles.axisPositionLabel}>{positionLabel}</Text>
+                    {axisScorers.length > 0 && (
+                      <View style={styles.axisScores}>
+                        {axisScorers.map((s) => (
+                          <View key={s.playerId} style={styles.axisScoreRow}>
+                            <View style={[styles.resultDot, { backgroundColor: getColorHex(s.color) }]} />
+                            <Text style={styles.axisScorePlayerName}>{s.name}</Text>
+                            <Text style={styles.axisScoreValue}>+{s.score}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Resolutions expandable */}
+          {resolvedControversies.length > 0 && (
+            <View style={styles.gameOverSection}>
+              <Pressable
+                style={styles.resolutionsToggle}
+                onPress={() => setShowResolutions((v) => !v)}
+              >
+                <Text style={styles.gameOverSectionTitle}>
+                  {showResolutions ? 'Hide' : 'Show'} Resolutions ({resolvedControversies.length})
+                </Text>
+                <Text style={styles.resolutionsChevron}>{showResolutions ? '▲' : '▼'}</Text>
+              </Pressable>
+              {showResolutions && (() => {
+                const factionNames: Record<string, string> = {};
+                factions.forEach((f) => { factionNames[f.faction_key] = f.display_name; });
+                return (
+                  <View style={styles.resolutionsList}>
+                    {resolvedControversies.map((c) => {
+                      const info = allResolvedMap[c.key];
+                      if (!info) return null;
+                      return (
+                        <ResolvedControversySummary
+                          key={c.key}
+                          controversy={c}
+                          resolvedInfo={info}
+                          factionDisplayNames={factionNames}
+                        />
+                      );
+                    })}
+                  </View>
+                );
+              })()}
+            </View>
+          )}
+
           <Pressable style={styles.actionButton} onPress={() => router.replace('/(app)/home')}>
             <Text style={styles.actionButtonText}>Return Home</Text>
           </Pressable>
-        </View>
+        </ScrollView>
       </ImageBackground>
     );
   }
@@ -838,7 +1001,69 @@ function GameScreenInner() {
   const upcomingPoolKeys = round?.upcoming_pool ?? [];
   const horizonKeys = controversyPoolKeys.length > 0 ? controversyPoolKeys : upcomingPoolKeys;
 
-  if (phase === 'leader_election' || showElectionResults) {
+  const sidePanels = (
+    <>
+      <View style={styles.sideTabStrip}>
+        <Pressable style={styles.sideTab} onPress={() => setPlayersVisible((v) => !v)}>
+          {'PLAYERS'.split('').map((ch, i) => (
+            <Text key={i} style={styles.sideTabText}>{ch}</Text>
+          ))}
+        </Pressable>
+        <Pressable style={styles.sideTab} onPress={() => setOnTheHorizonVisible((v) => !v)}>
+          {'ON'.split('').map((ch, i) => (
+            <Text key={`a${i}`} style={styles.sideTabText}>{ch}</Text>
+          ))}
+          <View style={styles.sideTabDot} />
+          {'THE'.split('').map((ch, i) => (
+            <Text key={`b${i}`} style={styles.sideTabText}>{ch}</Text>
+          ))}
+          <View style={styles.sideTabDot} />
+          {'HORIZON'.split('').map((ch, i) => (
+            <Text key={`c${i}`} style={styles.sideTabText}>{ch}</Text>
+          ))}
+        </Pressable>
+        <Pressable style={styles.sideTab} onPress={() => setFactionsVisible((v) => !v)}>
+          {'FACTIONS'.split('').map((ch, i) => (
+            <Text key={i} style={styles.sideTabText}>{ch}</Text>
+          ))}
+        </Pressable>
+      </View>
+      <OnTheHorizon
+        poolKeys={horizonKeys}
+        activeFactionKeys={activeFactionKeys}
+        activeControversyKey={activeControversyKey}
+        visible={onTheHorizonVisible}
+        onClose={() => setOnTheHorizonVisible((v) => !v)}
+        axisValues={axisValuesMap}
+        factionInfoMap={factionInfoMap}
+        playerAgendas={playerAgendas}
+        resolvedMap={resolvedMap}
+        hideTab
+      />
+      <PlayersPanel
+        players={players}
+        playerStates={playerStates}
+        playerAgendas={playerAgendas}
+        axes={axisValuesMap}
+        currentUserId={currentUserId}
+        visible={playersVisible}
+        onClose={() => setPlayersVisible((v) => !v)}
+        hideTab
+      />
+      <FactionsPanel
+        factions={factionInfoList}
+        players={players}
+        affinities={affinities}
+        factionIdMap={factionIdMap}
+        axisValues={axisValuesMap}
+        visible={factionsVisible}
+        onClose={() => setFactionsVisible((v) => !v)}
+        hideTab
+      />
+    </>
+  );
+
+  if (phase === 'leader_election' || showElectionResults || showElectionResultsRef.current) {
     return (
       <ImageBackground source={leaderElectionBg} style={styles.background} resizeMode="cover">
         <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]}>
@@ -868,26 +1093,9 @@ function GameScreenInner() {
             players={players}
             playerStates={playerStates}
             senateLeaderId={senateLeaderId || null}
-            onLeaderSelected={() => { setShowElectionResults(false); loadRound(); }}
+            onLeaderSelected={() => { showElectionResultsRef.current = false; setShowElectionResults(false); loadRound(); }}
           />
-          <OnTheHorizon
-            poolKeys={horizonKeys}
-            activeFactionKeys={activeFactionKeys}
-            visible={onTheHorizonVisible}
-            onClose={() => setOnTheHorizonVisible((v) => !v)}
-            axisValues={axisValuesMap}
-            factionInfoMap={factionInfoMap}
-            playerAgendas={playerAgendas}
-          />
-          <PlayersPanel
-            players={players}
-            playerStates={playerStates}
-            playerAgendas={playerAgendas}
-            axes={axisValuesMap}
-            currentUserId={currentUserId}
-            visible={playersVisible}
-            onClose={() => setPlayersVisible((v) => !v)}
-          />
+          {sidePanels}
           <HelpModal helpId={help?.activeHelpId ?? null} onDismiss={() => help?.dismissHelp()} />
         </View>
       </ImageBackground>
@@ -927,24 +1135,7 @@ function GameScreenInner() {
             factionInfoMap={factionInfoMap}
             playerAgendas={playerAgendas}
           />
-          <OnTheHorizon
-            poolKeys={horizonKeys}
-            activeFactionKeys={activeFactionKeys}
-            visible={onTheHorizonVisible}
-            onClose={() => setOnTheHorizonVisible((v) => !v)}
-            axisValues={axisValuesMap}
-            factionInfoMap={factionInfoMap}
-            playerAgendas={playerAgendas}
-          />
-          <PlayersPanel
-            players={players}
-            playerStates={playerStates}
-            playerAgendas={playerAgendas}
-            axes={axisValuesMap}
-            currentUserId={currentUserId}
-            visible={playersVisible}
-            onClose={() => setPlayersVisible((v) => !v)}
-          />
+          {sidePanels}
         </View>
       </ImageBackground>
     );
@@ -972,7 +1163,7 @@ function GameScreenInner() {
               axisValues={axisValuesMap}
               playerAgendas={playerAgendas}
               onContinue={() => {
-                setDismissedResolvedKey(activeControversyKey);
+                setDismissedResolvedKeys((prev) => new Set(prev).add(activeControversyKey));
                 loadRound();
               }}
             />
@@ -981,24 +1172,85 @@ function GameScreenInner() {
               <ActivityIndicator color={C.gold} size="large" />
             </View>
           )}
-          <OnTheHorizon
-            poolKeys={horizonKeys}
-            activeFactionKeys={activeFactionKeys}
-            activeControversyKey={activeControversyKey}
-            visible={onTheHorizonVisible}
-            onClose={() => setOnTheHorizonVisible((v) => !v)}
-            axisValues={axisValuesMap}
-            factionInfoMap={factionInfoMap}
+          {sidePanels}
+        </View>
+      </ImageBackground>
+    );
+  }
+
+  // --- Round end phase ---
+  if (phase === 'round_end') {
+    // If there's a resolved controversy the player hasn't dismissed yet, show it first
+    const undismissedResolved = controversyStates.find(
+      (cs) => cs.status === 'resolved' && !dismissedResolvedKeys.has(cs.controversy_key),
+    );
+
+    if (undismissedResolved) {
+      const controversyObj = CONTROVERSY_MAP[undismissedResolved.controversy_key];
+      const controversyIllustration = controversyObj ? ILLUSTRATION_MAP[controversyObj.illustration] : null;
+      const votingBg = controversyIllustration ?? rulingBg;
+
+      return (
+        <ImageBackground source={votingBg} style={styles.background} resizeMode="cover">
+          <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: 0 }]}>
+            <ControversyVoting
+              gameId={gameId!}
+              roundId={round!.id}
+              controversyKey={undismissedResolved.controversy_key}
+              currentUserId={currentUserId}
+              senateLeaderId={senateLeaderId}
+              currentInfluence={myInfluence}
+              players={players}
+              activeFactionKeys={activeFactionKeys}
+              factionInfoMap={factionInfoMap}
+              axisValues={axisValuesMap}
+              playerAgendas={playerAgendas}
+              onContinue={() => {
+                setDismissedResolvedKeys((prev) => new Set(prev).add(undismissedResolved.controversy_key));
+              }}
+            />
+          </View>
+        </ImageBackground>
+      );
+    }
+
+    // All controversies dismissed — show round-end summary
+    const initialPowers = round?.initial_faction_powers ?? {};
+    return (
+      <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
+        <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: 0 }]}>
+          <RoundEndSummary
+            roundNumber={round!.round_number}
+            isGameOver={round!.round_number >= 6}
+            playerInfluences={players.map((p) => {
+              const currentInf = playerStates.find((ps) => ps.player_id === p.player_id)?.influence ?? 0;
+              return {
+                player_id: p.player_id,
+                player_name: p.player_name,
+                color: getColorHex(p.color),
+                influenceBefore: currentInf,
+                influenceAfter: Math.ceil(currentInf / 2),
+              };
+            })}
+            axes={axes}
             playerAgendas={playerAgendas}
-          />
-          <PlayersPanel
-            players={players}
-            playerStates={playerStates}
-            playerAgendas={playerAgendas}
-            axes={axisValuesMap}
-            currentUserId={currentUserId}
-            visible={playersVisible}
-            onClose={() => setPlayersVisible((v) => !v)}
+            factionPowers={factions.map((f) => ({
+              faction_key: f.faction_key,
+              display_name: f.display_name,
+              power_level: f.power_level,
+              change: f.power_level - (initialPowers[f.faction_key] ?? f.power_level),
+            }))}
+            onContinue={async () => {
+              try {
+                await advanceRound(gameId!);
+                setDismissedResolvedKeys(new Set());
+                setPlacements([]);
+                setHasSubmittedThisSubRound(false);
+                await Promise.all([loadRound(), loadPlacements(), loadPlayerStates(), loadFactions(), loadAffinities()]);
+              } catch (e: any) {
+                Alert.alert('Error', e.message ?? 'Could not advance round');
+              }
+            }}
           />
         </View>
       </ImageBackground>
@@ -1141,54 +1393,8 @@ function GameScreenInner() {
           <SubRoundAnnouncement subRound={round.sub_round} roundNumber={round.round_number} />
         )}
 
-        {/* On the Horizon slide-in panel */}
-        <OnTheHorizon
-          poolKeys={horizonKeys}
-          activeFactionKeys={activeFactionKeys}
-          visible={onTheHorizonVisible}
-          onClose={() => setOnTheHorizonVisible((v) => !v)}
-          axisValues={axisValuesMap}
-          factionInfoMap={factionInfoMap}
-          playerAgendas={playerAgendas}
-        />
+        {sidePanels}
 
-        {/* Players slide-in panel */}
-        <PlayersPanel
-          players={players}
-          playerStates={playerStates}
-          playerAgendas={playerAgendas}
-          axes={axisValuesMap}
-          currentUserId={currentUserId}
-          visible={playersVisible}
-          onClose={() => setPlayersVisible((v) => !v)}
-        />
-
-        {/* Round-end summary overlay (absolute, shown at start of new round) */}
-        {showRoundEnd && round && (
-          <RoundEndSummary
-            roundNumber={round.round_number - 1}
-            isGameOver={gameStatus === 'finished'}
-            playerInfluences={players.map((p) => {
-              const currentInf = playerStates.find((ps) => ps.player_id === p.player_id)?.influence ?? 0;
-              const beforeInf = preRoundEndInfluenceRef.current[p.player_id] ?? currentInf * 2;
-              return {
-                player_id: p.player_id,
-                player_name: p.player_name,
-                color: getColorHex(p.color),
-                influenceBefore: beforeInf,
-                influenceAfter: currentInf,
-              };
-            })}
-            axes={axes}
-            factionPowers={factions.map((f) => ({
-              faction_key: f.faction_key,
-              display_name: f.display_name,
-              power_level: f.power_level,
-              change: f.power_level - (preRoundEndFactionPowerRef.current[f.faction_key] ?? f.power_level),
-            }))}
-            onContinue={() => setShowRoundEnd(false)}
-          />
-        )}
       </View>
 
       {/* Help modal */}
@@ -1420,5 +1626,98 @@ const styles = StyleSheet.create({
     color: C.parchment,
     fontSize: 18,
     fontWeight: '600',
+  },
+  sideTabStrip: {
+    position: 'absolute',
+    right: -1,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    gap: 12,
+    zIndex: 10,
+  },
+  sideTab: {
+    backgroundColor: goldBg(0.15),
+    borderWidth: 1,
+    borderColor: goldBg(0.4),
+    borderRightWidth: 0,
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 3,
+    alignItems: 'center',
+  },
+  sideTabText: {
+    color: C.gold,
+    fontSize: 9,
+    fontWeight: '700',
+    lineHeight: 11,
+  },
+  sideTabDot: {
+    width: 2,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: goldBg(0.4),
+    marginVertical: 2,
+  },
+  gameOverContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 40,
+    gap: 16,
+  },
+  gameOverSection: {
+    gap: 12,
+  },
+  gameOverSectionTitle: {
+    color: C.gold,
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  resolutionsToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  resolutionsChevron: {
+    color: C.gold,
+    fontSize: 12,
+    opacity: 0.6,
+  },
+  resolutionsList: {
+    gap: 12,
+  },
+  axisBreakdownBlock: {
+    marginBottom: 12,
+  },
+  axisPositionLabel: {
+    color: C.paleGold,
+    fontSize: 11,
+    opacity: 0.55,
+    fontStyle: 'italic',
+    marginTop: 2,
+    paddingLeft: 4,
+  },
+  axisScores: {
+    gap: 3,
+    marginTop: 4,
+    paddingLeft: 4,
+  },
+  axisScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  axisScorePlayerName: {
+    color: C.paleGold,
+    fontSize: 11,
+    opacity: 0.7,
+  },
+  axisScoreValue: {
+    color: C.gold,
+    fontSize: 11,
+    fontWeight: '700',
   },
 });
