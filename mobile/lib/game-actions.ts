@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { WorkerType, OratorRole } from './game-engine/workers';
+import { WorkerEffect } from './game-engine/demagogery';
 
 export async function submitLeaderVote(
   gameId: string,
@@ -94,4 +95,24 @@ export async function submitPlacement(
   });
   if (error) throw error;
   return data as any;
+}
+
+export type PreliminaryPlacementRequest = {
+  factionKey: string;
+  workerType: WorkerType;
+  oratorRole?: OratorRole;
+};
+
+export async function fetchPreviewEffects(
+  gameId: string,
+  preliminaryPlacement?: PreliminaryPlacementRequest,
+): Promise<WorkerEffect[]> {
+  const { data, error } = await supabase.functions.invoke('preview-effects', {
+    body: {
+      game_id: gameId,
+      preliminary_placement: preliminaryPlacement ?? null,
+    },
+  });
+  if (error) throw error;
+  return (data as { workerEffects: WorkerEffect[] }).workerEffects;
 }
