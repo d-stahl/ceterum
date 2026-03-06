@@ -179,6 +179,7 @@ function GameScreenInner() {
   const preResolutionInfluenceRef = useRef<Record<string, number> | null>(null);
   const workerEffectsRef = useRef<WorkerEffect[]>([]);
   const previewFetchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchGenerationRef = useRef(0);
 
   const myPlayer = players.find((p) => p.player_id === currentUserId);
   const playerColor = myPlayer?.color ?? 'ivory';
@@ -353,6 +354,37 @@ function GameScreenInner() {
     }
   }, [playerStates, round?.phase]);
 
+  const fetchAndCacheEffects = useCallback(async (preliminary?: PreliminaryPlacementRequest) => {
+    const myGeneration = ++fetchGenerationRef.current;
+    try {
+      const effects = await fetchPreviewEffects(gameId, preliminary);
+      if (fetchGenerationRef.current !== myGeneration) return; // stale response, discard
+      workerEffectsRef.current = effects;
+
+      // If there's a loading tooltip open, populate it now that data arrived
+      setTooltipData((prev) => {
+        if (!prev || !prev.loading) return prev;
+        const effect = getEffectForWorker(
+          effects,
+          prev.pendingPlayerId!,
+          prev.pendingFactionKey!,
+          prev.pendingWorkerType!,
+          prev.pendingOratorRole,
+        );
+        if (!effect) return null;
+        return {
+          effect,
+          playerName: prev.playerName,
+          playerColor: prev.playerColor,
+          factionName: prev.factionName,
+          position: prev.position,
+        };
+      });
+    } catch (e) {
+      console.warn('[preview-effects] fetch failed:', e);
+    }
+  }, [gameId]);
+
   // Debounced re-fetch of preview effects when preliminary placement changes
   useEffect(() => {
     const phase = round?.phase;
@@ -381,7 +413,7 @@ function GameScreenInner() {
         clearTimeout(previewFetchDebounceRef.current);
       }
     };
-  }, [drag.preliminaryPlacement, round?.phase, gameId]);
+  }, [drag.preliminaryPlacement, round?.phase, gameId, fetchAndCacheEffects]);
 
   async function loadGameState() {
     setLoading(true);
@@ -442,9 +474,6 @@ function GameScreenInner() {
         setShowRoundEnd(true);
       }
       setRound(data as Round);
-      if (data.phase === 'demagogery' || data.phase === 'demagogery_resolved') {
-        fetchAndCacheEffects();
-      }
     }
   }
 
@@ -526,35 +555,6 @@ function GameScreenInner() {
       .eq('status', 'resolved')
       .order('resolved_at', { ascending: true });
     if (data) setAllResolvedStates(data as ControversyStateRow[]);
-  }
-
-  async function fetchAndCacheEffects(preliminary?: PreliminaryPlacementRequest) {
-    try {
-      const effects = await fetchPreviewEffects(gameId, preliminary);
-      workerEffectsRef.current = effects;
-
-      // If there's a loading tooltip open, populate it now that data arrived
-      setTooltipData((prev) => {
-        if (!prev || !prev.loading) return prev;
-        const effect = getEffectForWorker(
-          effects,
-          prev.pendingPlayerId!,
-          prev.pendingFactionKey!,
-          prev.pendingWorkerType!,
-          prev.pendingOratorRole,
-        );
-        if (!effect) return null;
-        return {
-          effect,
-          playerName: prev.playerName,
-          playerColor: prev.playerColor,
-          factionName: prev.factionName,
-          position: prev.position,
-        };
-      });
-    } catch (e) {
-      console.warn('[preview-effects] fetch failed:', e);
-    }
   }
 
   // Submit the preliminary placement
@@ -700,7 +700,7 @@ function GameScreenInner() {
         } : undefined,
       );
     }
-  }, [placements, factions, drag.preliminaryPlacement]);
+  }, [placements, factions, drag.preliminaryPlacement, fetchAndCacheEffects]);
 
   const dragOverlayStyle = useAnimatedStyle(() => ({
     position: 'absolute' as const,
