@@ -58,9 +58,23 @@ Deno.serve(async (req) => {
     if (affinitiesRes.error) throw affinitiesRes.error;
 
     const enginePlacements = buildEnginePlacementsFromDb(placementsRes.data ?? []);
+    const engineFactions = buildEngineFactionsFromDb(factionsRes.data ?? []);
 
     // Append preliminary placement if provided
     if (preliminary_placement) {
+      const validWorkerTypes = ['orator', 'promoter', 'saboteur'];
+      const validOratorRoles = ['demagog', 'advocate', 'agitator'];
+      if (!validWorkerTypes.includes(preliminary_placement.workerType)) {
+        return errorResponse('Invalid workerType', 400);
+      }
+      if (preliminary_placement.oratorRole !== undefined &&
+          preliminary_placement.oratorRole !== null &&
+          !validOratorRoles.includes(preliminary_placement.oratorRole)) {
+        return errorResponse('Invalid oratorRole', 400);
+      }
+      const factionExists = engineFactions.some((f) => f.key === preliminary_placement.factionKey);
+      if (!factionExists) return errorResponse('Invalid factionKey', 400);
+
       enginePlacements.push({
         playerId: user.id,
         factionKey: preliminary_placement.factionKey,
@@ -69,8 +83,6 @@ Deno.serve(async (req) => {
         subRound: round.sub_round,
       });
     }
-
-    const engineFactions = buildEngineFactionsFromDb(factionsRes.data ?? []);
     const playerAffinities = buildPlayerAffinitiesFromDb(affinitiesRes.data ?? []);
 
     const { workerEffects } = resolveDemagogeryDetailed(enginePlacements, engineFactions, playerAffinities);
