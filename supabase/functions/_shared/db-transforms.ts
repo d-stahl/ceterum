@@ -46,7 +46,7 @@ export function buildEnginePlacementsFromDb(placements: any[]): Placement[] {
     playerId: p.player_id,
     factionKey: p.game_factions.faction_key,
     workerType: p.worker_type as WorkerType,
-    oratorRole: p.orator_role as OratorRole | undefined,
+    oratorRole: (p.orator_role ?? undefined) as OratorRole | undefined,
     subRound: p.sub_round,
   }));
 }

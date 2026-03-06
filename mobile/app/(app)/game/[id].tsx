@@ -382,13 +382,15 @@ function GameScreenInner() {
       });
     } catch (e) {
       console.warn('[preview-effects] fetch failed:', e);
+      // Dismiss any open loading tooltip (spinner would be stuck forever otherwise)
+      setTooltipData((prev) => (prev?.loading ? null : prev));
     }
   }, [gameId]);
 
   // Debounced re-fetch of preview effects when preliminary placement changes
   useEffect(() => {
     const phase = round?.phase;
-    if (phase !== 'demagogery' && phase !== 'demagogery_resolved') return;
+    if (phase !== 'demagogery') return;
 
     if (previewFetchDebounceRef.current) {
       clearTimeout(previewFetchDebounceRef.current);

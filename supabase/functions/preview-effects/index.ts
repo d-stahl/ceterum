@@ -1,4 +1,4 @@
-import { createEdgeClients, corsHeaders, jsonResponse, errorResponse } from '../_shared/auth.ts';
+import { createEdgeClients, corsHeaders, jsonResponse, errorResponse, verifyMembership } from '../_shared/auth.ts';
 import {
   buildEngineFactionsFromDb,
   buildEnginePlacementsFromDb,
@@ -19,14 +19,7 @@ Deno.serve(async (req) => {
 
     const { anonClient, adminClient, user } = await createEdgeClients(req.headers.get('Authorization'));
 
-    // Verify membership (uses anon client, respects RLS)
-    const { data: membership, error: membershipError } = await anonClient
-      .from('game_players')
-      .select('player_id')
-      .eq('game_id', game_id)
-      .eq('player_id', user.id)
-      .maybeSingle();
-    if (membershipError || !membership) return errorResponse('Forbidden', 403);
+    await verifyMembership(anonClient, game_id, user.id);
 
     // Load current round for round_id and sub_round
     const { data: round, error: roundError } = await adminClient
