@@ -8,13 +8,12 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../../lib/supabase';
-import { submitPlacement, advanceRound } from '../../../lib/game-actions';
+import { submitPlacement, advanceRound, fetchPreviewEffects, PreliminaryPlacementRequest } from '../../../lib/game-actions';
 import { getColorHex } from '../../../lib/player-colors';
 import { getSenatorIcon, getSaboteurIcon, getPromoterIcon } from '../../../lib/worker-icons';
-import { WorkerType, Placement } from '../../../lib/game-engine/workers';
-import { BalancedFaction } from '../../../lib/game-engine/balance';
+import { WorkerType, OratorRole } from '../../../lib/game-engine/workers';
 import { WorkerEffect } from '../../../lib/game-engine/demagogery';
-import { computeTooltipEffects, getEffectForWorker } from '../../../lib/tooltip-effects';
+import { getEffectForWorker } from '../../../lib/tooltip-effects';
 import FactionCard, { FactionPlacement } from '../../../components/FactionCard';
 import WorkerSelector from '../../../components/WorkerSelector';
 import WorkerTooltip from '../../../components/WorkerTooltip';
@@ -151,11 +150,16 @@ function GameScreenInner() {
   const [allResolvedStates, setAllResolvedStates] = useState<ControversyStateRow[]>([]);
   const [showResolutions, setShowResolutions] = useState(false);
   const [tooltipData, setTooltipData] = useState<{
-    effect: WorkerEffect;
+    effect?: WorkerEffect;
+    loading?: boolean;
     playerName: string;
     playerColor: string;
     factionName: string;
     position: { x: number; y: number };
+    pendingPlayerId?: string;
+    pendingFactionKey?: string;
+    pendingWorkerType?: WorkerType;
+    pendingOratorRole?: OratorRole;
   } | null>(null);
 
   // Worker drag overlay position
@@ -173,6 +177,8 @@ function GameScreenInner() {
   const placementsRoundIdRef = useRef<string | null>(null);
   const showElectionResultsRef = useRef(false);
   const preResolutionInfluenceRef = useRef<Record<string, number> | null>(null);
+  const workerEffectsRef = useRef<WorkerEffect[]>([]);
+  const previewFetchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const myPlayer = players.find((p) => p.player_id === currentUserId);
   const playerColor = myPlayer?.color ?? 'ivory';
@@ -347,6 +353,35 @@ function GameScreenInner() {
     }
   }, [playerStates, round?.phase]);
 
+  // Debounced re-fetch of preview effects when preliminary placement changes
+  useEffect(() => {
+    const phase = round?.phase;
+    if (phase !== 'demagogery' && phase !== 'demagogery_resolved') return;
+
+    if (previewFetchDebounceRef.current) {
+      clearTimeout(previewFetchDebounceRef.current);
+    }
+
+    const prelim = drag.preliminaryPlacement;
+
+    if (prelim) {
+      previewFetchDebounceRef.current = setTimeout(() => {
+        fetchAndCacheEffects({
+          factionKey: prelim.factionKey,
+          workerType: prelim.workerType,
+          oratorRole: prelim.oratorRole,
+        });
+      }, 300);
+    } else {
+      fetchAndCacheEffects();
+    }
+
+    return () => {
+      if (previewFetchDebounceRef.current) {
+        clearTimeout(previewFetchDebounceRef.current);
+      }
+    };
+  }, [drag.preliminaryPlacement, round?.phase, gameId]);
 
   async function loadGameState() {
     setLoading(true);
@@ -407,6 +442,9 @@ function GameScreenInner() {
         setShowRoundEnd(true);
       }
       setRound(data as Round);
+      if (data.phase === 'demagogery' || data.phase === 'demagogery_resolved') {
+        fetchAndCacheEffects();
+      }
     }
   }
 
@@ -488,6 +526,35 @@ function GameScreenInner() {
       .eq('status', 'resolved')
       .order('resolved_at', { ascending: true });
     if (data) setAllResolvedStates(data as ControversyStateRow[]);
+  }
+
+  async function fetchAndCacheEffects(preliminary?: PreliminaryPlacementRequest) {
+    try {
+      const effects = await fetchPreviewEffects(gameId, preliminary);
+      workerEffectsRef.current = effects;
+
+      // If there's a loading tooltip open, populate it now that data arrived
+      setTooltipData((prev) => {
+        if (!prev || !prev.loading) return prev;
+        const effect = getEffectForWorker(
+          effects,
+          prev.pendingPlayerId!,
+          prev.pendingFactionKey!,
+          prev.pendingWorkerType!,
+          prev.pendingOratorRole,
+        );
+        if (!effect) return null;
+        return {
+          effect,
+          playerName: prev.playerName,
+          playerColor: prev.playerColor,
+          factionName: prev.factionName,
+          position: prev.position,
+        };
+      });
+    } catch (e) {
+      console.warn('[preview-effects] fetch failed:', e);
+    }
   }
 
   // Submit the preliminary placement
@@ -579,61 +646,9 @@ function GameScreenInner() {
   }, [drag]);
 
   const handleWorkerTap = useCallback((fp: FactionPlacement, position: { x: number; y: number }) => {
-    // Build engine-compatible placements from current state (including preliminary)
-    const enginePlacements: Placement[] = placements.map((p) => {
-      const faction = factions.find((f) => f.id === p.faction_id);
-      return {
-        playerId: p.player_id,
-        factionKey: faction?.faction_key ?? '',
-        workerType: p.worker_type as WorkerType,
-        oratorRole: (p.orator_role as any) ?? undefined,
-        subRound: p.sub_round,
-      };
-    });
-
-    // Add preliminary placement if present
-    const prelim = drag.preliminaryPlacement;
-    if (prelim) {
-      enginePlacements.push({
-        playerId: currentUserId,
-        factionKey: prelim.factionKey,
-        workerType: prelim.workerType,
-        oratorRole: prelim.oratorRole,
-        subRound: round?.sub_round ?? 0,
-      });
-    }
-
-    // Build engine factions
-    const engineFactions: BalancedFaction[] = factions.map((f) => ({
-      key: f.faction_key,
-      displayName: f.display_name,
-      latinName: f.display_name,
-      description: '',
-      power: f.power_level,
-      preferences: {
-        centralization: f.pref_centralization,
-        expansion: f.pref_expansion,
-        commerce: f.pref_commerce,
-        patrician: f.pref_patrician,
-        tradition: f.pref_tradition,
-        militarism: f.pref_militarism,
-      },
-    }));
-
-    // Build affinity map
-    const affinityMap: Record<string, Record<string, number>> = {};
-    for (const a of affinities) {
-      const faction = factions.find((f) => f.id === a.faction_id);
-      if (!faction) continue;
-      if (!affinityMap[a.player_id]) affinityMap[a.player_id] = {};
-      affinityMap[a.player_id][faction.faction_key] = a.affinity;
-    }
-
-    const effects = computeTooltipEffects(enginePlacements, engineFactions, affinityMap);
-
     let factionKey = '';
-    if (fp.isPreliminary && prelim) {
-      factionKey = prelim.factionKey;
+    if (fp.isPreliminary && drag.preliminaryPlacement) {
+      factionKey = drag.preliminaryPlacement.factionKey;
     } else {
       const matchingPlacement = placements.find((p) => {
         return p.player_id === fp.playerId &&
@@ -647,25 +662,45 @@ function GameScreenInner() {
       }
     }
 
+    const factionDisplay = factions.find((f) => f.faction_key === factionKey);
+    const baseTooltip = {
+      playerName: fp.playerName,
+      playerColor: fp.playerColor,
+      factionName: factionDisplay?.display_name ?? '',
+      position,
+    };
+
     const effect = getEffectForWorker(
-      effects,
+      workerEffectsRef.current,
       fp.playerId,
       factionKey,
       fp.workerType as WorkerType,
-      fp.oratorRole as any,
+      fp.oratorRole as OratorRole | undefined,
     );
 
     if (effect) {
-      const faction = factions.find((f) => f.faction_key === factionKey);
+      setTooltipData({ ...baseTooltip, effect });
+    } else {
+      // Cache miss — show loading state and fire immediate fetch
       setTooltipData({
-        effect,
-        playerName: fp.playerName,
-        playerColor: fp.playerColor,
-        factionName: faction?.display_name ?? '',
-        position,
+        ...baseTooltip,
+        loading: true,
+        pendingPlayerId: fp.playerId,
+        pendingFactionKey: factionKey,
+        pendingWorkerType: fp.workerType as WorkerType,
+        pendingOratorRole: fp.oratorRole as OratorRole | undefined,
       });
+
+      const prelim = drag.preliminaryPlacement;
+      fetchAndCacheEffects(
+        prelim ? {
+          factionKey: prelim.factionKey,
+          workerType: prelim.workerType,
+          oratorRole: prelim.oratorRole,
+        } : undefined,
+      );
     }
-  }, [placements, factions, affinities, drag.preliminaryPlacement, currentUserId, round, players]);
+  }, [placements, factions, drag.preliminaryPlacement]);
 
   const dragOverlayStyle = useAnimatedStyle(() => ({
     position: 'absolute' as const,
@@ -1386,6 +1421,7 @@ function GameScreenInner() {
         {tooltipData && (
           <WorkerTooltip
             effect={tooltipData.effect}
+            loading={tooltipData.loading}
             playerName={tooltipData.playerName}
             playerColor={tooltipData.playerColor}
             factionName={tooltipData.factionName}
