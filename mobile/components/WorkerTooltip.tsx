@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import { WorkerEffect } from '../lib/game-engine/demagogery';
 import { getColorHex } from '../lib/player-colors';
 import { C, darkNavyBg, parchmentBg } from '../lib/theme';
@@ -10,7 +10,8 @@ const TOOLTIP_MARGIN = 12;
 const ICON_HEIGHT = 52; // icon (44px) + gap
 
 type Props = {
-  effect: WorkerEffect;
+  effect?: WorkerEffect;
+  loading?: boolean;
   playerName: string;
   playerColor: string;
   factionName: string;
@@ -18,7 +19,8 @@ type Props = {
   onDismiss: () => void;
 };
 
-function getRoleLabel(effect: WorkerEffect): string {
+function getRoleLabel(effect?: WorkerEffect): string {
+  if (!effect) return '';
   if (effect.workerType === 'promoter') return 'Promoter';
   if (effect.workerType === 'saboteur') return 'Saboteur';
   if (effect.oratorRole === 'demagog') return 'Demagog';
@@ -29,6 +31,7 @@ function getRoleLabel(effect: WorkerEffect): string {
 
 export default function WorkerTooltip({
   effect,
+  loading,
   playerName,
   playerColor,
   factionName,
@@ -46,11 +49,6 @@ export default function WorkerTooltip({
     ? { top: position.y + ICON_HEIGHT }
     : { bottom: SCREEN_HEIGHT - position.y + 8 };
 
-  const hasTotalLine = effect.workerType === 'orator' || effect.totalPowerChange !== 0;
-  const totalLabel = effect.totalPowerChange !== 0
-    ? `= Power ${effect.totalPowerChange > 0 ? '+' : ''}${effect.totalPowerChange}`
-    : `= ${effect.totalInfluence} influence`;
-
   return (
     <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss}>
       <View style={[styles.tooltip, { left, ...tooltipPosition }]}>
@@ -65,27 +63,37 @@ export default function WorkerTooltip({
 
         <View style={styles.divider} />
 
-        {effect.lineItems.map((item, i) => {
-          const isNegative = item.value < 0 || item.displayValue.startsWith('-');
-          const isPositive = !isNegative && item.value > 0 && item.displayValue.startsWith('+');
-          return (
-            <View key={i} style={styles.lineItemRow}>
-              <Text style={styles.lineItemLabel} numberOfLines={1}>{item.label}</Text>
-              <Text style={[
-                styles.lineItemValue,
-                isNegative && styles.negativeValue,
-                isPositive && styles.positiveValue,
-              ]}>
-                {item.displayValue}
-              </Text>
-            </View>
-          );
-        })}
-
-        {hasTotalLine && (
+        {(loading || !effect) ? (
+          <ActivityIndicator size="small" color={C.paleGold} style={{ marginVertical: 8 }} />
+        ) : (
           <>
-            <View style={styles.totalDivider} />
-            <Text style={styles.totalLine}>{totalLabel}</Text>
+            {effect.lineItems.map((item, i) => {
+              const isNegative = item.value < 0 || item.displayValue.startsWith('-');
+              const isPositive = !isNegative && item.value > 0 && item.displayValue.startsWith('+');
+              return (
+                <View key={i} style={styles.lineItemRow}>
+                  <Text style={styles.lineItemLabel} numberOfLines={1}>{item.label}</Text>
+                  <Text style={[
+                    styles.lineItemValue,
+                    isNegative && styles.negativeValue,
+                    isPositive && styles.positiveValue,
+                  ]}>
+                    {item.displayValue}
+                  </Text>
+                </View>
+              );
+            })}
+
+            {(effect.workerType === 'orator' || effect.totalPowerChange !== 0) && (
+              <>
+                <View style={styles.totalDivider} />
+                <Text style={styles.totalLine}>
+                  {effect.totalPowerChange !== 0
+                    ? `= Power ${effect.totalPowerChange > 0 ? '+' : ''}${effect.totalPowerChange}`
+                    : `= ${effect.totalInfluence} influence`}
+                </Text>
+              </>
+            )}
           </>
         )}
       </View>
