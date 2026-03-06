@@ -115,6 +115,8 @@ verify_jwt = false
 verify_jwt = false
 [functions.submit-controversy-vote]
 verify_jwt = false
+[functions.preview-effects]
+verify_jwt = false
 
 [storage]
 enabled = true
