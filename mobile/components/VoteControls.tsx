@@ -79,10 +79,6 @@ export default function VoteControls({
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Cast Your Vote</Text>
 
-      <Text style={styles.influenceLabel}>
-        Influence available: <Text style={styles.influenceValue}>{currentInfluence}</Text>
-      </Text>
-
       {/* Resolution selection */}
       <View style={styles.resolutionList}>
         {resolutions.map((r) => {
@@ -183,7 +179,7 @@ export default function VoteControls({
       {/* Influence slider / input */}
       <View style={styles.influenceSection}>
         <Text style={styles.influenceSpendLabel}>
-          Influence to spend: <Text style={styles.influenceValue}>{influenceSpent}</Text>
+          Influence to spend: <Text style={styles.influenceValue}>{influenceSpent}/{currentInfluence}</Text>
         </Text>
         <View style={styles.influenceInputRow}>
           <Pressable

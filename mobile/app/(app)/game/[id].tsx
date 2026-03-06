@@ -147,6 +147,7 @@ function GameScreenInner() {
   const [playersVisible, setPlayersVisible] = useState(false);
   const [factionsVisible, setFactionsVisible] = useState(false);
   const [showElectionResults, setShowElectionResults] = useState(false);
+  const [showRoundEnd, setShowRoundEnd] = useState(false);
   const [allResolvedStates, setAllResolvedStates] = useState<ControversyStateRow[]>([]);
   const [showResolutions, setShowResolutions] = useState(false);
   const [tooltipData, setTooltipData] = useState<{
@@ -298,14 +299,6 @@ function GameScreenInner() {
         handleShowResolutionResults();
       }
 
-      // Election just resolved → hold the results screen.
-      // Set this synchronously via ref so the very first render with ruling_pool
-      // doesn't flash the discard screen before the state update takes effect.
-      if (prev.phase === 'leader_election' && round.phase === 'ruling_pool') {
-        showElectionResultsRef.current = true;
-        setShowElectionResults(true);
-      }
-
       // New round started → clear stale state
       if (roundAdvanced) {
         placementsRoundIdRef.current = null;
@@ -402,7 +395,19 @@ function GameScreenInner() {
       .order('round_number', { ascending: false })
       .limit(1)
       .single();
-    if (data) setRound(data as Round);
+    if (data) {
+      const prev = prevRoundRef.current;
+      // Detect election→ruling_pool transition before setRound to prevent flash
+      if (prev?.phase === 'leader_election' && data.phase === 'ruling_pool') {
+        showElectionResultsRef.current = true;
+        setShowElectionResults(true);
+      }
+      // Hold round-end screen when entering round_end phase
+      if (prev && prev.phase !== 'round_end' && data.phase === 'round_end') {
+        setShowRoundEnd(true);
+      }
+      setRound(data as Round);
+    }
   }
 
   async function loadPlayers() {
@@ -1178,8 +1183,8 @@ function GameScreenInner() {
     );
   }
 
-  // --- Round end phase ---
-  if (phase === 'round_end') {
+  // --- Round end phase (held locally until player dismisses) ---
+  if (phase === 'round_end' || showRoundEnd) {
     // If there's a resolved controversy the player hasn't dismissed yet, show it first
     const undismissedResolved = controversyStates.find(
       (cs) => cs.status === 'resolved' && !dismissedResolvedKeys.has(cs.controversy_key),
@@ -1243,6 +1248,7 @@ function GameScreenInner() {
             onContinue={async () => {
               try {
                 await advanceRound(gameId!);
+                setShowRoundEnd(false);
                 setDismissedResolvedKeys(new Set());
                 setPlacements([]);
                 setHasSubmittedThisSubRound(false);
