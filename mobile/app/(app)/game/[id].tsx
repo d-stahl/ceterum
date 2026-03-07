@@ -28,7 +28,7 @@ import SenateLeaderPoolManager from '../../../components/SenateLeaderPoolManager
 import ControversyVoting from '../../../components/ControversyVoting';
 import RoundEndSummary from '../../../components/RoundEndSummary';
 import OnTheHorizon from '../../../components/OnTheHorizon';
-import { C, parchmentBg, navyBg, goldBg } from '../../../lib/theme';
+import { C, parchmentBg, navyBg, goldBg, accentGoldBg } from '../../../lib/theme';
 import HomeIcon from '../../../components/icons/HomeIcon';
 import HelpIcon from '../../../components/icons/HelpIcon';
 import HelpModal from '../../../components/HelpModal';
@@ -1575,7 +1575,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   submitButton: {
-    backgroundColor: 'rgba(218, 165, 32, 0.25)',
+    backgroundColor: accentGoldBg(0.25),
     borderWidth: 1,
     borderColor: C.accentGold,
     borderRadius: 8,
@@ -1640,7 +1640,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   resultDeltaPositive: {
-    color: '#2E8B57',
+    color: C.emeraldGreen,
     opacity: 1,
   },
   resultTotal: {

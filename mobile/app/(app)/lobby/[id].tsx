@@ -6,7 +6,7 @@ import * as Clipboard from 'expo-clipboard';
 import { getGamePlayers, leaveGame, kickPlayer, deleteGame, launchGame } from '../../../lib/games';
 import { supabase } from '../../../lib/supabase';
 import { PLAYER_COLORS, getColorHex } from '../../../lib/player-colors';
-import { C, parchmentBg, navyBg } from '../../../lib/theme';
+import { C, parchmentBg, navyBg, blackBg } from '../../../lib/theme';
 
 const lobbyBg = require('../../../assets/images/lobby-bg.png');
 
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: blackBg(0.7),
     justifyContent: 'center',
     alignItems: 'center',
   },

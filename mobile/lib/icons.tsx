@@ -1,6 +1,7 @@
 import Svg, { Path } from 'react-native-svg';
+import { C } from './theme';
 
-export function UserProfileIcon({ size = 24, color = '#e0c097' }: { size?: number; color?: string }) {
+export function UserProfileIcon({ size = 24, color = C.parchment }: { size?: number; color?: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
       <Path
@@ -11,7 +12,7 @@ export function UserProfileIcon({ size = 24, color = '#e0c097' }: { size?: numbe
   );
 }
 
-export function NotificationBellIcon({ size = 24, color = '#e0c097' }: { size?: number; color?: string }) {
+export function NotificationBellIcon({ size = 24, color = C.parchment }: { size?: number; color?: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 32 32">
       <Path
