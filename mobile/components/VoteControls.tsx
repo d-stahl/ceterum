@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
-import { C, goldBg } from '../lib/theme';
+import { C, goldBg, whiteBg } from '../lib/theme';
 import { AxisEffectSlider, PowerEffectRow, getUpsetFactions } from './ControversyCard';
 import { PlayerAgendaInfo } from './AgendaDots';
 
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   influenceInput: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: whiteBg(0.06),
     borderWidth: 1,
     borderColor: goldBg(0.3),
     borderRadius: 8,

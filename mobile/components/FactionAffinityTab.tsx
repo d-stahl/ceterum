@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   valuePositive: {
-    color: '#2E8B57',
+    color: C.emeraldGreen,
     opacity: 1,
   },
   valueNegative: {

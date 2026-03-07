@@ -4,7 +4,7 @@ import { AXIS_KEYS, AXIS_LABELS, AxisKey } from '../lib/game-engine/axes';
 import { getColorHex } from '../lib/player-colors';
 import { ILLUSTRATION_MAP, AxisEffectSlider, PowerEffectRow } from './ControversyCard';
 import { PlayerAgendaInfo } from './AgendaDots';
-import { C, goldBg } from '../lib/theme';
+import { C, goldBg, brownBg, whiteBg } from '../lib/theme';
 
 type VoteRow = {
   playerId: string;
@@ -133,7 +133,7 @@ export default function ResolutionOutcome({
                   {segments.map((seg, i) => {
                     const segWidth = total > 0 ? (seg.weight / total) * 100 : 0;
                     const isSLBonus = seg.playerId === '_sl_bonus';
-                    const bgColor = isSLBonus ? '#B8963E' : getColorHex(seg.color);
+                    const bgColor = isSLBonus ? C.slBonus : getColorHex(seg.color);
                     return (
                       <View
                         key={seg.playerId}
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   slBarStar: {
-    color: 'rgba(20,14,5,0.5)',
+    color: brownBg(0.5),
     fontSize: 12,
     lineHeight: 18,
   },
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 4,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: whiteBg(0.06),
   },
   colorDot: { width: 10, height: 10, borderRadius: 5 },
   slBonusIcon: { color: C.gold, fontSize: 10, width: 10, textAlign: 'center' },

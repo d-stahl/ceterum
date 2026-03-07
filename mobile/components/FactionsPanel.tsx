@@ -6,7 +6,7 @@ import { useEffect, useRef, useMemo } from 'react';
 import { getColorHex } from '../lib/player-colors';
 import { AXIS_KEYS, AXIS_LABELS, AxisKey } from '../lib/game-engine/axes';
 import { AxisEffectSlider } from './ControversyCard';
-import { C, goldBg, darkBrownBg } from '../lib/theme';
+import { C, goldBg, darkBrownBg, blackBg } from '../lib/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PANEL_WIDTH = Math.min(SCREEN_WIDTH * 0.88, 380);
@@ -387,7 +387,7 @@ const affinityStyles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.5)',
+    borderColor: blackBg(0.5),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -412,7 +412,7 @@ const affinityStyles = StyleSheet.create({
 
 const factionDotStyles = StyleSheet.create({
   letter: {
-    color: '#000',
+    color: C.black,
     fontSize: 5,
     fontWeight: '800',
     lineHeight: 7,
