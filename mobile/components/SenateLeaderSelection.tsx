@@ -43,7 +43,7 @@ export default function SenateLeaderSelection({
     players.find((p) => p.player_id === id)?.player_name ?? 'Unknown';
 
   const playerColor = (id: string) =>
-    players.find((p) => p.player_id === id)?.color ?? '#888';
+    players.find((p) => p.player_id === id)?.color ?? C.gray;
 
   // If there's already a Senate Leader, this phase is done — notify parent
   useEffect(() => {

@@ -7,6 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { WorkerType } from '../lib/game-engine/workers';
+import { blackBg } from '../lib/theme';
 import { getSenatorIcon, getSenatorEmptyIcon, getSaboteurEmptyIcon, getSaboteurIcon, getPromoterIcon, getPromoterEmptyIcon } from '../lib/worker-icons';
 import { getColorHex } from '../lib/player-colors';
 
@@ -144,6 +145,6 @@ const styles = StyleSheet.create({
   },
   promoterSquare: {
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.2)',
+    borderColor: blackBg(0.2),
   },
 });

@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { getColorHex } from '../lib/player-colors';
+import { blackBg } from '../lib/theme';
 
 export type PlayerAgendaInfo = {
   playerId: string;
@@ -90,7 +91,7 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.5)',
+    borderColor: blackBg(0.5),
   },
   labelsRow: {
     position: 'absolute',

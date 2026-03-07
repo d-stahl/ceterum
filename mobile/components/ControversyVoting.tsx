@@ -170,7 +170,7 @@ export default function ControversyVoting({
       return {
         playerId: v.player_id,
         playerName: player?.player_name ?? 'Unknown',
-        playerColor: player?.color ?? '#888',
+        playerColor: player?.color ?? C.gray,
         resolutionKey: v.resolution_key,
         influenceSpent: v.influence_spent,
       };

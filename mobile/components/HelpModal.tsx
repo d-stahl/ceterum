@@ -1,5 +1,5 @@
 import { Modal, View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
-import { C, parchmentBg, darkNavyBg } from '../lib/theme';
+import { C, parchmentBg, darkNavyBg, blackBg } from '../lib/theme';
 
 export type HelpId =
   | 'general'
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: blackBg(0.5),
   },
   sheet: {
     backgroundColor: darkNavyBg(0.98),
