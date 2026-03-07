@@ -29,11 +29,11 @@ import ControversyVoting from '../../../components/ControversyVoting';
 import RoundEndSummary from '../../../components/RoundEndSummary';
 import OnTheHorizon from '../../../components/OnTheHorizon';
 import { C, parchmentBg, navyBg, goldBg, accentGoldBg } from '../../../lib/theme';
-import HomeIcon from '../../../components/icons/HomeIcon';
 import HelpIcon from '../../../components/icons/HelpIcon';
 import HelpModal from '../../../components/HelpModal';
 import { ILLUSTRATION_MAP, AxisEffectSlider } from '../../../components/ControversyCard';
 import ResolvedControversySummary from '../../../components/ResolvedControversySummary';
+import RoundHeader from '../../../components/RoundHeader';
 import { CONTROVERSY_MAP } from '../../../lib/game-engine/controversies';
 import { AXIS_KEYS, AXIS_LABELS, AxisKey, computeAxisScore } from '../../../lib/game-engine/axes';
 const gameBg = require('../../../assets/images/demagogery-bg.png');
@@ -299,10 +299,12 @@ function GameScreenInner() {
       if (subRoundAdvanced || roundAdvanced) {
         setHasSubmittedThisSubRound(false);
         drag.clearPreliminary();
+        setTooltipData(null);
       }
 
       // Demagogery just resolved → show demagogery results before ruling phase
       if (prev.phase === 'demagogery' && round.phase !== 'demagogery') {
+        setTooltipData(null);
         handleShowResolutionResults();
       }
 
@@ -1109,25 +1111,17 @@ function GameScreenInner() {
     return (
       <ImageBackground source={leaderElectionBg} style={styles.background} resizeMode="cover">
         <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.phaseTitle}>ELECTION</Text>
-              <Text style={styles.roundInfo}>Round {round?.round_number ?? '?'}</Text>
-            </View>
-            <View style={styles.headerRight}>
+          <RoundHeader
+            phaseTitle="ELECTION"
+            roundInfo={`Round ${round?.round_number ?? '?'}`}
+            influence={myInfluence}
+            onHome={() => router.replace('/(app)/home')}
+            helpNode={
               <Pressable style={styles.helpButton} onPress={() => help?.openHelp('leader-election')}>
                 <HelpIcon size={22} color={C.parchment} />
               </Pressable>
-              <Pressable style={styles.homeButton} onPress={() => router.replace('/(app)/home')}>
-                <HomeIcon size={22} color={C.parchment} />
-              </Pressable>
-              <View style={styles.influenceBox}>
-                <Text style={styles.influenceLabel}>Influence</Text>
-                <Text style={styles.influenceValue}>{myInfluence}</Text>
-              </View>
-            </View>
-          </View>
+            }
+          />
           <LeaderElection
             gameId={gameId!}
             roundId={round!.id}
@@ -1148,6 +1142,12 @@ function GameScreenInner() {
     return (
       <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
         <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]}>
+          <RoundHeader
+            phaseTitle="RULING PHASE"
+            roundInfo={`Round ${round?.round_number ?? '?'}`}
+            influence={myInfluence}
+            onHome={() => router.replace('/(app)/home')}
+          />
           <SenateLeaderSelection
             gameId={gameId!}
             roundId={round!.id}
@@ -1166,6 +1166,12 @@ function GameScreenInner() {
     return (
       <ImageBackground source={rulingBg} style={styles.background} resizeMode="cover">
         <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: 0 }]}>
+          <RoundHeader
+            phaseTitle="RULING PHASE"
+            roundInfo={`Round ${round?.round_number ?? '?'}`}
+            influence={myInfluence}
+            onHome={() => router.replace('/(app)/home')}
+          />
           <SenateLeaderPoolManager
             gameId={gameId!}
             poolKeys={controversyPoolKeys}
@@ -1191,6 +1197,12 @@ function GameScreenInner() {
     return (
       <ImageBackground source={votingBg} style={styles.background} resizeMode="cover">
         <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: 0 }]}>
+          <RoundHeader
+            phaseTitle="CONTROVERSY"
+            roundInfo={`Round ${round?.round_number ?? '?'}`}
+            influence={myInfluence}
+            onHome={() => router.replace('/(app)/home')}
+          />
           {activeControversyKey ? (
             <ControversyVoting
               gameId={gameId!}
@@ -1304,29 +1316,19 @@ function GameScreenInner() {
   return (
     <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
       <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: 0 }]}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.phaseTitle}>DEMAGOGERY</Text>
-            <Text style={styles.roundInfo}>
-              Round {round?.round_number ?? '?'} / Demagogery Step {round?.sub_round ?? '?'}
-            </Text>
-          </View>
-          <View style={styles.headerRight}>
+        <RoundHeader
+          phaseTitle="DEMAGOGERY"
+          roundInfo={`Round ${round?.round_number ?? '?'} / Demagogery Step ${round?.sub_round ?? '?'}`}
+          influence={myInfluence}
+          onHome={() => router.replace('/(app)/home')}
+          helpNode={
             <GestureDetector gesture={helpIconGesture}>
               <Animated.View style={styles.helpButton}>
                 <HelpIcon size={22} color={C.parchment} />
               </Animated.View>
             </GestureDetector>
-            <Pressable style={styles.homeButton} onPress={() => router.replace('/(app)/home')}>
-              <HomeIcon size={22} color={C.parchment} />
-            </Pressable>
-            <View style={styles.influenceBox}>
-              <Text style={styles.influenceLabel}>Influence</Text>
-              <Text style={styles.influenceValue}>{myInfluence}</Text>
-            </View>
-          </View>
-        </View>
+          }
+        />
 
         {/* Status bar */}
         {hasSubmittedThisSubRound && phase === 'demagogery' && (
@@ -1493,13 +1495,6 @@ const styles = StyleSheet.create({
     backgroundColor: navyBg(0.7),
     paddingHorizontal: 16,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: 4,
-    paddingBottom: 10,
-  },
   phaseTitle: {
     color: C.parchment,
     fontSize: 22,
@@ -1514,47 +1509,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
   },
-  roundInfo: {
-    color: C.parchment,
-    fontSize: 12,
-    opacity: 0.5,
-    marginTop: 2,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   helpButton: {
     padding: 6,
     borderRadius: 8,
     backgroundColor: parchmentBg(0.08),
-  },
-  homeButton: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: parchmentBg(0.08),
-  },
-  influenceBox: {
-    alignItems: 'center',
-    backgroundColor: parchmentBg(0.1),
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: parchmentBg(0.2),
-  },
-  influenceLabel: {
-    color: C.parchment,
-    fontSize: 10,
-    opacity: 0.5,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  influenceValue: {
-    color: C.parchment,
-    fontSize: 20,
-    fontWeight: '700',
   },
   statusBar: {
     backgroundColor: parchmentBg(0.1),
