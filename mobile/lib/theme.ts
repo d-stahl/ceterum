@@ -30,6 +30,21 @@ export const C = {
   // Axis movement
   axisPositive: 'rgba(76,175,80,0.6)',
   axisNegative: 'rgba(229,57,53,0.6)',
+
+  // Tooltip line items
+  positiveGreen: '#6ec87a',
+  negativeRed: '#e07070',
+
+  // SL bonus
+  slBonus: '#B8963E',
+
+  // Neutrals
+  gray: '#888888',
+  black: '#000000',
+  white: '#ffffff',
+
+  // Affinity indicator
+  emeraldGreen: '#2E8B57',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -59,3 +74,31 @@ export function darkBrownBg(opacity: number): string {
 export function darkNavyBg(opacity: number): string {
   return `rgba(20,20,36,${opacity})`;
 }
+
+export function accentGoldBg(opacity: number): string {
+  return `rgba(218,165,32,${opacity})`;
+}
+
+export function negativeBg(opacity: number): string {
+  return `rgba(229,57,53,${opacity})`;
+}
+
+export function whiteBg(opacity: number): string {
+  return `rgba(255,255,255,${opacity})`;
+}
+
+export function blackBg(opacity: number): string {
+  return `rgba(0,0,0,${opacity})`;
+}
+
+// ---------------------------------------------------------------------------
+// Category colors (moved from game-engine/controversies.ts)
+// ---------------------------------------------------------------------------
+
+export const CATEGORY_COLORS: Record<string, string> = {
+  military: '#e53935',
+  social: '#7cb342',
+  economic: '#ffa726',
+  political: '#5c6bc0',
+  religious: '#ab47bc',
+};
