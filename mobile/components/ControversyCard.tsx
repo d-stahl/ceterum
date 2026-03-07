@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Image, ImageSourcePropType, Animated, Pressable } from 'react-native';
-import { Controversy, CATEGORY_LABELS, CATEGORY_COLORS } from '../lib/game-engine/controversies';
+import { Controversy, CATEGORY_LABELS } from '../lib/game-engine/controversies';
 import { AXIS_LABELS, AxisKey } from '../lib/game-engine/axes';
 import { FACTIONS } from '../lib/game-engine/factions';
 import { getColorHex } from '../lib/player-colors';
 import AgendaDots, { PlayerAgendaInfo } from './AgendaDots';
-import { C, goldBg, parchmentBg, brownBg } from '../lib/theme';
+import { C, goldBg, parchmentBg, brownBg, CATEGORY_COLORS } from '../lib/theme';
 
 // Static require map for controversy illustrations (add new images here as they become available)
 export const ILLUSTRATION_MAP: Record<string, ImageSourcePropType> = {
@@ -213,7 +213,7 @@ export default function ControversyCard({
   resolvedInfo,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const catColor = CATEGORY_COLORS[controversy.category] ?? '#888';
+  const catColor = CATEGORY_COLORS[controversy.category] ?? C.gray;
   const illustrationSource = ILLUSTRATION_MAP[controversy.illustration] ?? FALLBACK_ILLUSTRATION;
   const isResolved = !!resolvedInfo;
 

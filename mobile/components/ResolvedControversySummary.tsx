@@ -1,8 +1,8 @@
 import { View, Text, StyleSheet, Image } from 'react-native';
-import { Controversy, CATEGORY_LABELS, CATEGORY_COLORS } from '../lib/game-engine/controversies';
+import { Controversy, CATEGORY_LABELS } from '../lib/game-engine/controversies';
 import { AXIS_LABELS, AxisKey } from '../lib/game-engine/axes';
 import { ILLUSTRATION_MAP } from './ControversyCard';
-import { C, goldBg, brownBg } from '../lib/theme';
+import { C, goldBg, brownBg, CATEGORY_COLORS } from '../lib/theme';
 
 const FALLBACK_ILLUSTRATION = require('../assets/images/controversies/roman_fields.png');
 
@@ -29,7 +29,7 @@ export default function ResolvedControversySummary({
   resolvedInfo,
   factionDisplayNames,
 }: Props) {
-  const catColor = CATEGORY_COLORS[controversy.category] ?? '#888';
+  const catColor = CATEGORY_COLORS[controversy.category] ?? C.gray;
   const illustrationSource = ILLUSTRATION_MAP[controversy.illustration] ?? FALLBACK_ILLUSTRATION;
   const winningResolution = controversy.resolutions.find(
     (r) => r.key === resolvedInfo.winningResolutionKey,

@@ -1,13 +1,13 @@
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView, Image } from 'react-native';
 import { useCallback, useState } from 'react';
-import { Controversy, CONTROVERSY_MAP, CATEGORY_LABELS, CATEGORY_COLORS } from '../lib/game-engine/controversies';
+import { Controversy, CONTROVERSY_MAP, CATEGORY_LABELS } from '../lib/game-engine/controversies';
 import { submitSenateLeaderActions } from '../lib/game-actions';
 import ControversyCard, { ILLUSTRATION_MAP } from './ControversyCard';
 import { PlayerAgendaInfo } from './AgendaDots';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { getColorHex } from '../lib/player-colors';
-import { C, goldBg } from '../lib/theme';
+import { C, goldBg, CATEGORY_COLORS } from '../lib/theme';
 
 type FactionInfo = {
   key: string;
@@ -74,7 +74,7 @@ export default function SenateLeaderPoolManager({
     if (!c) return null;
     const illustration = ILLUSTRATION_MAP[c.illustration];
     const catLabel = CATEGORY_LABELS[c.category] ?? c.category;
-    const catColor = CATEGORY_COLORS[c.category] ?? '#888';
+    const catColor = CATEGORY_COLORS[c.category] ?? C.gray;
 
     return (
       <ScaleDecorator>
