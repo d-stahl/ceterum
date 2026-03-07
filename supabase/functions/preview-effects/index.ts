@@ -36,7 +36,11 @@ Deno.serve(async (req) => {
       adminClient
         .from('game_placements')
         .select('player_id, worker_type, orator_role, sub_round, game_factions!inner(faction_key)')
-        .eq('round_id', round.id),
+        .eq('round_id', round.id)
+        // Only include placements that are visible to the caller:
+        // - previous sub-rounds (already revealed to all players), or
+        // - the caller's own placements (they know what they submitted)
+        .or(`sub_round.lt.${round.sub_round},player_id.eq.${user.id}`),
       adminClient
         .from('game_factions')
         .select('faction_key, display_name, power_level, pref_centralization, pref_expansion, pref_commerce, pref_patrician, pref_tradition, pref_militarism')
