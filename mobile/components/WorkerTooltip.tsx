@@ -164,10 +164,10 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   positiveValue: {
-    color: '#6ec87a',
+    color: C.positiveGreen,
   },
   negativeValue: {
-    color: '#e07070',
+    color: C.negativeRed,
   },
   totalDivider: {
     height: 1,

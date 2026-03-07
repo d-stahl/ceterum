@@ -7,7 +7,7 @@ import { PlayerAgendaInfo } from './AgendaDots';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { getColorHex } from '../lib/player-colors';
-import { C, goldBg, CATEGORY_COLORS } from '../lib/theme';
+import { C, goldBg, CATEGORY_COLORS, negativeBg } from '../lib/theme';
 
 type FactionInfo = {
   key: string;
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   },
   cards: { gap: 0 },
   discardButton: {
-    backgroundColor: 'rgba(229,57,53,0.15)',
+    backgroundColor: negativeBg(0.15),
     borderWidth: 1,
     borderColor: C.negative,
     borderRadius: 8,
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     backgroundColor: goldBg(0.22),
     borderColor: C.gold,
     elevation: 8,
-    shadowColor: '#000',
+    shadowColor: C.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

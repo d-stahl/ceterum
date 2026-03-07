@@ -11,7 +11,7 @@ import FactionAlignmentTab from './FactionAlignmentTab';
 import { WorkerType, OratorRole } from '../lib/game-engine/workers';
 import { AxisPreferences } from '../lib/game-engine/axes';
 import { PlayerAgendaInfo } from './AgendaDots';
-import { C, navyBg, parchmentBg } from '../lib/theme';
+import { C, navyBg, parchmentBg, accentGoldBg } from '../lib/theme';
 
 // Stable array references to prevent useCallback/useEffect churn
 const ACCEPTS_ORATOR: WorkerType[] = ['orator'];
@@ -662,7 +662,7 @@ const styles = StyleSheet.create({
   slotRowHovered: {
     borderColor: C.accentGold,
     borderWidth: 2.5,
-    backgroundColor: 'rgba(218,165,32,0.12)',
+    backgroundColor: accentGoldBg(0.12),
     shadowColor: C.accentGold,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.9,

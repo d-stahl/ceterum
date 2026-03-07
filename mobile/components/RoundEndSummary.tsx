@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { AXIS_KEYS } from '../lib/game-engine/axes';
 import { AxisEffectSlider } from './ControversyCard';
 import { PlayerAgendaInfo } from './AgendaDots';
-import { C, goldBg, parchmentBg } from '../lib/theme';
+import { C, goldBg, parchmentBg, darkBrownBg } from '../lib/theme';
 
 type AxisState = {
   axis_key: string;
@@ -139,7 +139,7 @@ export default function RoundEndSummary({
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(8,5,2,0.97)',
+    backgroundColor: darkBrownBg(0.97),
     zIndex: 30,
   },
   container: { flex: 1 },
