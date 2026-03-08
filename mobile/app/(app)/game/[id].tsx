@@ -1205,6 +1205,7 @@ function GameScreenInner() {
           />
           {activeControversyKey ? (
             <ControversyVoting
+              key={activeControversyKey}
               gameId={gameId!}
               roundId={round!.id}
               controversyKey={activeControversyKey}

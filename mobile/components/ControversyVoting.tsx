@@ -136,7 +136,8 @@ export default function ControversyVoting({
   }, [csState?.status, fetchVotes]);
 
   async function handleDeclare() {
-    if (!declaringKey || declaring) return;
+    const validKeys = controversy?.resolutions.map((r) => r.key) ?? [];
+    if (!declaringKey || declaring || !validKeys.includes(declaringKey)) return;
     setDeclaring(true);
     setDeclareError(null);
     try {
