@@ -14,7 +14,10 @@ export type HelpId =
   | 'slot-saboteur'
   | 'faction-affinity'
   | 'faction-alignment'
-  | 'leader-election';
+  | 'leader-election'
+  | 'ruling-selection'
+  | 'ruling-pool'
+  | 'controversy-voting';
 
 type HelpEntry = {
   title: string;
@@ -159,6 +162,34 @@ Affinity changes based on your actions each round.`,
 • Militarism vs. Peace
 
 Your own policy positions affect how much affinity you gain with each faction over time.`,
+  },
+  'ruling-selection': {
+    title: 'Senate Leader Selection',
+    body: `The player who earned the most influence during Demagogery becomes Senate Leader.
+
+If two or more players are tied, a runoff is held: all tied players are listed as contenders, and every player pledges support for one of them. The contender with the least support is eliminated. This repeats until one contender remains.
+
+The Senate Leader holds significant power this round — but also bears extra accountability for the outcomes.`,
+  },
+  'ruling-pool': {
+    title: 'Senate Leader Phase',
+    body: `The Senate Leader privately manages the controversy pool before debate begins.
+
+First, discard one controversy — it will not be debated this round and returns to the pool next round.
+
+Then, order the remaining three controversies by priority. The first two in your ordering will be debated this round. The third becomes a leftover and carries forward.
+
+Other players wait while you make these decisions — use the "On the Horizon" tab to review the options.`,
+  },
+  'controversy-voting': {
+    title: 'Controversy Vote',
+    body: `Each controversy has two possible resolutions. The Senate Leader publicly declares which they prefer, then all players secretly vote by spending influence.
+
+The Senate Leader's declared resolution receives an institutional bonus equal to the number of other players, giving it an advantage. Ties are broken in favor of the Senate Leader's declaration.
+
+You can vote for either resolution regardless of the Senate Leader's declaration. Spending 0 influence is valid — it counts as a vote with no financial stake.
+
+Players who back the winning resolution with influence may suffer affinity penalties with factions whose interests the resolution harms. The Senate Leader suffers double penalties for the outcomes they championed.`,
   },
   'leader-election': {
     title: 'Leader Election',

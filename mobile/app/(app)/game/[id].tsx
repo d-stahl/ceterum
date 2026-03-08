@@ -1147,6 +1147,11 @@ function GameScreenInner() {
             roundInfo={`Round ${round?.round_number ?? '?'}`}
             influence={myInfluence}
             onHome={() => router.replace('/(app)/home')}
+            helpNode={
+              <Pressable style={styles.helpButton} onPress={() => help?.openHelp('ruling-selection')}>
+                <HelpIcon size={22} color={C.parchment} />
+              </Pressable>
+            }
           />
           <SenateLeaderSelection
             gameId={gameId!}
@@ -1157,6 +1162,7 @@ function GameScreenInner() {
             players={players}
             onLeaderSelected={loadRound}
           />
+          <HelpModal helpId={help?.activeHelpId ?? null} onDismiss={() => help?.dismissHelp()} />
         </View>
       </ImageBackground>
     );
@@ -1171,6 +1177,11 @@ function GameScreenInner() {
             roundInfo={`Round ${round?.round_number ?? '?'}`}
             influence={myInfluence}
             onHome={() => router.replace('/(app)/home')}
+            helpNode={
+              <Pressable style={styles.helpButton} onPress={() => help?.openHelp('ruling-pool')}>
+                <HelpIcon size={22} color={C.parchment} />
+              </Pressable>
+            }
           />
           <SenateLeaderPoolManager
             gameId={gameId!}
@@ -1184,6 +1195,7 @@ function GameScreenInner() {
             playerAgendas={playerAgendas}
           />
           {sidePanels}
+          <HelpModal helpId={help?.activeHelpId ?? null} onDismiss={() => help?.dismissHelp()} />
         </View>
       </ImageBackground>
     );
@@ -1202,6 +1214,11 @@ function GameScreenInner() {
             roundInfo={`Round ${round?.round_number ?? '?'}`}
             influence={myInfluence}
             onHome={() => router.replace('/(app)/home')}
+            helpNode={
+              <Pressable style={styles.helpButton} onPress={() => help?.openHelp('controversy-voting')}>
+                <HelpIcon size={22} color={C.parchment} />
+              </Pressable>
+            }
           />
           {activeControversyKey ? (
             <ControversyVoting
@@ -1228,6 +1245,7 @@ function GameScreenInner() {
             </View>
           )}
           {sidePanels}
+          <HelpModal helpId={help?.activeHelpId ?? null} onDismiss={() => help?.dismissHelp()} />
         </View>
       </ImageBackground>
     );
