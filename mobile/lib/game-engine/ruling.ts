@@ -177,9 +177,10 @@ export function computeAffinityMalus(
 ): Record<string, Record<string, number>> {
   const malus: Record<string, Record<string, number>> = {};
 
-  // Only voters who voted for the winning resolution are affected
+  // Only voters who voted for the winning resolution AND spent influence are affected.
+  // Exception: the Senate Leader always counts (they declared it and must bear the cost).
   const winningVoters = votes
-    .filter((v) => v.resolutionKey === winningResolutionKey)
+    .filter((v) => v.resolutionKey === winningResolutionKey && (v.influenceSpent > 0 || v.playerId === senateLeaderId))
     .map((v) => v.playerId);
 
   for (const playerId of winningVoters) {
