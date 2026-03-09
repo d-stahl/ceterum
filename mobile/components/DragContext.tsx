@@ -31,6 +31,7 @@ type DragContextType = DragState & {
   registerTarget: (target: DropTarget) => void;
   unregisterTarget: (id: string) => void;
   clearPreliminary: () => void;
+  setBlockedTargets: (ids: Set<string>) => void;
   scrollOffset: React.MutableRefObject<number>;
 };
 
@@ -44,6 +45,7 @@ export function useDrag(): DragContextType {
 
 export function DragProvider({ children }: { children: React.ReactNode }) {
   const targetsRef = useRef<Map<string, DropTarget>>(new Map());
+  const blockedRef = useRef<Set<string>>(new Set());
   const scrollOffset = useRef(0);
 
   const [state, setState] = useState<DragState>({
@@ -58,6 +60,7 @@ export function DragProvider({ children }: { children: React.ReactNode }) {
   const hitTest = useCallback((x: number, y: number, workerType: WorkerType): DropTarget | null => {
     for (const target of targetsRef.current.values()) {
       if (!target.accepts.includes(workerType)) continue;
+      if (blockedRef.current.has(target.id)) continue;
       const { bounds } = target;
       if (
         x >= bounds.x &&
@@ -74,7 +77,7 @@ export function DragProvider({ children }: { children: React.ReactNode }) {
   const computeHighlights = useCallback((workerType: WorkerType): Set<string> => {
     const highlighted = new Set<string>();
     for (const target of targetsRef.current.values()) {
-      if (target.accepts.includes(workerType)) {
+      if (target.accepts.includes(workerType) && !blockedRef.current.has(target.id)) {
         highlighted.add(target.id);
       }
     }
@@ -151,6 +154,10 @@ export function DragProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => ({ ...prev, preliminaryPlacement: null }));
   }, []);
 
+  const setBlockedTargets = useCallback((ids: Set<string>) => {
+    blockedRef.current = ids;
+  }, []);
+
   return (
     <DragContext.Provider
       value={{
@@ -161,6 +168,7 @@ export function DragProvider({ children }: { children: React.ReactNode }) {
         registerTarget,
         unregisterTarget,
         clearPreliminary,
+        setBlockedTargets,
         scrollOffset,
       }}
     >

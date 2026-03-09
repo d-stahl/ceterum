@@ -1,8 +1,14 @@
 const PRAENOMINA = [
+  // Male
   'Gaius', 'Lucius', 'Marcus', 'Titus', 'Quintus',
   'Publius', 'Gnaeus', 'Aulus', 'Spurius', 'Decimus',
   'Servius', 'Appius', 'Manius', 'Tiberius', 'Numerius',
-  'Vibius', 'Cassia', 'Livia', 'Cornelia', 'Flavia',
+  'Vibius', 'Kaeso', 'Mamercus', 'Agrippa', 'Drusus',
+  'Faustus', 'Nero', 'Paullus', 'Primus', 'Vopiscus',
+  // Female
+  'Cassia', 'Livia', 'Cornelia', 'Flavia', 'Aurelia',
+  'Julia', 'Valeria', 'Claudia', 'Aemilia', 'Sulpicia',
+  'Tullia', 'Caecilia', 'Licinia', 'Pompeia', 'Sempronia',
 ];
 
 const COGNOMINA = [
@@ -10,6 +16,10 @@ const COGNOMINA = [
   'Longus', 'Pulcher', 'Nerva', 'Balbus', 'Corvus',
   'Lepidus', 'Brutus', 'Scaevola', 'Cato', 'Naso',
   'Lentulus', 'Priscus', 'Silanus', 'Varro', 'Cursor',
+  'Laenas', 'Scipio', 'Galba', 'Piso', 'Flaccus',
+  'Capito', 'Bestia', 'Lucullus', 'Messala', 'Sabinus',
+  'Labeo', 'Ahala', 'Avitus', 'Denter', 'Figulus',
+  'Gurges', 'Macer', 'Merula', 'Scaurus', 'Torquatus',
 ];
 
 const ROMAN_NUMERALS = [

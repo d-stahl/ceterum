@@ -1,4 +1,16 @@
-import { resolveDemagogery, resolveDemagogeryDetailed, BASE_INFLUENCE, ALLY_BONUS, AGITATOR_MOD } from '../demagogery';
+import {
+  resolveDemagogery,
+  resolveDemagogeryDetailed,
+  DEMAGOG_BASE,
+  AGITATOR_BASE,
+  ADVOCATE_BASE,
+  PROMOTER_INFLUENCE,
+  SABOTEUR_INFLUENCE,
+  PROMOTER_POWER_CHANGE,
+  SABOTEUR_POWER_CHANGE,
+  PROMOTER_AFFINITY_CHANGE,
+  SABOTEUR_AFFINITY_SPLASH,
+} from '../demagogery';
 import { Placement } from '../workers';
 import { BalancedFaction } from '../balance';
 import { validatePlacement } from '../workers';
@@ -15,15 +27,28 @@ const testFaction: BalancedFaction = {
   },
 };
 
+const testFaction2: BalancedFaction = {
+  key: 'mercatores',
+  displayName: 'The Merchants',
+  latinName: 'Mercatores',
+  description: 'Test',
+  power: 3,
+  preferences: {
+    centralization: 0, expansion: 0, commerce: 0,
+    patrician: 0, tradition: 0, militarism: 0,
+  },
+};
+
 const noAffinity: Record<string, Record<string, number>> = {};
 
-describe('resolveDemagogery (backward compat)', () => {
-  it('single demagog gets base influence', () => {
+describe('resolveDemagogery', () => {
+  it('single demagog at P3/aff0 gets DEMAGOG_BASE', () => {
     const placements: Placement[] = [
       { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
     ];
     const result = resolveDemagogery(placements, [testFaction], noAffinity);
-    expect(result.influenceChanges['p1']).toBe(BASE_INFLUENCE);
+    // 10 × (3+2)/5 × (1+0) = 10 × 1.0 × 1.0 = 10
+    expect(result.influenceChanges['p1']).toBe(DEMAGOG_BASE);
   });
 
   it('two demagogs at same faction get crowd penalty', () => {
@@ -32,35 +57,57 @@ describe('resolveDemagogery (backward compat)', () => {
       { playerId: 'p2', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 2 },
     ];
     const result = resolveDemagogery(placements, [testFaction], noAffinity);
-    expect(result.influenceChanges['p1']).toBeLessThan(BASE_INFLUENCE);
+    expect(result.influenceChanges['p1']).toBeLessThan(DEMAGOG_BASE);
     expect(result.influenceChanges['p1']).toBe(result.influenceChanges['p2']);
   });
 
-  it('advocate with no demagog gets nothing', () => {
+  it('advocate without demagogs gets base payout (not zero)', () => {
     const placements: Placement[] = [
       { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'advocate', subRound: 1 },
     ];
     const result = resolveDemagogery(placements, [testFaction], noAffinity);
-    expect(result.influenceChanges['p1'] || 0).toBe(0);
+    // Advocate still gets base payout: 5 × 1.0 × 1.0 = 5
+    expect(result.influenceChanges['p1']).toBe(ADVOCATE_BASE);
   });
 
-  it('promoter increases faction power', () => {
+  it('agitator without demagogs gets base payout only', () => {
+    const placements: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'agitator', subRound: 1 },
+    ];
+    const result = resolveDemagogery(placements, [testFaction], noAffinity);
+    // Agitator base: 5 × 1.0 × 1.0 = 5, no siphon targets
+    expect(result.influenceChanges['p1']).toBe(AGITATOR_BASE);
+  });
+
+  it('promoter gives fixed influence and +1 power', () => {
     const placements: Placement[] = [
       { playerId: 'p1', factionKey: 'legiones', workerType: 'promoter', subRound: 1 },
     ];
     const result = resolveDemagogery(placements, [testFaction], noAffinity);
-    expect(result.factionPowerChanges['legiones']).toBe(1);
+    expect(result.influenceChanges['p1']).toBe(PROMOTER_INFLUENCE);
+    expect(result.factionPowerChanges['legiones']).toBe(PROMOTER_POWER_CHANGE);
   });
 
-  it('saboteur decreases faction power', () => {
+  it('saboteur gives fixed influence and -2 power', () => {
     const placements: Placement[] = [
       { playerId: 'p1', factionKey: 'legiones', workerType: 'saboteur', subRound: 1 },
     ];
     const result = resolveDemagogery(placements, [testFaction], noAffinity);
-    expect(result.factionPowerChanges['legiones']).toBe(-1);
+    expect(result.influenceChanges['p1']).toBe(SABOTEUR_INFLUENCE);
+    expect(result.factionPowerChanges['legiones']).toBe(SABOTEUR_POWER_CHANGE);
   });
 
-  it('agitator reduces demagog payout', () => {
+  it('multiple saboteurs do not stack power change', () => {
+    const placements: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'saboteur', subRound: 1 },
+      { playerId: 'p2', factionKey: 'legiones', workerType: 'saboteur', subRound: 2 },
+    ];
+    const result = resolveDemagogery(placements, [testFaction], noAffinity);
+    // Still -2, not -4
+    expect(result.factionPowerChanges['legiones']).toBe(SABOTEUR_POWER_CHANGE);
+  });
+
+  it('agitator siphons from demagog', () => {
     const withAgitator: Placement[] = [
       { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
       { playerId: 'p2', factionKey: 'legiones', workerType: 'orator', oratorRole: 'agitator', subRound: 2 },
@@ -70,7 +117,97 @@ describe('resolveDemagogery (backward compat)', () => {
     ];
     const resultWith = resolveDemagogery(withAgitator, [testFaction], noAffinity);
     const resultWithout = resolveDemagogery(without, [testFaction], noAffinity);
+    // Demagog gets less when agitator present
     expect(resultWith.influenceChanges['p1']).toBeLessThan(resultWithout.influenceChanges['p1']);
+    // Agitator gets more than base (siphoned some)
+    expect(resultWith.influenceChanges['p2']).toBeGreaterThan(AGITATOR_BASE);
+  });
+
+  it('advocate boosts demagog payout', () => {
+    const withAdvocate: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
+      { playerId: 'p2', factionKey: 'legiones', workerType: 'orator', oratorRole: 'advocate', subRound: 2 },
+    ];
+    const without: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
+    ];
+    const resultWith = resolveDemagogery(withAdvocate, [testFaction], noAffinity);
+    const resultWithout = resolveDemagogery(without, [testFaction], noAffinity);
+    expect(resultWith.influenceChanges['p1']).toBeGreaterThan(resultWithout.influenceChanges['p1']);
+  });
+
+  it('advocate reduces agitator siphon', () => {
+    const withAdvocate: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
+      { playerId: 'p2', factionKey: 'legiones', workerType: 'orator', oratorRole: 'agitator', subRound: 2 },
+      { playerId: 'p3', factionKey: 'legiones', workerType: 'orator', oratorRole: 'advocate', subRound: 3 },
+    ];
+    const withoutAdvocate: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
+      { playerId: 'p2', factionKey: 'legiones', workerType: 'orator', oratorRole: 'agitator', subRound: 2 },
+    ];
+    const resultWith = resolveDemagogery(withAdvocate, [testFaction], noAffinity);
+    const resultWithout = resolveDemagogery(withoutAdvocate, [testFaction], noAffinity);
+    // Demagog keeps more when advocate present
+    expect(resultWith.influenceChanges['p1']).toBeGreaterThan(resultWithout.influenceChanges['p1']);
+    // Agitator steals less when advocate present
+    expect(resultWith.influenceChanges['p2']).toBeLessThan(resultWithout.influenceChanges['p2']);
+  });
+
+  it('high affinity agitator siphons more than low affinity', () => {
+    const placements: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
+      { playerId: 'p2', factionKey: 'legiones', workerType: 'orator', oratorRole: 'agitator', subRound: 2 },
+    ];
+    const highAff = { p2: { legiones: 4 } };
+    const lowAff = { p2: { legiones: -3 } };
+    const resultHigh = resolveDemagogery(placements, [testFaction], highAff);
+    const resultLow = resolveDemagogery(placements, [testFaction], lowAff);
+    expect(resultHigh.influenceChanges['p2']).toBeGreaterThan(resultLow.influenceChanges['p2']);
+  });
+
+  it('promoter grants self affinity', () => {
+    const placements: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'promoter', subRound: 1 },
+    ];
+    const result = resolveDemagogery(placements, [testFaction], noAffinity);
+    expect(result.affinityChanges['p1']?.['legiones']).toBe(PROMOTER_AFFINITY_CHANGE);
+  });
+
+  it('saboteur splashes affinity damage to senators', () => {
+    const placements: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
+      { playerId: 'p2', factionKey: 'legiones', workerType: 'saboteur', subRound: 2 },
+    ];
+    const result = resolveDemagogery(placements, [testFaction], noAffinity);
+    expect(result.affinityChanges['p1']?.['legiones']).toBe(SABOTEUR_AFFINITY_SPLASH);
+  });
+
+  it('net-delta power: promoter + saboteur at P5 → P4 (not P3)', () => {
+    const maxPowerFaction: BalancedFaction = { ...testFaction, power: 5 };
+    const placements: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'promoter', subRound: 1 },
+      { playerId: 'p2', factionKey: 'legiones', workerType: 'saboteur', subRound: 2 },
+    ];
+    const result = resolveDemagogery(placements, [maxPowerFaction], noAffinity);
+    // net delta = +1 + (-2) = -1; clamp(5 + (-1), 1, 5) = 4
+    expect(result.factionPowerChanges['legiones']).toBe(-1);
+  });
+
+  it('resolution order: power/affinity changes affect influence payouts', () => {
+    // Promoter at faction boosts power before demagog payout
+    const weakFaction: BalancedFaction = { ...testFaction, power: 1 };
+    const withPromoter: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
+      { playerId: 'p2', factionKey: 'legiones', workerType: 'promoter', subRound: 2 },
+    ];
+    const withoutPromoter: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
+    ];
+    const resultWith = resolveDemagogery(withPromoter, [weakFaction], noAffinity);
+    const resultWithout = resolveDemagogery(withoutPromoter, [weakFaction], noAffinity);
+    // P1 → P2, so powerMult goes from 0.6 to 0.8 → higher demagog payout
+    expect(resultWith.influenceChanges['p1']).toBeGreaterThan(resultWithout.influenceChanges['p1']);
   });
 });
 
@@ -85,18 +222,18 @@ describe('resolveDemagogeryDetailed', () => {
     const detailed = resolveDemagogeryDetailed(placements, [testFaction], noAffinity);
     expect(detailed.influenceChanges).toEqual(summary.influenceChanges);
     expect(detailed.factionPowerChanges).toEqual(summary.factionPowerChanges);
+    expect(detailed.affinityChanges).toEqual(summary.affinityChanges);
   });
 
-  it('single demagog has no crowd penalty line item', () => {
+  it('demagog line items include base payout', () => {
     const placements: Placement[] = [
       { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
     ];
     const result = resolveDemagogeryDetailed(placements, [testFaction], noAffinity);
     const effect = result.workerEffects[0];
     expect(effect.oratorRole).toBe('demagog');
-    expect(effect.lineItems.find(li => li.label.includes('Crowd'))).toBeUndefined();
-    expect(effect.lineItems.find(li => li.label === 'Base influence')).toBeDefined();
-    expect(effect.totalInfluence).toBe(BASE_INFLUENCE);
+    expect(effect.lineItems.find(li => li.label === 'Base payout')).toBeDefined();
+    expect(effect.totalInfluence).toBe(DEMAGOG_BASE);
   });
 
   it('crowd penalty line item appears with multiple demagogs', () => {
@@ -106,89 +243,31 @@ describe('resolveDemagogeryDetailed', () => {
     ];
     const result = resolveDemagogeryDetailed(placements, [testFaction], noAffinity);
     const effect = result.workerEffects[0];
-    const crowdItem = effect.lineItems.find(li => li.label.includes('Crowd'));
-    expect(crowdItem).toBeDefined();
-    expect(crowdItem!.displayValue).toContain('%');
+    expect(effect.lineItems.find(li => li.label.includes('Crowd'))).toBeDefined();
   });
 
-  it('advocate boost line item appears when advocates present', () => {
-    const placements: Placement[] = [
-      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
-      { playerId: 'p2', factionKey: 'legiones', workerType: 'orator', oratorRole: 'advocate', subRound: 2 },
-    ];
-    const result = resolveDemagogeryDetailed(placements, [testFaction], noAffinity);
-    const demagogEffect = result.workerEffects.find(e => e.oratorRole === 'demagog')!;
-    expect(demagogEffect.lineItems.find(li => li.label === 'Advocate present')).toBeDefined();
-    expect(demagogEffect.totalInfluence).toBe(BASE_INFLUENCE + ALLY_BONUS);
-  });
-
-  it('agitator penalty line item appears when agitators present', () => {
-    const placements: Placement[] = [
-      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
-      { playerId: 'p2', factionKey: 'legiones', workerType: 'orator', oratorRole: 'agitator', subRound: 2 },
-    ];
-    const result = resolveDemagogeryDetailed(placements, [testFaction], noAffinity);
-    const demagogEffect = result.workerEffects.find(e => e.oratorRole === 'demagog')!;
-    expect(demagogEffect.lineItems.find(li => li.label === 'Agitator present')).toBeDefined();
-    // power=3 → no bonus; single demagog → no crowd; agitator → ×0.5; base=4 → ceil(4×0.5)=2
-    expect(demagogEffect.totalInfluence).toBe(Math.ceil(BASE_INFLUENCE * AGITATOR_MOD));
-  });
-
-  it('wasted advocate shows "No demagog" line item', () => {
-    const placements: Placement[] = [
-      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'advocate', subRound: 1 },
-    ];
-    const result = resolveDemagogeryDetailed(placements, [testFaction], noAffinity);
-    const effect = result.workerEffects[0];
-    expect(effect.lineItems).toHaveLength(1);
-    expect(effect.lineItems[0].label).toBe('No demagog — wasted');
-    expect(effect.totalInfluence).toBe(0);
-  });
-
-  it('wasted agitator shows "No demagog" line item', () => {
-    const placements: Placement[] = [
-      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'agitator', subRound: 1 },
-    ];
-    const result = resolveDemagogeryDetailed(placements, [testFaction], noAffinity);
-    const effect = result.workerEffects[0];
-    expect(effect.lineItems[0].label).toBe('No demagog — wasted');
-    expect(effect.totalInfluence).toBe(0);
-  });
-
-  it('promoter has single power line item', () => {
+  it('promoter line items show payout, power, and affinity', () => {
     const placements: Placement[] = [
       { playerId: 'p1', factionKey: 'legiones', workerType: 'promoter', subRound: 1 },
     ];
     const result = resolveDemagogeryDetailed(placements, [testFaction], noAffinity);
     const effect = result.workerEffects[0];
     expect(effect.workerType).toBe('promoter');
-    expect(effect.lineItems).toHaveLength(1);
-    expect(effect.lineItems[0].label).toBe('Power +1');
-    expect(effect.totalPowerChange).toBe(1);
-    expect(effect.totalInfluence).toBe(0);
+    expect(effect.lineItems).toHaveLength(3);
+    expect(effect.totalInfluence).toBe(PROMOTER_INFLUENCE);
+    expect(effect.totalPowerChange).toBe(PROMOTER_POWER_CHANGE);
   });
 
-  it('saboteur has single power line item', () => {
-    const placements: Placement[] = [
-      { playerId: 'p1', factionKey: 'legiones', workerType: 'saboteur', subRound: 1 },
-    ];
-    const result = resolveDemagogeryDetailed(placements, [testFaction], noAffinity);
-    const effect = result.workerEffects[0];
-    expect(effect.workerType).toBe('saboteur');
-    expect(effect.lineItems[0].label).toContain('Power');
-    expect(effect.totalPowerChange).toBe(-1);
-  });
-
-  it('affinity modifies demagog payout', () => {
+  it('saboteur line items show payout, power, and splash', () => {
     const placements: Placement[] = [
       { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
+      { playerId: 'p2', factionKey: 'legiones', workerType: 'saboteur', subRound: 2 },
     ];
-    const withAffinity = { p1: { legiones: 3 } };
-    const result = resolveDemagogeryDetailed(placements, [testFaction], withAffinity);
-    const effect = result.workerEffects[0];
-    const affinityItem = effect.lineItems.find(li => li.label.includes('Affinity') || li.label.includes('sympathy') || li.label.includes('Sympathy'));
-    expect(affinityItem).toBeDefined();
-    expect(effect.totalInfluence).toBeGreaterThan(BASE_INFLUENCE);
+    const result = resolveDemagogeryDetailed(placements, [testFaction], noAffinity);
+    const sabEffect = result.workerEffects.find(e => e.workerType === 'saboteur')!;
+    expect(sabEffect.lineItems.find(li => li.label.includes('Affinity damage'))).toBeDefined();
+    expect(sabEffect.totalInfluence).toBe(SABOTEUR_INFLUENCE);
+    expect(sabEffect.totalPowerChange).toBe(SABOTEUR_POWER_CHANGE);
   });
 
   it('power modifier line appears for non-3 power factions', () => {
@@ -198,22 +277,21 @@ describe('resolveDemagogeryDetailed', () => {
     ];
     const result = resolveDemagogeryDetailed(placements, [weakFaction], noAffinity);
     const effect = result.workerEffects[0];
-    expect(effect.lineItems.find(li => li.label === 'Very weak faction')).toBeDefined();
-    // base(4) + power(-2) = 2; ceil(2) = 2
-    expect(effect.totalInfluence).toBe(2);
+    expect(effect.lineItems.find(li => li.label.includes('Power'))).toBeDefined();
+    // 10 × 0.6 = 6
+    expect(effect.totalInfluence).toBe(6);
   });
 
-  it('example calculation: power4 + advocate + agitator => 5', () => {
-    const strongFaction: BalancedFaction = { ...testFaction, power: 4 };
+  it('affinity modifies demagog payout', () => {
     const placements: Placement[] = [
       { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
-      { playerId: 'p2', factionKey: 'legiones', workerType: 'orator', oratorRole: 'advocate', subRound: 2 },
-      { playerId: 'p3', factionKey: 'legiones', workerType: 'orator', oratorRole: 'agitator', subRound: 3 },
     ];
-    const result = resolveDemagogeryDetailed(placements, [strongFaction], noAffinity);
-    const demagogEffect = result.workerEffects.find(e => e.oratorRole === 'demagog')!;
-    // 4 base + 1 power + 4 advocate = 9; × 0.5 agitator = 4.5; ceil = 5
-    expect(demagogEffect.totalInfluence).toBe(5);
+    const withAffinity = { p1: { legiones: 3 } };
+    const result = resolveDemagogeryDetailed(placements, [testFaction], withAffinity);
+    const effect = result.workerEffects[0];
+    expect(effect.lineItems.find(li => li.label.includes('Affinity'))).toBeDefined();
+    // 10 × 1.0 × 1.15 = 11.5 → round to 12
+    expect(effect.totalInfluence).toBeGreaterThan(DEMAGOG_BASE);
   });
 });
 
@@ -241,6 +319,50 @@ describe('validatePlacement', () => {
     const result = validatePlacement(
       { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
       [],
+    );
+    expect(result).toBeNull();
+  });
+
+  it('rejects two orators at same faction', () => {
+    const existing: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
+    ];
+    const result = validatePlacement(
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'agitator', subRound: 2 },
+      existing,
+    );
+    expect(result).toContain('senator');
+  });
+
+  it('allows orators at different factions', () => {
+    const existing: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
+    ];
+    const result = validatePlacement(
+      { playerId: 'p1', factionKey: 'mercatores', workerType: 'orator', oratorRole: 'agitator', subRound: 2 },
+      existing,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('allows orator and promoter at same faction', () => {
+    const existing: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
+    ];
+    const result = validatePlacement(
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'promoter', subRound: 2 },
+      existing,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('allows orator and saboteur at same faction', () => {
+    const existing: Placement[] = [
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'orator', oratorRole: 'demagog', subRound: 1 },
+    ];
+    const result = validatePlacement(
+      { playerId: 'p1', factionKey: 'legiones', workerType: 'saboteur', subRound: 2 },
+      existing,
     );
     expect(result).toBeNull();
   });

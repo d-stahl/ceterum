@@ -27,128 +27,123 @@ type HelpEntry = {
 const HELP_CONTENT: Record<string, HelpEntry> = {
   general: {
     title: 'Demagogery',
-    body: `In the Demagogery phase, each player secretly chooses one worker to place on a faction each step. Workers are revealed simultaneously.
+    body: `In the Demagogery phase, each player secretly places workers on factions each step. Workers are revealed simultaneously.
 
-Demagogs earn influence from factions they address. The stronger the faction and the more you're liked there, the more you earn.
+You have 3 senators and can send each to a different faction as a Demagog, Advocate, or Agitator. You also have a Promoter and a Saboteur — these are separate and can be placed alongside a senator.
 
-Advocates boost a demagog in the same faction and earn a small cut. Agitators disrupt — halving demagog and advocate payouts — while earning their own small fee.
+Demagogs earn influence based on faction power and your affinity. Advocates boost demagog payouts and reduce agitator effectiveness. Agitators siphon influence from demagogs.
 
-Promoters strengthen factions (higher power = more future payouts). Saboteurs weaken them.
+Promoters strengthen factions (+1 power, +2 self affinity). Saboteurs weaken them (−2 power) and damage affinity of all senators present.
 
 Drag this icon onto any element on screen for specific help.`,
   },
   'worker-orator': {
     title: 'Senator (Orator)',
-    body: `Senators can be placed in three roles on any faction:
+    body: `You have 3 senators. Each must go to a different faction, in one of three roles:
 
-Demagog – The main speaker. Earns influence based on faction power, your affinity with the faction, and whether advocates or agitators are present.
+Demagog – The earner. Influence = 10 × power modifier × affinity modifier. Locks you in at this faction next round.
 
-Advocate – Supports the demagog, giving them +4 influence, and earns a small amount themselves.
+Advocate – The protector. Earns a modest base (5 × modifiers). Boosts demagog payouts and reduces agitator siphon effectiveness. Great for cooperation — "advocate my faction and I'll advocate yours."
 
-Agitator – Disrupts the faction, halving all demagog and advocate payouts. Earns a small amount regardless.`,
+Agitator – The disruptor. Earns base (5 × modifiers) plus siphons a portion of each demagog's payout. Higher affinity = higher siphon rate (10%–70%). Devastating when you read the board right, wasted when you guess wrong.`,
   },
   'worker-promoter': {
     title: 'Promoter',
-    body: `Raises a faction's power by 1 at round end (max 5).
+    body: `Earns a fixed 5 influence (unaffected by modifiers).
 
-Higher power factions pay more influence to demagogs:
-• Power 4: +1 influence
-• Power 5: +2 influence
+Also raises faction power by +1 (max 5) and gives you +2 affinity with the faction.
 
-Note that promoting a faction benefits all players who place there, so consider whether you're helping rivals more than yourself.`,
+Higher power means better payouts for everyone — but affinity is yours alone. Building affinity makes your senators more effective and your agitators more dangerous at this faction.`,
   },
   'worker-saboteur': {
     title: 'Saboteur',
-    body: `Lowers a faction's power by 1 at round end (min 1).
+    body: `Earns a fixed 5 influence (unaffected by modifiers).
 
-Lower power factions pay less influence:
-• Power 2: −1 influence
-• Power 1: −2 influence
+Reduces faction power by −2 (min 1). Multiple saboteurs do not stack — still −2.
 
-Use this to weaken factions where rivals are strong, or to deny future payouts in factions you don't plan to use.`,
+Also splashes −1 affinity to every player who has a senator at the faction. When words fall on deaf ears, the daggers come out.`,
   },
   'faction-header': {
     title: 'Faction',
     body: `Shows the faction's name and current power level (pips, out of 5).
 
-Power affects demagog payouts (additive):
-• Power 1: Very weak (−2)
-• Power 2: Weak (−1)
-• Power 3: Neutral (no change)
-• Power 4: Powerful (+1)
-• Power 5: Very powerful (+2)
+Power affects senator payouts as a multiplier:
+• Power 1: ×0.6
+• Power 2: ×0.8
+• Power 3: ×1.0 (baseline)
+• Power 4: ×1.2
+• Power 5: ×1.4
 
-Power changes from Promoters and Saboteurs take effect at round end.`,
+Power changes from Promoters and Saboteurs take effect immediately this round.`,
   },
   'slot-demagog': {
     title: 'Demagog Slot',
-    body: `The main speaker role. Influence is calculated as:
+    body: `The main earner role. Influence = 10 × power modifier × affinity modifier.
 
-1. Add all bonuses:
-   • Base: +4
-   • Faction power: −2 to +2
-   • Your affinity: −2 to +2
-   • Advocate present: +4
+Power modifier: (power + 2) / 5, from ×0.6 to ×1.4.
+Affinity modifier: 1 + 0.05 × affinity, from ×0.75 to ×1.25.
 
-2. Apply multipliers:
-   • 2 demagogs: −40%, 3: −64%, 4: −78%…
-   • Agitator present: −50%
+Additional effects:
+• Advocate present: boosts your payout (25%–75% depending on advocate's affinity)
+• Agitator present: siphons a portion of your payout (reduced by advocates)
+• Multiple demagogs: ×0.6 crowding per extra demagog
 
-3. Round up (minimum 0).`,
+Demagogs lock in — you must place at this faction next round too.`,
   },
   'slot-advocate': {
     title: 'Advocate Slot',
-    body: `Supports the demagog in this faction.
+    body: `Protector and booster. Earns 5 × power × affinity modifiers.
 
-Gives the demagog +4 influence. Also earns a small payout:
-• Base: +2
-• Faction power: −2 to +2
-• Crowding (demagog count): same as demagog penalty
-• Agitator present: −50%
+Two passive effects on the faction:
+• Boosts all demagog payouts by 25%–75% (based on your affinity)
+• Reduces agitator siphon effectiveness by 25%–75% (based on your affinity)
 
-Placed without a demagog in the same faction, an advocate earns nothing.`,
+Multiple advocates crowd each other (×0.6 per extra), reducing both personal payout and effects.
+
+Still earns base payout without demagogs present, but the boost and protection are wasted.`,
   },
   'slot-agitator': {
     title: 'Agitator Slot',
-    body: `Disrupts the faction's speakers.
+    body: `The disruptor. Earns base (5 × power × affinity modifiers) plus siphoned influence.
 
-All demagogs and advocates in the faction earn only 50% of their normal payout.
+Siphon rate: 40% + 6% per affinity point (10% at aff −5, 70% at aff +5). You need the faction's ear to redirect the crowd effectively.
 
-The agitator earns their own amount:
-• Base: +2
-• Faction power: −2 to +2
-• Multiple agitators crowd each other
+Siphoned amount is taken from each demagog's payout (after advocate boost). Advocates reduce the effective siphon rate.
 
-Placed without a demagog, the agitator still earns — but there's no one to disrupt.`,
+Multiple agitators crowd each other (×0.6 per extra). Without demagogs, you earn only the base — nothing to siphon.`,
   },
   'slot-promoter': {
     title: 'Promoter Slot',
-    body: `A Promoter placed here increases this faction's power by +1 at round end.
+    body: `A Promoter placed here:
+• Earns a fixed 5 influence
+• Increases faction power by +1 (max 5)
+• Grants you +2 affinity with the faction
 
-Multiple promoters stack, but power is capped at 5.
-
-Higher faction power benefits everyone who places demagogs here in future steps and rounds.`,
+Multiple promoters stack power (but capped at 5). Building affinity here makes all your future senator plays at this faction more effective.`,
   },
   'slot-saboteur': {
     title: 'Saboteur Slot',
-    body: `A Saboteur placed here decreases this faction's power by −1 at round end.
+    body: `A Saboteur placed here:
+• Earns a fixed 5 influence
+• Decreases faction power by −2 (min 1)
+• Splashes −1 affinity to every player with a senator here
 
-Power is floored at 1. Stacking saboteurs accelerates the reduction.
+Multiple saboteurs do NOT stack — power still only drops by 2.
 
-Use this strategically to hurt rivals who rely on high-power factions.`,
+A pure spite play. You don't need affinity with a faction to sabotage it.`,
   },
   'faction-affinity': {
     title: 'Affinity',
     body: `Your personal relationship with this faction (ranges from −5 to +5).
 
-Affinity affects your demagog's payout:
-• Strong antipathy (≤−2): −2 influence
-• Antipathy (−1): −1 influence
-• Neutral (0): no change
-• Sympathy (+1): +1 influence
-• Strong sympathy (≥+2): +2 influence
+Affinity acts as a multiplier on senator payouts:
+• ×0.75 at affinity −5
+• ×1.00 at affinity 0
+• ×1.25 at affinity +5
 
-Affinity changes based on your actions each round.`,
+Affinity also determines your agitator siphon rate at this faction (higher = more effective).
+
+Affinity changes from promoters (+2 self), saboteur splash (−1), and controversy outcomes. It also decays by 1 toward zero each round.`,
   },
   'faction-alignment': {
     title: 'Alignment',
@@ -185,7 +180,7 @@ Other players wait while you make these decisions — use the "On the Horizon" t
     title: 'Controversy Vote',
     body: `Each controversy has two possible resolutions. The Senate Leader publicly declares which they prefer, then all players secretly vote by spending influence.
 
-The Senate Leader's declared resolution receives an institutional bonus equal to the number of other players, giving it an advantage. Ties are broken in favor of the Senate Leader's declaration.
+The Senate Leader's declared resolution receives an institutional bonus of +2 per other player, giving it a significant advantage. Ties are broken in favor of the Senate Leader's declaration.
 
 You can vote for either resolution regardless of the Senate Leader's declaration. Spending 0 influence is valid — it counts as a vote with no financial stake.
 

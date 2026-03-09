@@ -73,5 +73,25 @@ export function validatePlacement(
     return 'Only orators can have a role';
   }
 
+  // One senator (orator) per faction per player
+  if (placement.workerType === 'orator') {
+    const existingOratorAtFaction = playerPlacements.find(
+      (p) => p.workerType === 'orator' && p.factionKey === placement.factionKey,
+    );
+    if (existingOratorAtFaction) {
+      return 'Already have a senator at this faction';
+    }
+  }
+
+  // One promoter or saboteur per faction per player (different types can coexist)
+  if (placement.workerType === 'promoter' || placement.workerType === 'saboteur') {
+    const existingSameTypeAtFaction = playerPlacements.find(
+      (p) => p.workerType === placement.workerType && p.factionKey === placement.factionKey,
+    );
+    if (existingSameTypeAtFaction) {
+      return `Already have a ${placement.workerType} at this faction`;
+    }
+  }
+
   return null; // valid
 }

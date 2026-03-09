@@ -13,6 +13,20 @@ import { AxisPreferences } from '../lib/game-engine/axes';
 import { PlayerAgendaInfo } from './AgendaDots';
 import { C, navyBg, parchmentBg, accentGoldBg } from '../lib/theme';
 
+function getAffinityLabel(affinity: number): string {
+  if (affinity <= -5) return 'Reviled';
+  if (affinity === -4) return 'Hostile';
+  if (affinity === -3) return 'Unfriendly';
+  if (affinity === -2) return 'Distrusted';
+  if (affinity === -1) return 'Guarded';
+  if (affinity === 0) return 'Neutral';
+  if (affinity === 1) return 'Curious';
+  if (affinity === 2) return 'Sympathetic';
+  if (affinity === 3) return 'Friendly';
+  if (affinity === 4) return 'Devoted';
+  return 'Revered';
+}
+
 // Stable array references to prevent useCallback/useEffect churn
 const ACCEPTS_ORATOR: WorkerType[] = ['orator'];
 const ACCEPTS_PROMOTER: WorkerType[] = ['promoter'];
@@ -83,6 +97,8 @@ export default function FactionCard({
   const hasPreliminaryPlacement = placements.some((p) => p.isPreliminary);
 
   const powerPips = Array.from({ length: 5 }, (_, i) => i < powerLevel);
+
+  const myAffinity = allPlayerAffinities?.find((a) => a.playerId === currentPlayerId)?.affinity ?? 0;
 
   // Auto-expand when dragging over collapsed faction header
   const headerRef = useRef<View>(null);
@@ -165,6 +181,17 @@ export default function FactionCard({
             {powerPips.map((filled, i) => (
               <View key={i} style={[styles.powerPip, filled && styles.powerPipFilled]} />
             ))}
+          </View>
+          <View style={styles.affinityRow}>
+            <Text style={styles.affinityLabel}>Affinity:</Text>
+            <Text style={styles.affinityName}>{getAffinityLabel(myAffinity)}</Text>
+            <Text style={[
+              styles.affinityValue,
+              myAffinity > 0 && { color: C.positiveGreen },
+              myAffinity < 0 && { color: C.negativeRed },
+            ]}>
+              ({myAffinity > 0 ? '+' : ''}{myAffinity})
+            </Text>
           </View>
         </View>
         <View style={styles.headerRight}>
@@ -607,6 +634,27 @@ const styles = StyleSheet.create({
   powerPipFilled: {
     backgroundColor: C.parchment,
     borderColor: C.parchment,
+  },
+  affinityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  affinityLabel: {
+    color: C.parchment,
+    fontSize: 10,
+    opacity: 0.5,
+    marginRight: 2,
+  },
+  affinityName: {
+    color: C.warmGold,
+    fontSize: 10,
+  },
+  affinityValue: {
+    color: C.parchment,
+    fontSize: 10,
+    opacity: 0.7,
   },
   workerCountBadgeOuter: {
     width: 26,

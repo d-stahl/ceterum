@@ -187,7 +187,7 @@ export default function ControversyVoting({
       resolutionTotals[v.resolution_key] = (resolutionTotals[v.resolution_key] ?? 0) + v.influence_spent;
     }
     if (slDeclaration) {
-      resolutionTotals[slDeclaration] = (resolutionTotals[slDeclaration] ?? 0) + (players.length - 1);
+      resolutionTotals[slDeclaration] = (resolutionTotals[slDeclaration] ?? 0) + (players.length - 1) * 2;
     }
 
     return (
@@ -196,7 +196,7 @@ export default function ControversyVoting({
         resolutionTotals={resolutionTotals}
         winningResolutionKey={csState!.winning_resolution_key!}
         senateLeaderDeclaration={slDeclaration ?? ''}
-        senateLeaderBonus={players.length - 1}
+        senateLeaderBonus={(players.length - 1) * 2}
         votes={voteRows}
         axisEffects={csState?.axis_effects_applied ?? {}}
         factionPowerEffects={csState?.faction_power_effects_applied ?? {}}

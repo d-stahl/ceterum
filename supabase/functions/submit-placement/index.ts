@@ -81,6 +81,7 @@ Deno.serve(async (req) => {
         p_game_id: game_id,
         p_influence_changes: result.influenceChanges,
         p_power_changes: result.factionPowerChanges,
+        p_affinity_changes: result.affinityChanges,
       });
       if (rpcError) throw rpcError;
 

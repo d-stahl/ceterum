@@ -181,8 +181,8 @@ export function resolveControversyVotes(
     totals[v.resolutionKey] = (totals[v.resolutionKey] || 0) + v.influenceSpent;
   }
 
-  // Apply SL institutional bonus: +1 per non-SL player
-  const slBonus = totalPlayers - 1;
+  // Apply SL institutional bonus: +2 per non-SL player
+  const slBonus = (totalPlayers - 1) * 2;
   totals[senateLeaderDeclaration] = (totals[senateLeaderDeclaration] || 0) + slBonus;
 
   // Determine winner (ties go to SL's declaration)

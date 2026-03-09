@@ -300,6 +300,7 @@ function GameScreenInner() {
         setHasSubmittedThisSubRound(false);
         drag.clearPreliminary();
         setTooltipData(null);
+        workerEffectsRef.current = []; // wipe stale tooltip cache
       }
 
       // Demagogery just resolved → show demagogery results before ruling phase
@@ -835,6 +836,29 @@ function GameScreenInner() {
       workerType: p.worker_type as any,
       oratorRole: p.orator_role as any,
     }));
+
+  // Block orator slots at factions where the player already has an orator
+  useEffect(() => {
+    const myOratorFactionKeys = new Set<string>();
+    for (const p of placements) {
+      if (p.player_id === currentUserId && p.worker_type === 'orator') {
+        const faction = factions.find((f) => f.id === p.faction_id);
+        if (faction) myOratorFactionKeys.add(faction.faction_key);
+      }
+    }
+    // Also count preliminary placement
+    const prelim = drag.preliminaryPlacement;
+    if (prelim?.workerType === 'orator') {
+      myOratorFactionKeys.add(prelim.factionKey);
+    }
+    const blocked = new Set<string>();
+    for (const fk of myOratorFactionKeys) {
+      blocked.add(`faction:${fk}:demagog`);
+      blocked.add(`faction:${fk}:advocate`);
+      blocked.add(`faction:${fk}:agitator`);
+    }
+    drag.setBlockedTargets(blocked);
+  }, [placements, currentUserId, factions, drag.preliminaryPlacement]);
 
   const submittedCount = round
     ? new Set(placements.filter((p) => p.sub_round === round.sub_round).map((p) => p.player_id)).size

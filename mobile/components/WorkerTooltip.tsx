@@ -84,13 +84,14 @@ export default function WorkerTooltip({
               );
             })}
 
-            {(effect.workerType === 'orator' || effect.totalPowerChange !== 0) && (
+            {(effect.totalInfluence > 0 || effect.totalPowerChange !== 0) && (
               <>
                 <View style={styles.totalDivider} />
                 <Text style={styles.totalLine}>
-                  {effect.totalPowerChange !== 0
-                    ? `= Power ${effect.totalPowerChange > 0 ? '+' : ''}${effect.totalPowerChange}`
-                    : `= ${effect.totalInfluence} influence`}
+                  {[
+                    effect.totalInfluence > 0 ? `${effect.totalInfluence} influence` : null,
+                    effect.totalPowerChange !== 0 ? `Power ${effect.totalPowerChange > 0 ? '+' : ''}${effect.totalPowerChange}` : null,
+                  ].filter(Boolean).join(' · ')}
                 </Text>
               </>
             )}

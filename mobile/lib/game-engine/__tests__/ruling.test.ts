@@ -158,8 +158,8 @@ describe('resolveControversyVotes', () => {
       [{ playerId: 'p1', resolutionKey: 'a', influenceSpent: 0 }],
       'a', 'p1', 4, mockControversy,
     );
-    // SL bonus = 4 - 1 = 3
-    expect(result.resolutionTotals['a']).toBe(3);
+    // SL bonus = (4 - 1) * 2 = 6
+    expect(result.resolutionTotals['a']).toBe(6);
     expect(result.resolutionTotals['b']).toBe(0);
   });
 });
