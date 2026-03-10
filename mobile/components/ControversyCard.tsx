@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Image, ImageSourcePropType, Animated, Pressable
 import { Controversy, CATEGORY_LABELS } from '../lib/game-engine/controversies';
 import { AXIS_LABELS, AxisKey } from '../lib/game-engine/axes';
 import { FACTIONS } from '../lib/game-engine/factions';
+import { getFactionStance, FactionStance } from '../lib/game-engine/ruling';
 import { getColorHex } from '../lib/player-colors';
 import AgendaDots, { PlayerAgendaInfo } from './AgendaDots';
 import { C, goldBg, parchmentBg, brownBg, CATEGORY_COLORS } from '../lib/theme';
@@ -60,27 +61,38 @@ function effectSign(n: number): string {
   return n > 0 ? `+${n}` : `${n}`;
 }
 
-/** Compute which active factions would be upset by a resolution's axis effects. */
-export function getUpsetFactions(
+/** Compute each active faction's stance on a resolution's axis effects. */
+export function getFactionStances(
   axisEffects: Partial<Record<string, number>>,
   activeFactionKeys: string[],
   factionInfoMap?: Record<string, FactionInfo>,
-): string[] {
-  const upset: string[] = [];
+  axisValues?: Record<string, number>,
+): { key: string; stance: FactionStance }[] {
+  const result: { key: string; stance: FactionStance }[] = [];
   for (const fkey of activeFactionKeys) {
     const prefs = factionInfoMap?.[fkey]?.preferences
       ?? FACTIONS.find((f) => f.key === fkey)?.defaultPreferences;
     if (!prefs) continue;
-    for (const [axis, shift] of Object.entries(axisEffects)) {
-      if (!shift || shift === 0) continue;
-      const pref = prefs[axis as AxisKey] ?? 0;
-      if (pref === 0 || (pref > 0 && shift < 0) || (pref < 0 && shift > 0)) {
-        upset.push(fkey);
-        break;
-      }
-    }
+    const stance = getFactionStance(
+      axisEffects as Partial<Record<AxisKey, number>>,
+      prefs as Partial<Record<AxisKey, number>>,
+      (axisValues ?? {}) as Partial<Record<AxisKey, number>>,
+    );
+    result.push({ key: fkey, stance });
   }
-  return upset;
+  return result;
+}
+
+/** @deprecated Use getFactionStances instead */
+export function getUpsetFactions(
+  axisEffects: Partial<Record<string, number>>,
+  activeFactionKeys: string[],
+  factionInfoMap?: Record<string, FactionInfo>,
+  axisValues?: Record<string, number>,
+): string[] {
+  return getFactionStances(axisEffects, activeFactionKeys, factionInfoMap, axisValues)
+    .filter((f) => f.stance === 'opposed')
+    .map((f) => f.key);
 }
 
 const NOTCH_POSITIONS = [0, 25, 50, 75, 100];
@@ -362,18 +374,25 @@ export default function ControversyCard({
                     )}
 
                     {(() => {
-                      const upsetKeys = getUpsetFactions(r.axisEffects, activeFactionKeys, factionInfoMap);
-                      if (upsetKeys.length === 0) return null;
+                      const stances = getFactionStances(r.axisEffects, activeFactionKeys, factionInfoMap, axisValues);
+                      const hasStances = stances.some((s) => s.stance !== 'neutral');
+                      if (!hasStances) return null;
                       return (
                         <View style={styles.effectsSection}>
-                          <Text style={styles.effectsSectionLabel}>Affinity Effects</Text>
-                          <Text style={styles.affinityWarning}>
-                            Backing this resolution will upset:
-                          </Text>
-                          {upsetKeys.map((fkey) => (
-                            <Text key={fkey} style={styles.affinityFactionName}>
-                              {factionInfoMap?.[fkey]?.displayName ?? fkey}
-                            </Text>
+                          <Text style={styles.effectsSectionLabel}>Faction Reactions</Text>
+                          {stances.map(({ key: fkey, stance }) => (
+                            <View key={fkey} style={styles.stanceRow}>
+                              <Text style={styles.stanceFactionName}>
+                                {factionInfoMap?.[fkey]?.displayName ?? fkey}
+                              </Text>
+                              <Text style={[
+                                styles.stanceLabel,
+                                stance === 'opposed' && styles.stanceOpposed,
+                                stance === 'in_favor' && styles.stanceInFavor,
+                              ]}>
+                                {stance === 'opposed' ? 'Opposed' : stance === 'in_favor' ? 'In Favor' : 'Neutral'}
+                              </Text>
+                            </View>
                           ))}
                         </View>
                       );
@@ -514,16 +533,30 @@ const styles = StyleSheet.create({
     opacity: 0.4,
     marginBottom: 2,
   },
-  affinityWarning: {
-    color: C.paleGold,
-    fontSize: 11,
-    opacity: 0.6,
-    fontStyle: 'italic',
+  stanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 2,
   },
-  affinityFactionName: {
+  stanceFactionName: {
     color: C.paleGold,
     fontSize: 12,
-    paddingLeft: 8,
+    flex: 1,
+  },
+  stanceLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    opacity: 0.5,
+    color: C.paleGold,
+  },
+  stanceOpposed: {
+    color: C.negative,
+    opacity: 1,
+  },
+  stanceInFavor: {
+    color: C.positive,
+    opacity: 1,
   },
 
   // Axis effect slider

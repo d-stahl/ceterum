@@ -5,7 +5,7 @@ import { declareResolution, submitControversyVote } from '../lib/game-actions';
 import { CONTROVERSY_MAP } from '../lib/game-engine/controversies';
 import VoteControls from './VoteControls';
 import ResolutionOutcome from './ResolutionOutcome';
-import { AxisEffectSlider, PowerEffectRow, getUpsetFactions } from './ControversyCard';
+import { AxisEffectSlider, PowerEffectRow, getFactionStances } from './ControversyCard';
 import { PlayerAgendaInfo } from './AgendaDots';
 import { getColorHex } from '../lib/player-colors';
 import { C, goldBg, navyBg } from '../lib/theme';
@@ -282,18 +282,25 @@ export default function ControversyVoting({
                 )}
 
                 {(() => {
-                  const upsetKeys = getUpsetFactions(r.axisEffects, activeFactionKeys, factionInfoMap);
-                  if (upsetKeys.length === 0) return null;
+                  const stances = getFactionStances(r.axisEffects, activeFactionKeys, factionInfoMap, axisValues);
+                  const hasStances = stances.some((s) => s.stance !== 'neutral');
+                  if (!hasStances) return null;
                   return (
                     <View style={styles.effectsSection}>
-                      <Text style={styles.effectsSectionLabel}>Affinity Effects</Text>
-                      <Text style={styles.affinityWarning}>
-                        Backing this resolution will upset:
-                      </Text>
-                      {upsetKeys.map((fkey) => (
-                        <Text key={fkey} style={styles.affinityFactionName}>
-                          {factionInfoMap?.[fkey]?.displayName ?? fkey}
-                        </Text>
+                      <Text style={styles.effectsSectionLabel}>Faction Reactions</Text>
+                      {stances.map(({ key: fkey, stance }) => (
+                        <View key={fkey} style={styles.stanceRow}>
+                          <Text style={styles.stanceFactionName}>
+                            {factionInfoMap?.[fkey]?.displayName ?? fkey}
+                          </Text>
+                          <Text style={[
+                            styles.stanceLabel,
+                            stance === 'opposed' && styles.stanceOpposed,
+                            stance === 'in_favor' && styles.stanceInFavor,
+                          ]}>
+                            {stance === 'opposed' ? 'Opposed' : stance === 'in_favor' ? 'In Favor' : 'Neutral'}
+                          </Text>
+                        </View>
                       ))}
                     </View>
                   );
@@ -541,16 +548,30 @@ const styles = StyleSheet.create({
     opacity: 0.4,
     marginBottom: 2,
   },
-  affinityWarning: {
-    color: C.paleGold,
-    fontSize: 11,
-    opacity: 0.6,
-    fontStyle: 'italic',
+  stanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 2,
   },
-  affinityFactionName: {
+  stanceFactionName: {
     color: C.paleGold,
     fontSize: 12,
-    paddingLeft: 8,
+    flex: 1,
+  },
+  stanceLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    opacity: 0.5,
+    color: C.paleGold,
+  },
+  stanceOpposed: {
+    color: C.negative,
+    opacity: 1,
+  },
+  stanceInFavor: {
+    color: C.positive,
+    opacity: 1,
   },
   errorText: {
     color: C.error,

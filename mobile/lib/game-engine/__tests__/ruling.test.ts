@@ -3,9 +3,9 @@ import {
   resolvePledgeRound,
   assembleControversyPool,
   resolveControversyVotes,
-  computeAffinityMalus,
+  computeAffinityEffects,
+  getFactionStance,
   halveInfluence,
-  decayAffinity,
 } from '../ruling';
 import { Controversy } from '../controversies';
 
@@ -164,39 +164,106 @@ describe('resolveControversyVotes', () => {
   });
 });
 
-describe('computeAffinityMalus', () => {
+describe('getFactionStance', () => {
+  it('returns opposed when resolution moves axis away from faction preference', () => {
+    // Faction wants militarism=2, current=0, resolution shifts -1 (away)
+    expect(getFactionStance({ militarism: -1 }, { militarism: 2 }, { militarism: 0 })).toBe('opposed');
+  });
+
+  it('returns in_favor when resolution moves axis toward faction preference', () => {
+    // Faction wants militarism=2, current=0, resolution shifts +1 (toward)
+    expect(getFactionStance({ militarism: 1 }, { militarism: 2 }, { militarism: 0 })).toBe('in_favor');
+  });
+
+  it('returns neutral when faction has no preference on affected axis', () => {
+    expect(getFactionStance({ militarism: -1 }, { militarism: 0 }, { militarism: 0 })).toBe('neutral');
+  });
+
+  it('counts aligned vs opposed across multiple axes', () => {
+    // 2 opposed, 1 aligned → opposed
+    expect(getFactionStance(
+      { militarism: -1, commerce: -1, expansion: 1 },
+      { militarism: 2, commerce: 2, expansion: 2 },
+      { militarism: 0, commerce: 0, expansion: 0 },
+    )).toBe('opposed');
+  });
+
+  it('returns neutral when aligned equals opposed', () => {
+    expect(getFactionStance(
+      { militarism: -1, commerce: 1 },
+      { militarism: 2, commerce: 2 },
+      { militarism: 0, commerce: 0 },
+    )).toBe('neutral');
+  });
+
+  it('handles axis already at preference — any movement is away', () => {
+    // Faction wants -1, current is -1 → shift +1 moves to 0 (away), shift -1 moves to -2 (also away)
+    expect(getFactionStance({ militarism: 1 }, { militarism: -1 }, { militarism: -1 })).toBe('opposed');
+    expect(getFactionStance({ militarism: -1 }, { militarism: -1 }, { militarism: -1 })).toBe('opposed');
+  });
+
+  it('handles axis beyond preference — moving back toward is aligned', () => {
+    // Faction wants 2, current is -2 → shift +1 moves to -1 (closer to 2)
+    expect(getFactionStance({ militarism: 1 }, { militarism: 2 }, { militarism: -2 })).toBe('in_favor');
+  });
+});
+
+describe('computeAffinityEffects', () => {
   const militaristFaction = {
     key: 'legiones', displayName: 'Veterans', latinName: 'Legiones',
     description: '', power: 3,
     preferences: { centralization: 0, expansion: 0, commerce: 0, patrician: 0, tradition: 0, militarism: 2 },
   };
 
-  it('penalizes voters who supported winning resolution that opposes faction preference', () => {
-    // Resolution 'b' wins: militarism: -1 (opposes legiones pref of +2)
-    const malus = computeAffinityMalus(
+  it('penalizes voters when faction is opposed', () => {
+    const effects = computeAffinityEffects(
       [{ playerId: 'p1', resolutionKey: 'b', influenceSpent: 5 }],
       'b',
       { militarism: -1 },
       [militaristFaction],
+      { militarism: 0 },
       'p2',
     );
-    expect(malus['p1']['legiones']).toBe(-1);
+    expect(effects['p1']['legiones']).toBe(-1);
   });
 
-  it('doubles malus for Senate Leader', () => {
-    const malus = computeAffinityMalus(
+  it('rewards voters when faction is in favor', () => {
+    const effects = computeAffinityEffects(
+      [{ playerId: 'p1', resolutionKey: 'b', influenceSpent: 5 }],
+      'b',
+      { militarism: 1 },
+      [militaristFaction],
+      { militarism: 0 },
+      'p2',
+    );
+    expect(effects['p1']['legiones']).toBe(1);
+  });
+
+  it('doubles penalty for Senate Leader but not bonus', () => {
+    const effects = computeAffinityEffects(
       [{ playerId: 'p1', resolutionKey: 'b', influenceSpent: 5 }],
       'b',
       { militarism: -1 },
       [militaristFaction],
+      { militarism: 0 },
       'p1', // p1 IS Senate Leader
     );
-    expect(malus['p1']['legiones']).toBe(-2);
+    expect(effects['p1']['legiones']).toBe(-2);
+
+    // But bonus is just +1 for SL
+    const bonus = computeAffinityEffects(
+      [{ playerId: 'p1', resolutionKey: 'b', influenceSpent: 5 }],
+      'b',
+      { militarism: 1 },
+      [militaristFaction],
+      { militarism: 0 },
+      'p1',
+    );
+    expect(bonus['p1']['legiones']).toBe(1);
   });
 
-  it('does not penalize voters who voted for losing resolution', () => {
-    // p1 voted for 'a' (lost), p2 voted for 'b' (won)
-    const malus = computeAffinityMalus(
+  it('does not affect voters who voted for losing resolution', () => {
+    const effects = computeAffinityEffects(
       [
         { playerId: 'p1', resolutionKey: 'a', influenceSpent: 3 },
         { playerId: 'p2', resolutionKey: 'b', influenceSpent: 5 },
@@ -204,38 +271,23 @@ describe('computeAffinityMalus', () => {
       'b',
       { militarism: -1 },
       [militaristFaction],
+      { militarism: 0 },
       'p3',
     );
-    expect(malus['p1']).toBeUndefined();
-    expect(malus['p2']['legiones']).toBe(-1);
+    expect(effects['p1']).toBeUndefined();
+    expect(effects['p2']['legiones']).toBe(-1);
   });
 
-  it('penalizes neutral faction voters when any axis shifts', () => {
-    const neutralFaction = {
-      key: 'fabri', displayName: 'Craftsmen', latinName: 'Fabri',
-      description: '', power: 3,
-      preferences: { centralization: 0, expansion: 0, commerce: 1, patrician: -1, tradition: -1, militarism: 0 },
-    };
-    // militarism is 0 (neutral) for fabri → penalized when militarism shifts
-    const malus = computeAffinityMalus(
-      [{ playerId: 'p1', resolutionKey: 'b', influenceSpent: 5 }],
+  it('excludes voters who spent 0 influence', () => {
+    const effects = computeAffinityEffects(
+      [{ playerId: 'p1', resolutionKey: 'b', influenceSpent: 0 }],
       'b',
       { militarism: -1 },
-      [neutralFaction],
-      'p2',
-    );
-    expect(malus['p1']['fabri']).toBe(-1);
-  });
-
-  it('returns empty object when no one voted for winning resolution', () => {
-    const malus = computeAffinityMalus(
-      [{ playerId: 'p1', resolutionKey: 'a', influenceSpent: 5 }],
-      'b', // nobody voted for 'b' but it won (SL bonus)
-      { militarism: -1 },
       [militaristFaction],
+      { militarism: 0 },
       'p2',
     );
-    expect(Object.keys(malus)).toHaveLength(0);
+    expect(effects['p1']).toBeUndefined();
   });
 });
 
@@ -244,12 +296,4 @@ describe('halveInfluence', () => {
   it('rounds up odd numbers in player favor', () => expect(halveInfluence(7)).toBe(4));
   it('rounds up 1 to 1', () => expect(halveInfluence(1)).toBe(1));
   it('handles zero', () => expect(halveInfluence(0)).toBe(0));
-});
-
-describe('decayAffinity', () => {
-  it('negative affinity moves toward 0', () => expect(decayAffinity(-3)).toBe(-2));
-  it('-1 affinity decays to 0', () => expect(decayAffinity(-1)).toBe(0));
-  it('zero stays at zero', () => expect(decayAffinity(0)).toBe(0));
-  it('positive affinity moves toward 0', () => expect(decayAffinity(2)).toBe(1));
-  it('+1 affinity decays to 0', () => expect(decayAffinity(1)).toBe(0));
 });

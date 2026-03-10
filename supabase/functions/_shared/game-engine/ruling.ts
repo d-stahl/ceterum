@@ -1,3 +1,4 @@
+// Deno-compatible copy — keep in sync with mobile/lib/game-engine/ruling.ts
 import { AxisKey } from './axes.ts';
 import { BalancedFaction } from './balance.ts';
 import { Controversy } from './controversies.ts';
@@ -207,68 +208,98 @@ export function resolveControversyVotes(
   };
 }
 
-// --- Affinity Malus ---
+// --- Faction Stance ---
+
+export type FactionStance = 'in_favor' | 'opposed' | 'neutral';
 
 /**
- * Compute affinity malus for each player based on their vote and faction preferences.
- * For each faction in the game:
- *   For each axis that shifted by the winning resolution:
- *     If the player voted FOR the winning resolution AND:
- *       - Any axis moved against the faction's preference (or away from center for neutral factions) → -1 affinity (flat, does not stack per axis)
- * Senate Leader suffers double malus.
- *
- * Returns: playerId -> factionKey -> malus (negative number, or omitted if 0)
+ * Determine a faction's stance on a resolution's axis effects.
+ * For each axis where the resolution has an effect and the faction has a preference:
+ *   - If the effect moves the current value toward the faction's preference → aligned
+ *   - If the effect moves it away → opposed
+ * More opposed than aligned → 'opposed'. More aligned → 'in_favor'. Equal → 'neutral'.
  */
-export function computeAffinityMalus(
+export function getFactionStance(
+  axisEffects: Partial<Record<AxisKey, number>>,
+  factionPrefs: Partial<Record<AxisKey, number>>,
+  axisValues: Partial<Record<AxisKey, number>>,
+): FactionStance {
+  let aligned = 0;
+  let opposed = 0;
+
+  for (const [axisStr, shift] of Object.entries(axisEffects)) {
+    const axis = axisStr as AxisKey;
+    if (!shift || shift === 0) continue;
+    const pref = factionPrefs[axis] ?? 0;
+    if (pref === 0) continue; // faction doesn't care about this axis
+
+    const current = axisValues[axis] ?? 0;
+    const distBefore = Math.abs(current - pref);
+    const distAfter = Math.abs(current + shift - pref);
+
+    if (distAfter < distBefore) {
+      aligned++;
+    } else if (distAfter > distBefore) {
+      opposed++;
+    }
+    // equal distance = neutral on this axis, don't count
+  }
+
+  if (opposed > aligned) return 'opposed';
+  if (aligned > opposed) return 'in_favor';
+  return 'neutral';
+}
+
+// --- Affinity Effects ---
+
+/**
+ * Compute affinity effects for each player based on their vote and faction stances.
+ * Factions that are opposed to the winning resolution penalize backers (-1, -2 for SL).
+ * Factions that are in favor reward backers (+1, +1 for SL).
+ * Only players who voted FOR the winning resolution AND spent influence > 0 are affected.
+ * Senate Leader always counts (they declared it).
+ *
+ * Returns: playerId -> factionKey -> delta
+ */
+export function computeAffinityEffects(
   votes: Vote[],
   winningResolutionKey: string,
   axisEffects: Partial<Record<AxisKey, number>>,
   factions: BalancedFaction[],
+  axisValues: Partial<Record<AxisKey, number>>,
   senateLeaderId: string,
 ): Record<string, Record<string, number>> {
-  const malus: Record<string, Record<string, number>> = {};
+  const effects: Record<string, Record<string, number>> = {};
 
   // Only voters who voted for the winning resolution AND spent influence are affected.
-  // Exception: the Senate Leader always counts (they declared it and must bear the cost).
+  // Exception: the Senate Leader always counts.
   const winningVoters = votes
     .filter((v) => v.resolutionKey === winningResolutionKey && (v.influenceSpent > 0 || v.playerId === senateLeaderId))
     .map((v) => v.playerId);
 
   for (const playerId of winningVoters) {
-    const playerMalus: Record<string, number> = {};
+    const playerEffects: Record<string, number> = {};
     for (const faction of factions) {
-      let upset = false;
-      for (const [axisStr, shift] of Object.entries(axisEffects)) {
-        const axis = axisStr as AxisKey;
-        if (!shift || shift === 0) continue;
-        const pref = faction.preferences[axis];
+      const stance = getFactionStance(axisEffects, faction.preferences, axisValues);
 
-        if (pref === 0) {
-          // Neutral faction: any axis movement moves policy away from center
-          upset = true;
-        } else if ((pref > 0 && shift < 0) || (pref < 0 && shift > 0)) {
-          // Faction has a preference and axis moved opposite to it
-          upset = true;
-        }
-        if (upset) break;
-      }
-
-      if (upset) {
-        let factionMalus = -1;
-        // Senate Leader suffers double malus
-        if (playerId === senateLeaderId) {
-          factionMalus *= 2;
-        }
-        playerMalus[faction.key] = factionMalus;
+      if (stance === 'opposed') {
+        playerEffects[faction.key] = playerId === senateLeaderId ? -2 : -1;
+      } else if (stance === 'in_favor') {
+        playerEffects[faction.key] = 1; // SL gets +1 too, no double bonus
       }
     }
-    if (Object.keys(playerMalus).length > 0) {
-      malus[playerId] = playerMalus;
+    if (Object.keys(playerEffects).length > 0) {
+      effects[playerId] = playerEffects;
     }
   }
 
-  return malus;
+  return effects;
 }
+
+/**
+ * @deprecated Use computeAffinityEffects instead
+ */
+export const computeAffinityMalus = computeAffinityEffects;
 
 // --- Round End ---
 
@@ -277,13 +308,4 @@ export function computeAffinityMalus(
  */
 export function halveInfluence(current: number): number {
   return Math.ceil(current / 2);
-}
-
-/**
- * Decay affinity toward 0 by 1 each round.
- */
-export function decayAffinity(current: number): number {
-  if (current < 0) return current + 1;
-  if (current > 0) return current - 1;
-  return 0;
 }

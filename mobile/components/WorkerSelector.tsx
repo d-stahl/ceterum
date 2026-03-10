@@ -9,6 +9,7 @@ import { C, navyBg, parchmentBg } from '../lib/theme';
 export type WorkerSelection = {
   workerType: WorkerType;
   oratorRole?: OratorRole;
+  isLocked?: boolean;
 };
 
 type WorkerSlot = {
@@ -29,7 +30,7 @@ const WORKER_SLOTS: WorkerSlot[] = [
 const ICON_SIZE = 48;
 
 type Props = {
-  usedWorkers: { workerType: WorkerType; oratorRole?: OratorRole }[];
+  usedWorkers: { workerType: WorkerType; oratorRole?: OratorRole; isLocked?: boolean }[];
   preliminaryWorkerType?: WorkerType | null;
   playerColor: string;
   disabled?: boolean;
@@ -51,7 +52,7 @@ export default function WorkerSelector({
 
   // Derive committed slots directly from usedWorkers — eliminates race conditions
   // where the component mounts before loadPlacements() resolves.
-  const committedSlots = useMemo(() => assignCommittedSlots(usedWorkers), [usedWorkers]);
+  const { committed: committedSlots, locked: lockedSlots } = useMemo(() => assignCommittedSlots(usedWorkers), [usedWorkers]);
 
   const [prelimSlotKey, setPrelimSlotKey] = useState<string | null>(null);
   const [activeSlotKey, setActiveSlotKey] = useState<string | null>(null);
@@ -75,6 +76,7 @@ export default function WorkerSelector({
       <View style={styles.row}>
         {WORKER_SLOTS.map((slot) => {
           const isCommitted = committedSlots.has(slot.key);
+          const isLocked = lockedSlots.has(slot.key);
           const isPrelim = slot.key === prelimSlotKey;
           const isActive = slot.key === activeSlotKey;
           const showEmpty = isCommitted || isPrelim || isActive;
@@ -106,7 +108,7 @@ export default function WorkerSelector({
                 }}
               />
               <Text style={[styles.slotLabel, showEmpty && styles.slotLabelUsed]}>
-                {slot.label}
+                {isLocked ? 'Locked' : slot.label}
               </Text>
             </WorkerSlotView>
           );
@@ -169,23 +171,26 @@ function WorkerSlotView({
 
 /** Assign committed placements to specific slot keys (in order) */
 function assignCommittedSlots(
-  usedWorkers: { workerType: WorkerType; oratorRole?: OratorRole }[]
-): Set<string> {
-  const slots = new Set<string>();
+  usedWorkers: { workerType: WorkerType; oratorRole?: OratorRole; isLocked?: boolean }[]
+): { committed: Set<string>; locked: Set<string> } {
+  const committed = new Set<string>();
+  const locked = new Set<string>();
   let oratorIdx = 0;
   for (const w of usedWorkers) {
     if (w.workerType === 'orator') {
       if (oratorIdx < 3) {
-        slots.add(WORKER_SLOTS[oratorIdx].key);
+        const key = WORKER_SLOTS[oratorIdx].key;
+        committed.add(key);
+        if (w.isLocked) locked.add(key);
         oratorIdx++;
       }
     } else if (w.workerType === 'promoter') {
-      slots.add('promoter');
+      committed.add('promoter');
     } else if (w.workerType === 'saboteur') {
-      slots.add('saboteur');
+      committed.add('saboteur');
     }
   }
-  return slots;
+  return { committed, locked };
 }
 
 const styles = StyleSheet.create({

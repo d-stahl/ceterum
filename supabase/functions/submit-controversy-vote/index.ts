@@ -1,6 +1,6 @@
 import { createEdgeClients, corsHeaders, jsonResponse, errorResponse } from '../_shared/auth.ts';
 import { buildEngineFactionsFromDb, buildEngineVotesFromDb } from '../_shared/db-transforms.ts';
-import { resolveControversyVotes, computeAffinityMalus } from '../_shared/game-engine/ruling.ts';
+import { resolveControversyVotes, computeAffinityEffects } from '../_shared/game-engine/ruling.ts';
 import type { AxisKey } from '../_shared/game-engine/axes.ts';
 import type { Controversy } from '../_shared/game-engine/controversies.ts';
 
@@ -54,8 +54,8 @@ Deno.serve(async (req) => {
       return jsonResponse({ status: 'resolved' });
     }
 
-    // Fetch votes, controversy snapshot, factions, and player count in parallel
-    const [votesRes, snapRes, factionsRes, countRes] = await Promise.all([
+    // Fetch votes, controversy snapshot, factions, axes, and player count in parallel
+    const [votesRes, snapRes, factionsRes, axesRes, countRes] = await Promise.all([
       adminClient
         .from('game_controversy_votes')
         .select('player_id, resolution_key, influence_spent')
@@ -72,6 +72,10 @@ Deno.serve(async (req) => {
         .select('faction_key, display_name, power_level, pref_centralization, pref_expansion, pref_commerce, pref_patrician, pref_tradition, pref_militarism')
         .eq('game_id', game_id),
       adminClient
+        .from('game_axes')
+        .select('axis_key, current_value')
+        .eq('game_id', game_id),
+      adminClient
         .from('game_players')
         .select('*', { count: 'exact', head: true })
         .eq('game_id', game_id),
@@ -79,11 +83,16 @@ Deno.serve(async (req) => {
     if (votesRes.error) throw votesRes.error;
     if (snapRes.error) throw snapRes.error;
     if (factionsRes.error) throw factionsRes.error;
+    if (axesRes.error) throw axesRes.error;
 
     const controversy = snapRes.data.snapshot as Controversy;
     const engineFactions = buildEngineFactionsFromDb(factionsRes.data ?? []);
     const engineVotes = buildEngineVotesFromDb(votesRes.data ?? []);
     const totalPlayers = countRes.count ?? 1;
+    const axisValues: Record<string, number> = {};
+    for (const row of (axesRes.data ?? [])) {
+      axisValues[row.axis_key] = row.current_value;
+    }
 
     const result = resolveControversyVotes(
       engineVotes,
@@ -114,12 +123,13 @@ Deno.serve(async (req) => {
         .eq('faction_key', factionKey);
     }
 
-    // Compute and apply affinity malus
-    const malusMap = computeAffinityMalus(
+    // Compute and apply affinity effects (opposed = penalty, in favor = bonus)
+    const malusMap = computeAffinityEffects(
       engineVotes,
       result.winningResolutionKey,
       result.axisEffects as Partial<Record<AxisKey, number>>,
       engineFactions,
+      axisValues as Partial<Record<AxisKey, number>>,
       round.senate_leader_id,
     );
 

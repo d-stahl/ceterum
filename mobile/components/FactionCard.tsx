@@ -16,12 +16,12 @@ import { C, navyBg, parchmentBg, accentGoldBg } from '../lib/theme';
 function getAffinityLabel(affinity: number): string {
   if (affinity <= -5) return 'Reviled';
   if (affinity === -4) return 'Hostile';
-  if (affinity === -3) return 'Unfriendly';
-  if (affinity === -2) return 'Distrusted';
-  if (affinity === -1) return 'Guarded';
+  if (affinity === -3) return 'Bitter';
+  if (affinity === -2) return 'Suspicious';
+  if (affinity === -1) return 'Wary';
   if (affinity === 0) return 'Neutral';
   if (affinity === 1) return 'Curious';
-  if (affinity === 2) return 'Sympathetic';
+  if (affinity === 2) return 'Receptive';
   if (affinity === 3) return 'Friendly';
   if (affinity === 4) return 'Devoted';
   return 'Revered';
@@ -40,6 +40,7 @@ export type FactionPlacement = {
   oratorRole?: string;
   subRound: number;
   isPreliminary?: boolean;
+  isLocked?: boolean;
 };
 
 type PlayerAffinityInfo = {
@@ -497,6 +498,11 @@ function TappableWorkerIcon({
           <>
             <View style={[styles.stableRing, { width: iconSize + 4, height: iconSize + 4, borderRadius: (iconSize + 4) / 2, borderColor: getColorHex(placement.playerColor) }]} />
             <WorkerIcon workerType={placement.workerType} playerColor={placement.playerColor} size={iconSize} />
+            {placement.isLocked && (
+              <View style={styles.lockedBadge}>
+                <Text style={styles.lockedBadgeText}>L</Text>
+              </View>
+            )}
           </>
         )}
       </View>
@@ -743,6 +749,22 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderWidth: 1.5,
     opacity: 0.5,
+  },
+  lockedBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: C.warmGold,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockedBadgeText: {
+    color: C.darkText,
+    fontSize: 8,
+    fontWeight: '800',
   },
   emptySlot: {
     color: C.parchment,

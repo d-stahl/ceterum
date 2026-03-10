@@ -143,7 +143,7 @@ Affinity acts as a multiplier on senator payouts:
 
 Affinity also determines your agitator siphon rate at this faction (higher = more effective).
 
-Affinity changes from promoters (+2 self), saboteur splash (−1), and controversy outcomes. It also decays by 1 toward zero each round.`,
+Affinity changes from promoters (+2 self), saboteur splash (−1), and controversy outcomes. Factions in favor of a winning resolution grant +1 affinity to backers; opposed factions inflict −1 (−2 for Senate Leader).`,
   },
   'faction-alignment': {
     title: 'Alignment',
@@ -182,9 +182,9 @@ Other players wait while you make these decisions — use the "On the Horizon" t
 
 The Senate Leader's declared resolution receives an institutional bonus of +2 per other player, giving it a significant advantage. Ties are broken in favor of the Senate Leader's declaration.
 
-You can vote for either resolution regardless of the Senate Leader's declaration. Spending 0 influence is valid — it counts as a vote with no financial stake.
+You can vote for either resolution regardless of the Senate Leader's declaration. Spending 0 influence is valid — it counts as a vote with no affinity consequences.
 
-Players who back the winning resolution with influence may suffer affinity penalties with factions whose interests the resolution harms. The Senate Leader suffers double penalties for the outcomes they championed.`,
+Each faction reacts to the outcome based on whether it moves policy toward or away from their interests. Factions "In Favor" grant +1 affinity to backers. Factions "Opposed" inflict −1 affinity (−2 for the Senate Leader). Neutral factions have no effect. Spending 0 influence exempts you from all affinity consequences.`,
   },
   'leader-election': {
     title: 'Leader Election',

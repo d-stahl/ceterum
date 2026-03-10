@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { C, goldBg, whiteBg } from '../lib/theme';
-import { AxisEffectSlider, PowerEffectRow, getUpsetFactions } from './ControversyCard';
+import { AxisEffectSlider, PowerEffectRow, getFactionStances } from './ControversyCard';
 import { PlayerAgendaInfo } from './AgendaDots';
 
 type Resolution = {
@@ -50,10 +50,12 @@ export default function VoteControls({
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const influenceSpent = Math.min(Math.max(0, parseInt(influenceInput, 10) || 0), currentInfluence);
+  const parsedInfluence = parseInt(influenceInput, 10);
+  const isValidInfluence = influenceInput.trim() !== '' && !isNaN(parsedInfluence) && parsedInfluence >= 0 && parsedInfluence <= currentInfluence;
+  const influenceSpent = isValidInfluence ? parsedInfluence : 0;
 
   async function handleSubmit() {
-    if (submitting || submitted) return;
+    if (submitting || submitted || !isValidInfluence) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -115,8 +117,9 @@ export default function VoteControls({
                   const factionKeys = Object.keys(r.factionPowerEffects).filter((k) =>
                     activeFactionKeys.includes(k)
                   );
-                  const upsetKeys = getUpsetFactions(r.axisEffects, activeFactionKeys, factionInfoMap);
-                  if (axisKeys.length === 0 && factionKeys.length === 0 && upsetKeys.length === 0) return null;
+                  const stances = getFactionStances(r.axisEffects, activeFactionKeys, factionInfoMap, axisValues);
+                  const hasStances = stances.some((s) => s.stance !== 'neutral');
+                  if (axisKeys.length === 0 && factionKeys.length === 0 && !hasStances) return null;
                   return (
                     <View style={styles.effectsBlock}>
                       {axisKeys.length > 0 && (
@@ -154,16 +157,22 @@ export default function VoteControls({
                           })}
                         </View>
                       )}
-                      {upsetKeys.length > 0 && (
+                      {hasStances && (
                         <View style={styles.effectsSection}>
-                          <Text style={styles.effectsSectionLabel}>Affinity Effects</Text>
-                          <Text style={styles.affinityWarning}>
-                            Backing this resolution will upset:
-                          </Text>
-                          {upsetKeys.map((fkey) => (
-                            <Text key={fkey} style={styles.affinityFactionName}>
-                              {factionInfoMap?.[fkey]?.displayName ?? fkey}
-                            </Text>
+                          <Text style={styles.effectsSectionLabel}>Faction Reactions</Text>
+                          {stances.map(({ key: fkey, stance }) => (
+                            <View key={fkey} style={styles.stanceRow}>
+                              <Text style={styles.stanceFactionName}>
+                                {factionInfoMap?.[fkey]?.displayName ?? fkey}
+                              </Text>
+                              <Text style={[
+                                styles.stanceLabel,
+                                stance === 'opposed' && styles.stanceOpposed,
+                                stance === 'in_favor' && styles.stanceInFavor,
+                              ]}>
+                                {stance === 'opposed' ? 'Opposed' : stance === 'in_favor' ? 'In Favor' : 'Neutral'}
+                              </Text>
+                            </View>
                           ))}
                         </View>
                       )}
@@ -189,7 +198,7 @@ export default function VoteControls({
             <Text style={styles.stepButtonText}>−</Text>
           </Pressable>
           <TextInput
-            style={styles.influenceInput}
+            style={[styles.influenceInput, !isValidInfluence && styles.influenceInputInvalid]}
             value={influenceInput}
             onChangeText={setInfluenceInput}
             keyboardType="number-pad"
@@ -208,9 +217,9 @@ export default function VoteControls({
       {error && <Text style={styles.errorText}>{error}</Text>}
 
       <Pressable
-        style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+        style={[styles.submitButton, (submitting || !isValidInfluence) && styles.submitButtonDisabled]}
         onPress={handleSubmit}
-        disabled={submitting}
+        disabled={submitting || !isValidInfluence}
       >
         {submitting ? (
           <ActivityIndicator color={C.darkText} size="small" />
@@ -320,6 +329,9 @@ const styles = StyleSheet.create({
     height: 36,
     paddingVertical: 0,
   },
+  influenceInputInvalid: {
+    borderColor: C.negative,
+  },
   abstainNote: {
     color: C.paleGold,
     fontSize: 11,
@@ -364,16 +376,30 @@ const styles = StyleSheet.create({
     opacity: 0.4,
     marginBottom: 2,
   },
-  affinityWarning: {
-    color: C.paleGold,
-    fontSize: 11,
-    opacity: 0.6,
-    fontStyle: 'italic',
+  stanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 2,
   },
-  affinityFactionName: {
+  stanceFactionName: {
     color: C.paleGold,
     fontSize: 12,
-    paddingLeft: 8,
+    flex: 1,
+  },
+  stanceLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    opacity: 0.5,
+    color: C.paleGold,
+  },
+  stanceOpposed: {
+    color: C.negative,
+    opacity: 1,
+  },
+  stanceInFavor: {
+    color: C.positive,
+    opacity: 1,
   },
   errorText: {
     color: C.error,

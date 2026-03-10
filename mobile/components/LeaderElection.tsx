@@ -192,7 +192,7 @@ export default function LeaderElection({
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Leader Election</Text>
       <Text style={styles.body}>
-        Vote for the player who should lead the Senate this round. Your influence ({playerInfluence(currentUserId)}) is your voting weight.
+        Vote for the player who should lead the Senate this round. Your influence ({playerInfluence(currentUserId)}) decides your voting weight, but is not spent by pledging support.
       </Text>
 
       {error && !senateLeaderId && <Text style={styles.errorText}>{error}</Text>}

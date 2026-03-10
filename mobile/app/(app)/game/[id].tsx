@@ -80,6 +80,7 @@ type PlacementRow = {
   worker_type: string;
   orator_role: string | null;
   sub_round: number;
+  is_locked: boolean;
 };
 
 type PlayerState = {
@@ -503,7 +504,7 @@ function GameScreenInner() {
 
     const { data } = await supabase
       .from('game_placements')
-      .select('id, player_id, faction_id, worker_type, orator_role, sub_round')
+      .select('id, player_id, faction_id, worker_type, orator_role, sub_round, is_locked')
       .eq('round_id', currentRound.id);
     if (data) {
       placementsRoundIdRef.current = currentRound.id;
@@ -782,6 +783,7 @@ function GameScreenInner() {
           workerType: p.worker_type,
           oratorRole: p.orator_role ?? undefined,
           subRound: p.sub_round,
+          isLocked: p.is_locked,
         };
       });
 
@@ -835,6 +837,7 @@ function GameScreenInner() {
     .map((p) => ({
       workerType: p.worker_type as any,
       oratorRole: p.orator_role as any,
+      isLocked: p.is_locked,
     }));
 
   // Block orator slots at factions where the player already has an orator
