@@ -1,0 +1,808 @@
+import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, ScrollView } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
+import { declareControversyOpen, submitClashAction } from '../lib/game-actions';
+import { CONTROVERSY_MAP } from '../lib/game-engine/controversies';
+import type { ClashControversy } from '../lib/game-engine/controversies';
+import { bidStrength } from '../lib/game-engine/clash';
+import { AxisEffectSlider, PowerEffectRow } from './ControversyCard';
+import ControversyHeader from './ControversyHeader';
+import { getColorHex } from '../lib/player-colors';
+import { C, goldBg, whiteBg, navyBg, CONTROVERSY_TYPE_COLORS } from '../lib/theme';
+
+type PlayerInfo = {
+  player_id: string;
+  player_name: string;
+  color: string;
+};
+
+type FactionInfo = {
+  key: string;
+  displayName: string;
+  power: number;
+  preferences: Record<string, number>;
+};
+
+type Props = {
+  gameId: string;
+  roundId: string;
+  controversyKey: string;
+  currentUserId: string;
+  senateLeaderId: string;
+  currentInfluence: number;
+  players: PlayerInfo[];
+  activeFactionKeys: string[];
+  factionInfoMap: Record<string, FactionInfo>;
+  axisValues?: Record<string, number>;
+  playerAffinities?: Record<string, number>; // current user's affinities: factionKey -> affinity
+  onContinue: () => void;
+};
+
+type ControversyStateRow = {
+  status: string;
+};
+
+export default function ClashVoting({
+  gameId,
+  roundId,
+  controversyKey,
+  currentUserId,
+  senateLeaderId,
+  currentInfluence,
+  players,
+  activeFactionKeys,
+  factionInfoMap,
+  axisValues,
+  playerAffinities,
+  onContinue,
+}: Props) {
+  const [csState, setCsState] = useState<ControversyStateRow | null>(null);
+  const [outcome, setOutcome] = useState<any>(null);
+  const [bids, setBids] = useState<Record<string, string>>({});
+  const [commits, setCommits] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [declaring, setDeclaring] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const isSL = currentUserId === senateLeaderId;
+  const controversy = CONTROVERSY_MAP[controversyKey] as ClashControversy | undefined;
+
+  const fetchState = useCallback(async () => {
+    const { data } = await supabase
+      .from('game_controversy_state')
+      .select('status')
+      .eq('round_id', roundId)
+      .eq('controversy_key', controversyKey)
+      .single();
+    if (data) setCsState(data as ControversyStateRow);
+    setLoading(false);
+  }, [roundId, controversyKey]);
+
+  const fetchOutcome = useCallback(async () => {
+    const { data } = await supabase
+      .from('game_controversy_outcomes')
+      .select('type_data, axis_outcomes, faction_power_outcomes, affinity_outcomes')
+      .eq('round_id', roundId)
+      .eq('controversy_key', controversyKey)
+      .single();
+    if (data) setOutcome(data);
+  }, [roundId, controversyKey]);
+
+  useEffect(() => {
+    fetchState();
+    const sub = supabase
+      .channel(`cs-clash-${roundId}-${controversyKey}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'game_controversy_state',
+        filter: `round_id=eq.${roundId}`,
+      }, () => fetchState())
+      .subscribe();
+    return () => { supabase.removeChannel(sub); };
+  }, [fetchState, roundId, controversyKey]);
+
+  useEffect(() => {
+    if (csState?.status === 'resolved') {
+      fetchOutcome();
+    }
+  }, [csState?.status, fetchOutcome]);
+
+  if (!controversy || controversy.type !== 'clash') {
+    return <Text style={styles.errorText}>Unknown clash: {controversyKey}</Text>;
+  }
+
+  const config = controversy.clashConfig;
+  const amplifiedFactions = activeFactionKeys.map((fkey) => ({
+    key: fkey,
+    name: factionInfoMap?.[fkey]?.displayName ?? fkey,
+    basePower: factionInfoMap?.[fkey]?.power ?? 3,
+    amplifier: config.factionAmplifiers[fkey] ?? 1,
+    amplifiedPower: (factionInfoMap?.[fkey]?.power ?? 3) * (config.factionAmplifiers[fkey] ?? 1),
+  }));
+
+  // Parse bids
+  const parsedBids: Record<string, number> = {};
+  let totalBid = 0;
+  for (const fkey of activeFactionKeys) {
+    const v = parseInt(bids[fkey] ?? '0', 10);
+    parsedBids[fkey] = isNaN(v) || v < 0 ? 0 : v;
+    totalBid += parsedBids[fkey];
+  }
+  const bidValid = totalBid <= currentInfluence;
+
+  async function handleDeclareOpen() {
+    if (declaring) return;
+    setDeclaring(true);
+    setError(null);
+    try {
+      await declareControversyOpen(gameId, controversyKey);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to open clash');
+    } finally {
+      setDeclaring(false);
+    }
+  }
+
+  async function handleSubmit() {
+    if (submitting || submitted || !bidValid) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      // SL is forced to commit
+      await submitClashAction(gameId, controversyKey, parsedBids, isSL ? true : commits);
+      setSubmitted(true);
+    } catch (e: any) {
+      setError(e.message ?? 'Submission failed');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator color={C.gold} size="large" />
+      </View>
+    );
+  }
+
+  const status = csState?.status ?? 'declared';
+
+  // --- RESOLVED ---
+  if (status === 'resolved' && outcome) {
+    const td = outcome.type_data;
+    const succeeded = td.succeeded;
+
+    const axisEffects: Record<string, number> = {};
+    const outcomeAxisValues: Record<string, number> = {};
+    for (const [axis, vals] of Object.entries(outcome.axis_outcomes as Record<string, { before: number; after: number }>)) {
+      axisEffects[axis] = vals.after - vals.before;
+      outcomeAxisValues[axis] = vals.before;
+    }
+
+    const factionEffects: Record<string, number> = {};
+    const factionPowerBefore: Record<string, number> = {};
+    for (const [fkey, vals] of Object.entries(outcome.faction_power_outcomes as Record<string, { before: number; after: number }>)) {
+      factionEffects[fkey] = vals.after - vals.before;
+      factionPowerBefore[fkey] = vals.before;
+    }
+
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <ControversyHeader controversy={controversy} showFlavor={false} />
+
+        <View style={[styles.resultBanner, succeeded ? styles.resultSuccess : styles.resultFailure]}>
+          <Text style={styles.resultLabel}>
+            {succeeded ? 'Rome Prevails' : 'Rome Falters'}
+          </Text>
+          <Text style={styles.resultDetail}>
+            {td.committedPower} / {td.threshold} power committed
+          </Text>
+        </View>
+
+        {/* Faction assignments */}
+        {td.factionAssignments && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Faction Champions</Text>
+            {td.factionAssignments.filter((fa: any) => fa.winners.length > 0).map((fa: any) => (
+              <View key={fa.factionKey} style={styles.factionResultRow}>
+                <Text style={styles.factionResultName}>
+                  {factionInfoMap?.[fa.factionKey]?.displayName ?? fa.factionKey}
+                </Text>
+                <View style={styles.factionResultWinners}>
+                  {fa.winners.map((w: any) => {
+                    const player = players.find((p) => p.player_id === w.playerId);
+                    const isCommitter = (td.committers ?? []).includes(w.playerId);
+                    return (
+                      <View key={w.playerId} style={styles.winnerChip}>
+                        <View style={[styles.playerDot, { backgroundColor: getColorHex(player?.color ?? '') }]} />
+                        <Text style={[styles.winnerName, !isCommitter && styles.winnerWithdrew]}>
+                          {player?.player_name ?? 'Unknown'}
+                        </Text>
+                        {!isCommitter && <Text style={styles.withdrewBadge}>withdrew</Text>}
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Committers / Withdrawers */}
+        <View style={styles.commitSummaryRow}>
+          <View style={styles.commitGroup}>
+            <Text style={[styles.commitGroupLabel, { color: C.positive }]}>Committed</Text>
+            {(td.committers ?? []).map((pid: string) => {
+              const p = players.find((pl) => pl.player_id === pid);
+              return (
+                <Text key={pid} style={styles.commitPlayerName}>{p?.player_name ?? pid}</Text>
+              );
+            })}
+          </View>
+          {(td.withdrawers ?? []).length > 0 && (
+            <View style={styles.commitGroup}>
+              <Text style={[styles.commitGroupLabel, { color: C.negative }]}>Withdrew</Text>
+              {(td.withdrawers ?? []).map((pid: string) => {
+                const p = players.find((pl) => pl.player_id === pid);
+                return (
+                  <Text key={pid} style={styles.commitPlayerName}>{p?.player_name ?? pid}</Text>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
+        {/* Effects */}
+        {Object.keys(axisEffects).filter((k) => axisEffects[k] !== 0).length > 0 && (
+          <View style={styles.effectsSection}>
+            <Text style={styles.sectionLabel}>Policy Effects</Text>
+            {Object.keys(axisEffects).filter((k) => axisEffects[k] !== 0).map((axis) => (
+              <AxisEffectSlider
+                key={axis}
+                axis={axis}
+                change={axisEffects[axis]}
+                currentValue={outcomeAxisValues[axis]}
+              />
+            ))}
+          </View>
+        )}
+
+        {Object.keys(factionEffects).filter((k) => activeFactionKeys.includes(k) && factionEffects[k] !== 0).length > 0 && (
+          <View style={styles.effectsSection}>
+            <Text style={styles.sectionLabel}>Power Effects</Text>
+            {Object.keys(factionEffects).filter((k) => activeFactionKeys.includes(k) && factionEffects[k] !== 0).map((fkey) => (
+              <PowerEffectRow
+                key={fkey}
+                factionName={factionInfoMap?.[fkey]?.displayName ?? fkey}
+                currentPower={factionPowerBefore[fkey] ?? (factionInfoMap?.[fkey]?.power ?? 3)}
+                change={factionEffects[fkey] ?? 0}
+              />
+            ))}
+          </View>
+        )}
+
+        <Pressable style={styles.continueButton} onPress={onContinue}>
+          <Text style={styles.continueButtonText}>Continue</Text>
+        </Pressable>
+      </ScrollView>
+    );
+  }
+
+  // --- DECLARED: SL opens the clash ---
+  if (status === 'declared' && isSL) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <ControversyHeader controversy={controversy} />
+        <Text style={styles.instruction}>
+          As Senate Leader, open this Clash for all players to bid on factions.
+        </Text>
+        {error && <Text style={styles.errorText}>{error}</Text>}
+        <Pressable
+          style={[styles.declareButton, declaring && { opacity: 0.4 }]}
+          onPress={handleDeclareOpen}
+          disabled={declaring}
+        >
+          {declaring ? (
+            <ActivityIndicator color={C.darkText} size="small" />
+          ) : (
+            <Text style={styles.declareButtonText}>Open Clash</Text>
+          )}
+        </Pressable>
+      </ScrollView>
+    );
+  }
+
+  if (status === 'declared' && !isSL) {
+    const slPlayer = players.find((p) => p.player_id === senateLeaderId);
+    return (
+      <View style={styles.centerContainer}>
+        <ControversyHeader controversy={controversy} />
+        <View style={styles.waitRow}>
+          <Text style={styles.waitText}>Waiting for </Text>
+          {slPlayer && <View style={[styles.playerDot, { backgroundColor: getColorHex(slPlayer.color) }]} />}
+          <Text style={styles.waitTextBold}>{slPlayer?.player_name ?? 'Senate Leader'}</Text>
+          <Text style={styles.waitText}> to open…</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // --- SUBMITTED (waiting) ---
+  if (submitted) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator color={C.gold} size="small" />
+        <Text style={styles.waitingText}>Action submitted — waiting for others…</Text>
+      </View>
+    );
+  }
+
+  // --- VOTING: Bid on factions + commit/withdraw ---
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ControversyHeader controversy={controversy} />
+
+      {/* Threshold info */}
+      <View style={styles.thresholdBanner}>
+        <Text style={styles.thresholdLabel}>
+          Threshold: {Math.round(config.thresholdPercent * 100)}% of total faction power
+        </Text>
+        <Text style={styles.thresholdNote}>
+          Committed players' faction power must reach the threshold
+        </Text>
+      </View>
+
+      {/* Faction bid cards */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Bid for Factions</Text>
+        <Text style={styles.sectionNote}>
+          Influence remaining: {currentInfluence - totalBid}/{currentInfluence}
+        </Text>
+
+        {amplifiedFactions.map((f) => {
+          const affinity = playerAffinities?.[f.key] ?? 0;
+          const bidVal = parsedBids[f.key];
+          const strength = bidStrength(bidVal, affinity);
+          const isAmplified = f.amplifier > 1;
+
+          return (
+            <View key={f.key} style={styles.factionBidCard}>
+              <View style={styles.factionBidHeader}>
+                <Text style={styles.factionBidName}>{f.name}</Text>
+                <View style={styles.factionBidMeta}>
+                  <Text style={styles.factionPowerLabel}>
+                    Power: {f.amplifiedPower}
+                    {isAmplified && <Text style={styles.amplifierText}> ({f.amplifier}x)</Text>}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.bidInputRow}>
+                <Pressable
+                  style={styles.stepButton}
+                  onPress={() => setBids((prev) => ({
+                    ...prev,
+                    [f.key]: String(Math.max(0, (parsedBids[f.key] ?? 0) - 1)),
+                  }))}
+                >
+                  <Text style={styles.stepButtonText}>−</Text>
+                </Pressable>
+                <TextInput
+                  style={styles.bidInput}
+                  value={bids[f.key] ?? '0'}
+                  onChangeText={(t) => setBids((prev) => ({ ...prev, [f.key]: t }))}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                />
+                <Pressable
+                  style={styles.stepButton}
+                  onPress={() => setBids((prev) => ({
+                    ...prev,
+                    [f.key]: String((parsedBids[f.key] ?? 0) + 1),
+                  }))}
+                >
+                  <Text style={styles.stepButtonText}>+</Text>
+                </Pressable>
+
+                {bidVal > 0 && (
+                  <Text style={styles.strengthPreview}>
+                    Strength: {Math.round(strength * 10) / 10}
+                    {affinity !== 0 && (
+                      <Text style={{ color: affinity > 0 ? C.positive : C.negative }}>
+                        {' '}({affinity > 0 ? '+' : ''}{Math.round(affinity * 10)}% aff.)
+                      </Text>
+                    )}
+                  </Text>
+                )}
+              </View>
+            </View>
+          );
+        })}
+
+        {!bidValid && (
+          <Text style={styles.errorText}>Total bids ({totalBid}) exceed available influence ({currentInfluence})</Text>
+        )}
+      </View>
+
+      {/* Commit / Withdraw */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Commitment</Text>
+        {isSL ? (
+          <Text style={styles.slForcedNote}>As Senate Leader, you must commit.</Text>
+        ) : (
+          <View style={styles.commitToggle}>
+            <Pressable
+              style={[styles.commitOption, commits && styles.commitOptionActive]}
+              onPress={() => setCommits(true)}
+            >
+              <Text style={[styles.commitOptionText, commits && styles.commitOptionTextActive]}>
+                Commit
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.commitOption, !commits && styles.withdrawOptionActive]}
+              onPress={() => setCommits(false)}
+            >
+              <Text style={[styles.commitOptionText, !commits && styles.commitOptionTextActive]}>
+                Withdraw
+              </Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+
+      {/* Outcomes preview */}
+      <View style={styles.outcomesRow}>
+        <View style={[styles.outcomeCard, styles.outcomeSuccess]}>
+          <Text style={styles.outcomeLabel}>On Success</Text>
+          <Text style={styles.outcomeVP}>{config.successOutcome.victoryPoints} VP each</Text>
+        </View>
+        <View style={[styles.outcomeCard, styles.outcomeFailure]}>
+          <Text style={styles.outcomeLabel}>On Failure</Text>
+          <Text style={styles.outcomeEffect}>No VP</Text>
+        </View>
+      </View>
+
+      {error && <Text style={styles.errorText}>{error}</Text>}
+
+      <Pressable
+        style={[styles.submitButton, (submitting || !bidValid) && styles.submitDisabled]}
+        onPress={handleSubmit}
+        disabled={submitting || !bidValid}
+      >
+        {submitting ? (
+          <ActivityIndicator color={C.darkText} size="small" />
+        ) : (
+          <Text style={styles.submitButtonText}>
+            {commits || isSL ? 'Commit & Submit' : 'Withdraw & Submit'}
+          </Text>
+        )}
+      </Pressable>
+    </ScrollView>
+  );
+}
+
+const clashColor = CONTROVERSY_TYPE_COLORS.clash;
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  content: { padding: 20, paddingBottom: 60, gap: 14 },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 14,
+    padding: 24,
+  },
+  instruction: {
+    color: C.paleGold,
+    fontSize: 14,
+    opacity: 0.7,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  thresholdBanner: {
+    backgroundColor: clashColor + '18',
+    borderWidth: 1,
+    borderColor: clashColor + '50',
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+    gap: 2,
+  },
+  thresholdLabel: {
+    color: clashColor,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  thresholdNote: {
+    color: C.paleGold,
+    fontSize: 11,
+    opacity: 0.5,
+    textAlign: 'center',
+  },
+  section: { gap: 8 },
+  sectionLabel: {
+    color: C.parchment,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    opacity: 0.4,
+    marginBottom: 2,
+  },
+  sectionNote: {
+    color: C.paleGold,
+    fontSize: 12,
+    opacity: 0.6,
+  },
+  factionBidCard: {
+    backgroundColor: navyBg(0.88),
+    borderWidth: 1,
+    borderColor: goldBg(0.25),
+    borderRadius: 8,
+    padding: 10,
+    gap: 8,
+  },
+  factionBidHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  factionBidName: {
+    color: C.paleGold,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  factionBidMeta: { flexDirection: 'row', gap: 8 },
+  factionPowerLabel: {
+    color: C.paleGold,
+    fontSize: 11,
+    opacity: 0.6,
+  },
+  amplifierText: {
+    color: clashColor,
+    fontWeight: '700',
+  },
+  bidInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  stepButton: {
+    width: 32,
+    height: 32,
+    backgroundColor: goldBg(0.15),
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepButtonText: {
+    color: C.gold,
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  bidInput: {
+    backgroundColor: whiteBg(0.06),
+    borderWidth: 1,
+    borderColor: goldBg(0.3),
+    borderRadius: 6,
+    color: C.paleGold,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    width: 56,
+    height: 32,
+    paddingVertical: 0,
+  },
+  strengthPreview: {
+    color: C.paleGold,
+    fontSize: 11,
+    opacity: 0.7,
+    marginLeft: 4,
+    flex: 1,
+  },
+  commitToggle: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  commitOption: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: goldBg(0.3),
+    alignItems: 'center',
+  },
+  commitOptionActive: {
+    backgroundColor: C.positive + '25',
+    borderColor: C.positive + '60',
+  },
+  withdrawOptionActive: {
+    backgroundColor: C.negative + '25',
+    borderColor: C.negative + '60',
+  },
+  commitOptionText: {
+    color: C.paleGold,
+    fontSize: 14,
+    fontWeight: '600',
+    opacity: 0.5,
+  },
+  commitOptionTextActive: {
+    opacity: 1,
+  },
+  slForcedNote: {
+    color: C.gold,
+    fontSize: 13,
+    opacity: 0.7,
+    fontStyle: 'italic',
+  },
+  outcomesRow: { flexDirection: 'row', gap: 8 },
+  outcomeCard: {
+    flex: 1,
+    borderRadius: 8,
+    padding: 10,
+    gap: 4,
+    borderWidth: 1,
+  },
+  outcomeSuccess: {
+    backgroundColor: C.positive + '12',
+    borderColor: C.positive + '30',
+  },
+  outcomeFailure: {
+    backgroundColor: C.negative + '12',
+    borderColor: C.negative + '30',
+  },
+  outcomeLabel: {
+    color: C.paleGold,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  outcomeVP: {
+    color: C.gold,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  outcomeEffect: {
+    color: C.paleGold,
+    fontSize: 11,
+    opacity: 0.7,
+  },
+  submitButton: {
+    backgroundColor: C.gold,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  submitDisabled: { opacity: 0.5 },
+  submitButtonText: {
+    color: C.darkText,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  declareButton: {
+    backgroundColor: C.gold,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  declareButtonText: {
+    color: C.darkText,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  waitingText: {
+    color: C.gold,
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  waitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  waitText: { color: C.gold, fontSize: 14, opacity: 0.7 },
+  waitTextBold: { color: C.gold, fontSize: 14, fontWeight: '700', opacity: 0.7 },
+  playerDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 5,
+  },
+  // Resolved
+  resultBanner: {
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+  },
+  resultSuccess: {
+    backgroundColor: C.positive + '18',
+    borderColor: C.positive + '50',
+  },
+  resultFailure: {
+    backgroundColor: C.negative + '18',
+    borderColor: C.negative + '50',
+  },
+  resultLabel: {
+    color: C.paleGold,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  resultDetail: {
+    color: C.paleGold,
+    fontSize: 13,
+    opacity: 0.7,
+  },
+  factionResultRow: {
+    backgroundColor: goldBg(0.06),
+    borderRadius: 6,
+    padding: 8,
+    gap: 4,
+  },
+  factionResultName: {
+    color: C.gold,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  factionResultWinners: { gap: 4 },
+  winnerChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingLeft: 8,
+  },
+  winnerName: {
+    color: C.paleGold,
+    fontSize: 12,
+  },
+  winnerWithdrew: {
+    opacity: 0.5,
+  },
+  withdrewBadge: {
+    color: C.negative,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  commitSummaryRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  commitGroup: { flex: 1, gap: 4 },
+  commitGroupLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  commitPlayerName: {
+    color: C.paleGold,
+    fontSize: 12,
+  },
+  effectsSection: { gap: 6, marginTop: 4 },
+  continueButton: {
+    backgroundColor: C.gold,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  continueButtonText: {
+    color: C.darkText,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  errorText: {
+    color: C.error,
+    fontSize: 13,
+    textAlign: 'center',
+  },
+});
