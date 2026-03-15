@@ -34,7 +34,7 @@ import HelpModal from '../../../components/HelpModal';
 import { ILLUSTRATION_MAP, AxisEffectSlider } from '../../../components/ControversyCard';
 import ResolvedControversySummary from '../../../components/ResolvedControversySummary';
 import RoundHeader from '../../../components/RoundHeader';
-import { CONTROVERSY_MAP } from '../../../lib/game-engine/controversies';
+import { CONTROVERSY_MAP, isVoteControversy } from '../../../lib/game-engine/controversies';
 import { AXIS_KEYS, AXIS_LABELS, AxisKey, computeAxisScore } from '../../../lib/game-engine/axes';
 const gameBg = require('../../../assets/images/demagogery-bg.png');
 const leaderElectionBg = require('../../../assets/images/leader-election-bg.png');
@@ -86,6 +86,7 @@ type PlacementRow = {
 type PlayerState = {
   player_id: string;
   influence: number;
+  victory_points: number;
   agenda: Record<string, number> | null;
 };
 
@@ -103,10 +104,15 @@ type AxisState = {
 type ControversyStateRow = {
   controversy_key: string;
   status: string;
-  winning_resolution_key: string | null;
-  axis_effects_applied: Record<string, number> | null;
-  faction_power_effects_applied: Record<string, number> | null;
-  resolved_at?: string | null;
+};
+
+type OutcomeRow = {
+  controversy_key: string;
+  controversy_type: string;
+  axis_outcomes: Record<string, { before: number; after: number }>;
+  faction_power_outcomes: Record<string, { before: number; after: number }>;
+  type_data: any;
+  resolved_at: string;
 };
 
 export default function GameScreen() {
@@ -148,7 +154,12 @@ function GameScreenInner() {
   const [factionsVisible, setFactionsVisible] = useState(false);
   const [showElectionResults, setShowElectionResults] = useState(false);
   const [showRoundEnd, setShowRoundEnd] = useState(false);
-  const [allResolvedStates, setAllResolvedStates] = useState<ControversyStateRow[]>([]);
+  const [roundEndSnapshot, setRoundEndSnapshot] = useState<{
+    roundNumber: number;
+    controversyStates: ControversyStateRow[];
+    initialFactionPowers: Record<string, number>;
+  } | null>(null);
+  const [allOutcomes, setAllOutcomes] = useState<OutcomeRow[]>([]);
   const [showResolutions, setShowResolutions] = useState(false);
   const [tooltipData, setTooltipData] = useState<{
     effect?: WorkerEffect;
@@ -222,14 +233,20 @@ function GameScreenInner() {
     if (p) playerAgendas.push({ playerId: ps.player_id, name: p.player_name, color: p.color, agenda: ps.agenda });
   });
   const resolvedMap: Record<string, { winningResolutionKey: string; axisEffects: Record<string, number>; factionPowerEffects: Record<string, number> }> = {};
-  controversyStates.forEach((cs) => {
-    if (cs.status === 'resolved' && cs.winning_resolution_key) {
-      resolvedMap[cs.controversy_key] = {
-        winningResolutionKey: cs.winning_resolution_key,
-        axisEffects: cs.axis_effects_applied ?? {},
-        factionPowerEffects: cs.faction_power_effects_applied ?? {},
-      };
+  allOutcomes.forEach((oc) => {
+    const axisEffects: Record<string, number> = {};
+    for (const [axis, vals] of Object.entries(oc.axis_outcomes)) {
+      axisEffects[axis] = vals.after - vals.before;
     }
+    const factionPowerEffects: Record<string, number> = {};
+    for (const [fkey, vals] of Object.entries(oc.faction_power_outcomes)) {
+      factionPowerEffects[fkey] = vals.after - vals.before;
+    }
+    resolvedMap[oc.controversy_key] = {
+      winningResolutionKey: oc.type_data?.winningResolutionKey ?? '',
+      axisEffects,
+      factionPowerEffects,
+    };
   });
 
   // Intercept hardware back button — lobby uses router.replace so the back
@@ -276,6 +293,10 @@ function GameScreenInner() {
         filter: `game_id=eq.${gameId}`,
       }, () => { loadControversyStates(); })
       .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'game_controversy_outcomes',
+        filter: `game_id=eq.${gameId}`,
+      }, () => { loadAllResolvedControversies(); })
+      .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'games',
         filter: `id=eq.${gameId}`,
       }, (payload: any) => {
@@ -314,8 +335,8 @@ function GameScreenInner() {
       if (roundAdvanced) {
         placementsRoundIdRef.current = null;
         setPlacements([]);  // Clear stale placements from previous round
-        setOnTheHorizonVisible(true);
         setDismissedResolvedKeys(new Set());
+        setOnTheHorizonVisible(true);
       }
     }
     prevRoundRef.current = {
@@ -342,7 +363,7 @@ function GameScreenInner() {
     // Only check placements that belong to the current round to avoid stale data races
     if (placementsRoundIdRef.current !== round.id) return;
     const alreadySubmitted = placements.some(
-      (p) => p.player_id === currentUserId && p.sub_round === round.sub_round
+      (p) => p.player_id === currentUserId && p.sub_round === round.sub_round && !p.is_locked
     );
     if (alreadySubmitted) setHasSubmittedThisSubRound(true);
   }, [placements, round, currentUserId]);
@@ -475,8 +496,21 @@ function GameScreenInner() {
         showElectionResultsRef.current = true;
         setShowElectionResults(true);
       }
-      // Hold round-end screen when entering round_end phase
-      if (prev && prev.phase !== 'round_end' && data.phase === 'round_end') {
+      // Hold round-end screen when entering round_end phase.
+      // Snapshot data so it survives if another player advances the round first.
+      // Fetch controversy states fresh — React state may be stale due to race with Realtime.
+      if ((!prev || prev.phase !== 'round_end') && data.phase === 'round_end') {
+        const { data: freshStates } = await supabase
+          .from('game_controversy_state')
+          .select('controversy_key, status')
+          .eq('round_id', data.id);
+        const snappedStates = (freshStates as ControversyStateRow[]) ?? controversyStates;
+        setControversyStates(snappedStates);
+        setRoundEndSnapshot({
+          roundNumber: data.round_number,
+          controversyStates: snappedStates,
+          initialFactionPowers: data.initial_faction_powers ?? {},
+        });
         setShowRoundEnd(true);
       }
       setRound(data as Round);
@@ -515,7 +549,7 @@ function GameScreenInner() {
   async function loadPlayerStates() {
     const { data } = await supabase
       .from('game_player_state')
-      .select('player_id, influence, agenda')
+      .select('player_id, influence, victory_points, agenda')
       .eq('game_id', gameId);
     if (data) setPlayerStates(data as PlayerState[]);
   }
@@ -548,19 +582,18 @@ function GameScreenInner() {
 
     const { data } = await supabase
       .from('game_controversy_state')
-      .select('controversy_key, status, winning_resolution_key, axis_effects_applied, faction_power_effects_applied')
+      .select('controversy_key, status')
       .eq('round_id', currentRound.id);
     if (data) setControversyStates(data as ControversyStateRow[]);
   }
 
   async function loadAllResolvedControversies() {
     const { data } = await supabase
-      .from('game_controversy_state')
-      .select('controversy_key, status, winning_resolution_key, axis_effects_applied, faction_power_effects_applied, resolved_at')
+      .from('game_controversy_outcomes')
+      .select('controversy_key, controversy_type, axis_outcomes, faction_power_outcomes, type_data, resolved_at')
       .eq('game_id', gameId)
-      .eq('status', 'resolved')
       .order('resolved_at', { ascending: true });
-    if (data) setAllResolvedStates(data as ControversyStateRow[]);
+    if (data) setAllOutcomes(data as OutcomeRow[]);
   }
 
   // Submit the preliminary placement
@@ -652,22 +685,7 @@ function GameScreenInner() {
   }, [drag]);
 
   const handleWorkerTap = useCallback((fp: FactionPlacement, position: { x: number; y: number }) => {
-    let factionKey = '';
-    if (fp.isPreliminary && drag.preliminaryPlacement) {
-      factionKey = drag.preliminaryPlacement.factionKey;
-    } else {
-      const matchingPlacement = placements.find((p) => {
-        return p.player_id === fp.playerId &&
-          p.worker_type === fp.workerType &&
-          (p.orator_role ?? undefined) === fp.oratorRole &&
-          p.sub_round === fp.subRound;
-      });
-      if (matchingPlacement) {
-        const faction = factions.find((f) => f.id === matchingPlacement.faction_id);
-        factionKey = faction?.faction_key ?? '';
-      }
-    }
-
+    const factionKey = fp.factionKey;
     const factionDisplay = factions.find((f) => f.faction_key === factionKey);
     const baseTooltip = {
       playerName: fp.playerName,
@@ -706,7 +724,7 @@ function GameScreenInner() {
         } : undefined,
       );
     }
-  }, [placements, factions, drag.preliminaryPlacement, fetchAndCacheEffects]);
+  }, [factions, fetchAndCacheEffects]);
 
   const dragOverlayStyle = useAnimatedStyle(() => ({
     position: 'absolute' as const,
@@ -768,6 +786,8 @@ function GameScreenInner() {
     const result: FactionPlacement[] = placements
       .filter((p) => {
         if (p.faction_id !== factionId) return false;
+        // Locked placements (carried-forward demagogs) are always visible
+        if (p.is_locked) return true;
         if (p.sub_round < round.sub_round) return true;
         if (p.sub_round === round.sub_round && p.player_id === currentUserId) return true;
         // Show all placements once demagogery phase is over
@@ -776,12 +796,14 @@ function GameScreenInner() {
       })
       .map((p) => {
         const player = players.find((pl) => pl.player_id === p.player_id);
+        const faction = factions.find((f) => f.id === p.faction_id);
         return {
           playerId: p.player_id,
           playerName: player?.player_name ?? 'Unknown',
           playerColor: player?.color ?? 'ivory',
           workerType: p.worker_type,
           oratorRole: p.orator_role ?? undefined,
+          factionKey: faction?.faction_key ?? '',
           subRound: p.sub_round,
           isLocked: p.is_locked,
         };
@@ -798,6 +820,7 @@ function GameScreenInner() {
           playerColor: playerColor,
           workerType: prelim.workerType,
           oratorRole: prelim.oratorRole,
+          factionKey: prelim.factionKey,
           subRound: round?.sub_round ?? 0,
           isPreliminary: true,
         });
@@ -863,9 +886,6 @@ function GameScreenInner() {
     drag.setBlockedTargets(blocked);
   }, [placements, currentUserId, factions, drag.preliminaryPlacement]);
 
-  const submittedCount = round
-    ? new Set(placements.filter((p) => p.sub_round === round.sub_round).map((p) => p.player_id)).size
-    : 0;
 
   const hasPreliminary = !!drag.preliminaryPlacement;
 
@@ -902,17 +922,23 @@ function GameScreenInner() {
       .sort((a, b) => b.score - a.score);
 
     const allResolvedMap: Record<string, { winningResolutionKey: string; axisEffects: Record<string, number>; factionPowerEffects: Record<string, number> }> = {};
-    allResolvedStates.forEach((cs) => {
-      if (cs.winning_resolution_key) {
-        allResolvedMap[cs.controversy_key] = {
-          winningResolutionKey: cs.winning_resolution_key,
-          axisEffects: cs.axis_effects_applied ?? {},
-          factionPowerEffects: cs.faction_power_effects_applied ?? {},
-        };
+    allOutcomes.forEach((oc) => {
+      const axisEffects: Record<string, number> = {};
+      for (const [axis, vals] of Object.entries(oc.axis_outcomes)) {
+        axisEffects[axis] = vals.after - vals.before;
       }
+      const factionPowerEffects: Record<string, number> = {};
+      for (const [fkey, vals] of Object.entries(oc.faction_power_outcomes)) {
+        factionPowerEffects[fkey] = vals.after - vals.before;
+      }
+      allResolvedMap[oc.controversy_key] = {
+        winningResolutionKey: oc.type_data?.winningResolutionKey ?? '',
+        axisEffects,
+        factionPowerEffects,
+      };
     });
-    const resolvedControversies = allResolvedStates
-      .map((cs) => CONTROVERSY_MAP[cs.controversy_key])
+    const resolvedControversies = allOutcomes
+      .map((oc) => CONTROVERSY_MAP[oc.controversy_key])
       .filter(Boolean);
 
     return (
@@ -1002,7 +1028,7 @@ function GameScreenInner() {
                 factions.forEach((f) => { factionNames[f.faction_key] = f.display_name; });
                 return (
                   <View style={styles.resolutionsList}>
-                    {resolvedControversies.map((c) => {
+                    {resolvedControversies.filter(isVoteControversy).map((c) => {
                       const info = allResolvedMap[c.key];
                       if (!info) return null;
                       return (
@@ -1066,6 +1092,22 @@ function GameScreenInner() {
 
   // --- Phase routing ---
   const phase = round?.phase ?? 'demagogery';
+
+  // Sit-out logic: player with >= 3 placements this round has no workers left
+  const myTotalPlacements = placements.filter((p) => p.player_id === currentUserId).length;
+  const isSittingOut = myTotalPlacements >= 3 && phase === 'demagogery';
+
+  // "Done" this sub-round = placed this sub-round (non-locked) OR sitting out (>= 3 total)
+  const doneCount = round
+    ? players.filter((p) => {
+        const placedThisSubRound = placements.some(
+          (pl) => pl.player_id === p.player_id && pl.sub_round === round.sub_round && !pl.is_locked
+        );
+        const totalPlacements = placements.filter((pl) => pl.player_id === p.player_id).length;
+        return placedThisSubRound || totalPlacements >= 3;
+      }).length
+    : 0;
+  const waitingCount = players.length - doneCount;
 
   // During ruling phases, show the drawn controversy pool;
   // during demagogery, show the upcoming_pool preview from game state.
@@ -1242,7 +1284,13 @@ function GameScreenInner() {
             influence={myInfluence}
             onHome={() => router.replace('/(app)/home')}
             helpNode={
-              <Pressable style={styles.helpButton} onPress={() => help?.openHelp('controversy-voting')}>
+              <Pressable style={styles.helpButton} onPress={() => {
+                const helpId = controversyObj?.type === 'endeavour' ? 'controversy-endeavour'
+                  : controversyObj?.type === 'clash' ? 'controversy-clash'
+                  : controversyObj?.type === 'schism' ? 'controversy-schism'
+                  : 'controversy-voting';
+                help?.openHelp(helpId);
+              }}>
                 <HelpIcon size={22} color={C.parchment} />
               </Pressable>
             }
@@ -1261,6 +1309,19 @@ function GameScreenInner() {
               factionInfoMap={factionInfoMap}
               axisValues={axisValuesMap}
               playerAgendas={playerAgendas}
+              totalInitialInfluence={
+                round?.initial_influence
+                  ? Object.values(round.initial_influence).reduce((s, v) => s + v, 0)
+                  : 0
+              }
+              playerAffinities={(() => {
+                const result: Record<string, number> = {};
+                for (const aff of affinities.filter((a) => a.player_id === currentUserId)) {
+                  const f = factions.find((fc) => fc.id === aff.faction_id);
+                  if (f) result[f.faction_key] = aff.affinity;
+                }
+                return result;
+              })()}
               onContinue={() => {
                 setDismissedResolvedKeys((prev) => new Set(prev).add(activeControversyKey));
                 loadRound();
@@ -1280,8 +1341,13 @@ function GameScreenInner() {
 
   // --- Round end phase (held locally until player dismisses) ---
   if (phase === 'round_end' || showRoundEnd) {
+    // Use snapshotted data so the advance_round creating the next round doesn't clobber it
+    const snappedStates = roundEndSnapshot?.controversyStates ?? controversyStates;
+    const snappedRoundNumber = roundEndSnapshot?.roundNumber ?? round!.round_number;
+    const snappedInitialPowers = roundEndSnapshot?.initialFactionPowers ?? round?.initial_faction_powers ?? {};
+
     // If there's a resolved controversy the player hasn't dismissed yet, show it first
-    const undismissedResolved = controversyStates.find(
+    const undismissedResolved = snappedStates.find(
       (cs) => cs.status === 'resolved' && !dismissedResolvedKeys.has(cs.controversy_key),
     );
 
@@ -1305,6 +1371,19 @@ function GameScreenInner() {
               factionInfoMap={factionInfoMap}
               axisValues={axisValuesMap}
               playerAgendas={playerAgendas}
+              totalInitialInfluence={
+                round?.initial_influence
+                  ? Object.values(round.initial_influence).reduce((s, v) => s + v, 0)
+                  : 0
+              }
+              playerAffinities={(() => {
+                const result: Record<string, number> = {};
+                for (const aff of affinities.filter((a) => a.player_id === currentUserId)) {
+                  const f = factions.find((fc) => fc.id === aff.faction_id);
+                  if (f) result[f.faction_key] = aff.affinity;
+                }
+                return result;
+              })()}
               onContinue={() => {
                 setDismissedResolvedKeys((prev) => new Set(prev).add(undismissedResolved.controversy_key));
               }}
@@ -1315,13 +1394,12 @@ function GameScreenInner() {
     }
 
     // All controversies dismissed — show round-end summary
-    const initialPowers = round?.initial_faction_powers ?? {};
     return (
       <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
         <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: 0 }]}>
           <RoundEndSummary
-            roundNumber={round!.round_number}
-            isGameOver={round!.round_number >= 6}
+            roundNumber={snappedRoundNumber}
+            isGameOver={snappedRoundNumber >= 6}
             playerInfluences={players.map((p) => {
               const currentInf = playerStates.find((ps) => ps.player_id === p.player_id)?.influence ?? 0;
               return {
@@ -1338,19 +1416,23 @@ function GameScreenInner() {
               faction_key: f.faction_key,
               display_name: f.display_name,
               power_level: f.power_level,
-              change: f.power_level - (initialPowers[f.faction_key] ?? f.power_level),
+              change: f.power_level - (snappedInitialPowers[f.faction_key] ?? f.power_level),
             }))}
             onContinue={async () => {
               try {
+                // Idempotent — safe if another player already advanced
                 await advanceRound(gameId!);
-                setShowRoundEnd(false);
-                setDismissedResolvedKeys(new Set());
-                setPlacements([]);
-                setHasSubmittedThisSubRound(false);
-                await Promise.all([loadRound(), loadPlacements(), loadPlayerStates(), loadFactions(), loadAffinities()]);
-              } catch (e: any) {
-                Alert.alert('Error', e.message ?? 'Could not advance round');
+              } catch {
+                // Already advanced by another player — that's fine
               }
+              // Load new round data BEFORE dismissing, so placements
+              // (including locked demagogs) are ready for sit-out detection.
+              await Promise.all([loadRound(), loadPlacements(), loadPlayerStates(), loadFactions(), loadAffinities()]);
+              setShowRoundEnd(false);
+              setRoundEndSnapshot(null);
+              setDismissedResolvedKeys(new Set());
+              setHasSubmittedThisSubRound(false);
+              setOnTheHorizonVisible(true);
             }}
           />
         </View>
@@ -1377,13 +1459,15 @@ function GameScreenInner() {
         />
 
         {/* Status bar */}
-        {hasSubmittedThisSubRound && phase === 'demagogery' && (
+        {(hasSubmittedThisSubRound || isSittingOut) && phase === 'demagogery' && (
           <View style={styles.statusBar}>
             <Text style={styles.statusText}>
               {resolving ? 'Resolving...' :
-               submittedCount < players.length
-                ? `Submitted. Waiting for ${players.length - submittedCount} player${players.length - submittedCount === 1 ? '' : 's'}...`
-                : 'All submitted!'}
+               isSittingOut && !hasSubmittedThisSubRound
+                ? `Sitting out — all workers placed.${waitingCount > 0 ? ` Waiting for ${waitingCount} player${waitingCount === 1 ? '' : 's'}...` : ''}`
+                : waitingCount > 0
+                  ? `Submitted. Waiting for ${waitingCount} player${waitingCount === 1 ? '' : 's'}...`
+                  : 'All submitted!'}
             </Text>
           </View>
         )}
@@ -1432,7 +1516,7 @@ function GameScreenInner() {
         />
 
         {/* Submit Move button */}
-        {hasPreliminary && !hasSubmittedThisSubRound && phase === 'demagogery' && (
+        {hasPreliminary && !hasSubmittedThisSubRound && !isSittingOut && phase === 'demagogery' && (
           <Pressable
             style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
             onPress={handleSubmitMove}
@@ -1445,7 +1529,7 @@ function GameScreenInner() {
         )}
 
         {/* Worker selector */}
-        {phase === 'demagogery' && !hasSubmittedThisSubRound && (
+        {phase === 'demagogery' && !hasSubmittedThisSubRound && !isSittingOut && (
           <WorkerSelector
             usedWorkers={myUsedWorkers}
             preliminaryWorkerType={drag.preliminaryPlacement?.workerType ?? null}
