@@ -2,7 +2,8 @@ import { createEdgeClients, corsHeaders, jsonResponse, errorResponse } from '../
 import { buildEngineFactionsFromDb, buildEngineVotesFromDb } from '../_shared/db-transforms.ts';
 import { resolveControversyVotes, computeAffinityEffects } from '../_shared/game-engine/ruling.ts';
 import type { AxisKey } from '../_shared/game-engine/axes.ts';
-import type { Controversy } from '../_shared/game-engine/controversies.ts';
+import type { VoteControversy } from '../_shared/game-engine/controversies.ts';
+import { CONTROVERSY_MAP } from '../_shared/game-engine/controversies.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -85,7 +86,7 @@ Deno.serve(async (req) => {
     if (factionsRes.error) throw factionsRes.error;
     if (axesRes.error) throw axesRes.error;
 
-    const controversy = snapRes.data.snapshot as Controversy;
+    const controversy = snapRes.data.snapshot as VoteControversy;
     const engineFactions = buildEngineFactionsFromDb(factionsRes.data ?? []);
     const engineVotes = buildEngineVotesFromDb(votesRes.data ?? []);
     const totalPlayers = countRes.count ?? 1;
@@ -101,6 +102,16 @@ Deno.serve(async (req) => {
       totalPlayers,
       controversy,
     );
+
+    // Snapshot before-values for outcome tracking
+    const axisBefore: Record<string, number> = {};
+    for (const row of (axesRes.data ?? [])) {
+      axisBefore[row.axis_key] = row.current_value;
+    }
+    const factionPowerBefore: Record<string, number> = {};
+    for (const f of (factionsRes.data ?? [])) {
+      factionPowerBefore[f.faction_key] = f.power_level;
+    }
 
     // Apply axis effects
     const { error: axisError } = await adminClient.rpc('apply_axis_effects', {
@@ -133,6 +144,8 @@ Deno.serve(async (req) => {
       round.senate_leader_id,
     );
 
+    const affinityBefore: Record<string, Record<string, number>> = {};
+
     if (Object.keys(malusMap).length > 0) {
       const affectedPlayerIds = Object.keys(malusMap);
       const { data: currentAffinities, error: affError } = await adminClient
@@ -141,6 +154,14 @@ Deno.serve(async (req) => {
         .eq('game_id', game_id)
         .in('player_id', affectedPlayerIds);
       if (affError) throw affError;
+
+      // Capture affinity before-values for outcome tracking
+      for (const aff of (currentAffinities ?? [])) {
+        const pid = aff.player_id;
+        const fkey = (aff as any).game_factions.faction_key;
+        if (!affinityBefore[pid]) affinityBefore[pid] = {};
+        affinityBefore[pid][fkey] = aff.affinity;
+      }
 
       for (const [playerId, factionMalus] of Object.entries(malusMap)) {
         for (const [factionKey, malus] of Object.entries(factionMalus)) {
@@ -159,6 +180,75 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Build outcome data
+    const axisOutcomes: Record<string, { before: number; after: number }> = {};
+    for (const [axis, delta] of Object.entries(result.axisEffects)) {
+      if (!delta) continue;
+      const before = axisBefore[axis] ?? 0;
+      axisOutcomes[axis] = { before, after: before + delta };
+    }
+
+    const factionPowerOutcomes: Record<string, { before: number; after: number }> = {};
+    for (const [fkey, delta] of Object.entries(result.factionPowerEffects)) {
+      if (!delta) continue;
+      const before = factionPowerBefore[fkey] ?? 3;
+      factionPowerOutcomes[fkey] = { before, after: Math.max(1, before + delta) };
+    }
+
+    const affinityOutcomes: Record<string, Record<string, { before: number; after: number }>> = {};
+    for (const [playerId, factionDeltas] of Object.entries(malusMap)) {
+      affinityOutcomes[playerId] = {};
+      for (const [factionKey, delta] of Object.entries(factionDeltas)) {
+        const before = affinityBefore[playerId]?.[factionKey] ?? 0;
+        affinityOutcomes[playerId][factionKey] = {
+          before,
+          after: Math.max(-5, Math.min(5, before + delta)),
+        };
+      }
+    }
+
+    // Build vote type_data
+    const slBonus = (totalPlayers - 1) * 2;
+    const resolutionTotals: Record<string, number> = {};
+    for (const r of controversy.resolutions) {
+      resolutionTotals[r.key] = 0;
+    }
+    for (const v of (votesRes.data ?? [])) {
+      resolutionTotals[v.resolution_key] = (resolutionTotals[v.resolution_key] ?? 0) + v.influence_spent;
+    }
+    if (csState.senate_leader_declaration) {
+      resolutionTotals[csState.senate_leader_declaration] =
+        (resolutionTotals[csState.senate_leader_declaration] ?? 0) + slBonus;
+    }
+
+    const typeData = {
+      senateLeaderId: round.senate_leader_id,
+      senateLeaderDeclaration: csState.senate_leader_declaration,
+      senateLeaderBonus: slBonus,
+      winningResolutionKey: result.winningResolutionKey,
+      votes: (votesRes.data ?? []).map((v: any) => ({
+        playerId: v.player_id,
+        resolutionKey: v.resolution_key,
+        influenceSpent: v.influence_spent,
+      })),
+      resolutionTotals,
+    };
+
+    // Insert outcome record
+    const { error: outcomeError } = await adminClient
+      .from('game_controversy_outcomes')
+      .insert({
+        game_id,
+        round_id: round.id,
+        controversy_key,
+        controversy_type: 'vote',
+        axis_outcomes: axisOutcomes,
+        faction_power_outcomes: factionPowerOutcomes,
+        affinity_outcomes: affinityOutcomes,
+        type_data: typeData,
+      });
+    if (outcomeError) throw outcomeError;
+
     // Register follow-up controversy if unlocked
     const winningResolution = controversy.resolutions.find(
       (r) => r.key === result.winningResolutionKey,
@@ -172,20 +262,23 @@ Deno.serve(async (req) => {
           unlocked_at_round: round.round_number,
           used: false,
         }, { onConflict: 'game_id,controversy_key' });
+      // Snapshot the follow-up controversy definition for version isolation
+      const followUpDef = CONTROVERSY_MAP[winningResolution.followUpKey];
+      if (followUpDef) {
+        await adminClient
+          .from('game_controversy_snapshots')
+          .upsert({
+            game_id,
+            controversy_key: winningResolution.followUpKey,
+            snapshot: followUpDef,
+          }, { onConflict: 'game_id,controversy_key' });
+      }
     }
 
     // Mark controversy resolved
     await adminClient
       .from('game_controversy_state')
-      .update({
-        status: 'resolved',
-        winning_resolution_key: result.winningResolutionKey,
-        winning_total_influence: result.winningTotal,
-        resolved_at: new Date().toISOString(),
-        axis_effects_applied: result.axisEffects,
-        faction_power_effects_applied: result.factionPowerEffects,
-        affinity_effects_applied: malusMap,
-      })
+      .update({ status: 'resolved' })
       .eq('round_id', round.id)
       .eq('controversy_key', controversy_key);
 
