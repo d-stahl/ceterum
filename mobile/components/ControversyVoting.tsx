@@ -2,13 +2,17 @@ import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Pressable } from
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { declareResolution, submitControversyVote } from '../lib/game-actions';
-import { CONTROVERSY_MAP } from '../lib/game-engine/controversies';
+import { CONTROVERSY_MAP, isVoteControversy } from '../lib/game-engine/controversies';
 import VoteControls from './VoteControls';
 import ResolutionOutcome from './ResolutionOutcome';
+import EndeavourVoting from './EndeavourVoting';
+import ClashVoting from './ClashVoting';
+import SchismVoting from './SchismVoting';
 import { AxisEffectSlider, PowerEffectRow, getFactionStances } from './ControversyCard';
+import ControversyHeader from './ControversyHeader';
 import { PlayerAgendaInfo } from './AgendaDots';
 import { getColorHex } from '../lib/player-colors';
-import { C, goldBg, navyBg } from '../lib/theme';
+import { C, goldBg, navyBg, CONTROVERSY_TYPE_COLORS, CONTROVERSY_TYPE_LABELS } from '../lib/theme';
 
 type PlayerInfo = {
   player_id: string;
@@ -35,23 +39,14 @@ type Props = {
   factionInfoMap: Record<string, FactionInfo>;
   axisValues?: Record<string, number>;
   playerAgendas?: PlayerAgendaInfo[];
+  totalInitialInfluence?: number;
+  playerAffinities?: Record<string, number>;
   onContinue: () => void;
 };
 
 type ControversyStateRow = {
   status: string;
   senate_leader_declaration: string | null;
-  winning_resolution_key: string | null;
-  winning_total_influence: number | null;
-  axis_effects_applied: Record<string, number> | null;
-  faction_power_effects_applied: Record<string, number> | null;
-  affinity_effects_applied: Record<string, Record<string, number>> | null;
-};
-
-type VoteRow = {
-  player_id: string;
-  resolution_key: string;
-  influence_spent: number;
 };
 
 export default function ControversyVoting({
@@ -66,10 +61,12 @@ export default function ControversyVoting({
   factionInfoMap,
   axisValues,
   playerAgendas,
+  totalInitialInfluence,
+  playerAffinities,
   onContinue,
 }: Props) {
   const [csState, setCsState] = useState<ControversyStateRow | null>(null);
-  const [votes, setVotes] = useState<VoteRow[]>([]);
+  const [outcome, setOutcome] = useState<any>(null);
   const [declaringKey, setDeclaringKey] = useState<string | null>(null);
   const [declaring, setDeclaring] = useState(false);
   const [declareError, setDeclareError] = useState<string | null>(null);
@@ -81,7 +78,7 @@ export default function ControversyVoting({
   const fetchState = useCallback(async () => {
     const { data } = await supabase
       .from('game_controversy_state')
-      .select('status, senate_leader_declaration, winning_resolution_key, winning_total_influence, axis_effects_applied, faction_power_effects_applied, affinity_effects_applied')
+      .select('status, senate_leader_declaration')
       .eq('round_id', roundId)
       .eq('controversy_key', controversyKey)
       .single();
@@ -89,13 +86,14 @@ export default function ControversyVoting({
     setLoading(false);
   }, [roundId, controversyKey]);
 
-  const fetchVotes = useCallback(async () => {
+  const fetchOutcome = useCallback(async () => {
     const { data } = await supabase
-      .from('game_controversy_votes')
-      .select('player_id, resolution_key, influence_spent')
+      .from('game_controversy_outcomes')
+      .select('type_data, axis_outcomes, faction_power_outcomes, affinity_outcomes')
       .eq('round_id', roundId)
-      .eq('controversy_key', controversyKey);
-    if (data) setVotes(data as VoteRow[]);
+      .eq('controversy_key', controversyKey)
+      .single();
+    if (data) setOutcome(data);
   }, [roundId, controversyKey]);
 
   useEffect(() => {
@@ -112,31 +110,19 @@ export default function ControversyVoting({
       }, () => fetchState())
       .subscribe();
 
-    // Realtime: votes revealed after resolution
-    const votesSub = supabase
-      .channel(`cv-${roundId}-${controversyKey}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'game_controversy_votes',
-        filter: `round_id=eq.${roundId}`,
-      }, () => fetchVotes())
-      .subscribe();
-
     return () => {
       supabase.removeChannel(stateSub);
-      supabase.removeChannel(votesSub);
     };
-  }, [fetchState, fetchVotes, roundId, controversyKey]);
+  }, [fetchState, roundId, controversyKey]);
 
   useEffect(() => {
     if (csState?.status === 'resolved') {
-      fetchVotes();
+      fetchOutcome();
     }
-  }, [csState?.status, fetchVotes]);
+  }, [csState?.status, fetchOutcome]);
 
   async function handleDeclare() {
-    const validKeys = controversy?.resolutions.map((r) => r.key) ?? [];
+    const validKeys = (controversy && isVoteControversy(controversy)) ? controversy.resolutions.map((r) => r.key) : [];
     if (!declaringKey || declaring || !validKeys.includes(declaringKey)) return;
     setDeclaring(true);
     setDeclareError(null);
@@ -153,6 +139,67 @@ export default function ControversyVoting({
     return <Text style={styles.errorText}>Unknown controversy: {controversyKey}</Text>;
   }
 
+  // Dispatch non-vote types to dedicated components
+  if (controversy.type === 'endeavour') {
+    return (
+      <EndeavourVoting
+        gameId={gameId}
+        roundId={roundId}
+        controversyKey={controversyKey}
+        currentUserId={currentUserId}
+        senateLeaderId={senateLeaderId}
+        currentInfluence={currentInfluence}
+        players={players}
+        activeFactionKeys={activeFactionKeys}
+        factionInfoMap={factionInfoMap}
+        axisValues={axisValues}
+        playerAgendas={playerAgendas}
+        totalInitialInfluence={totalInitialInfluence ?? 0}
+        onContinue={onContinue}
+      />
+    );
+  }
+
+  if (controversy.type === 'clash') {
+    return (
+      <ClashVoting
+        gameId={gameId}
+        roundId={roundId}
+        controversyKey={controversyKey}
+        currentUserId={currentUserId}
+        senateLeaderId={senateLeaderId}
+        currentInfluence={currentInfluence}
+        players={players}
+        activeFactionKeys={activeFactionKeys}
+        factionInfoMap={factionInfoMap}
+        axisValues={axisValues}
+        playerAffinities={playerAffinities}
+        onContinue={onContinue}
+      />
+    );
+  }
+
+  if (controversy.type === 'schism') {
+    return (
+      <SchismVoting
+        gameId={gameId}
+        roundId={roundId}
+        controversyKey={controversyKey}
+        currentUserId={currentUserId}
+        senateLeaderId={senateLeaderId}
+        players={players}
+        activeFactionKeys={activeFactionKeys}
+        factionInfoMap={factionInfoMap}
+        axisValues={axisValues}
+        onContinue={onContinue}
+      />
+    );
+  }
+
+  if (!isVoteControversy(controversy)) {
+    return <Text style={styles.errorText}>Unsupported controversy type: {(controversy as any).type}</Text>;
+  }
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -165,43 +212,51 @@ export default function ControversyVoting({
   const slDeclaration = csState?.senate_leader_declaration ?? null;
 
   // --- RESOLVED ---
-  if (status === 'resolved') {
-    const voteRows = votes.map((v) => {
-      const player = players.find((p) => p.player_id === v.player_id);
+  if (status === 'resolved' && outcome) {
+    const td = outcome.type_data;
+    const voteRows = (td.votes ?? []).map((v: any) => {
+      const player = players.find((p) => p.player_id === v.playerId);
       return {
-        playerId: v.player_id,
+        playerId: v.playerId,
         playerName: player?.player_name ?? 'Unknown',
         playerColor: player?.color ?? C.gray,
-        resolutionKey: v.resolution_key,
-        influenceSpent: v.influence_spent,
+        resolutionKey: v.resolutionKey,
+        influenceSpent: v.influenceSpent,
       };
     });
 
-    // Affinity malus for current player (computed by engine in Edge Function, read from affinity table)
-    // For display simplicity, we just show the axis/power effects from the state record
-    const resolutionTotals: Record<string, number> = {};
-    for (const r of controversy.resolutions) {
-      resolutionTotals[r.key] = 0;
+    const axisEffects: Record<string, number> = {};
+    const outcomeAxisValues: Record<string, number> = {};
+    for (const [axis, vals] of Object.entries(outcome.axis_outcomes as Record<string, { before: number; after: number }>)) {
+      axisEffects[axis] = vals.after - vals.before;
+      outcomeAxisValues[axis] = vals.before;
     }
-    for (const v of votes) {
-      resolutionTotals[v.resolution_key] = (resolutionTotals[v.resolution_key] ?? 0) + v.influence_spent;
+
+    const factionPowerEffects: Record<string, number> = {};
+    for (const [fkey, vals] of Object.entries(outcome.faction_power_outcomes as Record<string, { before: number; after: number }>)) {
+      factionPowerEffects[fkey] = vals.after - vals.before;
     }
-    if (slDeclaration) {
-      resolutionTotals[slDeclaration] = (resolutionTotals[slDeclaration] ?? 0) + (players.length - 1) * 2;
+
+    const affinityEffects: Record<string, Record<string, number>> = {};
+    for (const [pid, factions] of Object.entries(outcome.affinity_outcomes as Record<string, Record<string, { before: number; after: number }>>)) {
+      affinityEffects[pid] = {};
+      for (const [fkey, vals] of Object.entries(factions)) {
+        affinityEffects[pid][fkey] = vals.after - vals.before;
+      }
     }
 
     return (
       <ResolutionOutcome
         controversy={controversy}
-        resolutionTotals={resolutionTotals}
-        winningResolutionKey={csState!.winning_resolution_key!}
-        senateLeaderDeclaration={slDeclaration ?? ''}
-        senateLeaderBonus={(players.length - 1) * 2}
+        resolutionTotals={td.resolutionTotals}
+        winningResolutionKey={td.winningResolutionKey}
+        senateLeaderDeclaration={td.senateLeaderDeclaration ?? ''}
+        senateLeaderBonus={td.senateLeaderBonus}
         votes={voteRows}
-        axisEffects={csState?.axis_effects_applied ?? {}}
-        factionPowerEffects={csState?.faction_power_effects_applied ?? {}}
-        affinityEffects={csState?.affinity_effects_applied ?? {}}
-        axisValues={axisValues ?? {}}
+        axisEffects={axisEffects}
+        factionPowerEffects={factionPowerEffects}
+        affinityEffects={affinityEffects}
+        axisValues={outcomeAxisValues}
         factionInfoMap={factionInfoMap}
         players={players}
         playerAgendas={playerAgendas}
@@ -214,7 +269,7 @@ export default function ControversyVoting({
   if (status === 'declared' && isSL) {
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Text style={styles.title}>{controversy.title}</Text>
+        <ControversyHeader controversy={controversy} />
         <Text style={styles.instruction}>
           As Senate Leader, publicly declare your preferred resolution. All players will see your
           choice before voting begins.
@@ -305,6 +360,20 @@ export default function ControversyVoting({
                     </View>
                   );
                 })()}
+
+                {r.followUpKey && (() => {
+                  const followUp = CONTROVERSY_MAP[r.followUpKey];
+                  if (!followUp) return null;
+                  const typeColor = CONTROVERSY_TYPE_COLORS[followUp.type] ?? C.gray;
+                  const typeLabel = CONTROVERSY_TYPE_LABELS[followUp.type] ?? followUp.type;
+                  return (
+                    <View style={[styles.followUpHint, { borderColor: typeColor + '40' }]}>
+                      <Text style={[styles.followUpHintText, { color: typeColor }]}>
+                        May lead to: {followUp.title} ({typeLabel})
+                      </Text>
+                    </View>
+                  );
+                })()}
               </Pressable>
             );
           })}
@@ -329,11 +398,7 @@ export default function ControversyVoting({
     const slPlayer = players.find((p) => p.player_id === senateLeaderId);
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.phaseTitle}>Senate Leader Phase</Text>
-        <View style={styles.upcomingBlock}>
-          <Text style={styles.upcomingLabel}>Upcoming controversy:</Text>
-          <Text style={styles.upcomingName}>{controversy.title}</Text>
-        </View>
+        <ControversyHeader controversy={controversy} />
         <View style={styles.waitRow}>
           <Text style={styles.waitText}>Waiting for </Text>
           {slPlayer && <View style={[styles.slDot, { backgroundColor: getColorHex(slPlayer.color) }]} />}
@@ -347,8 +412,7 @@ export default function ControversyVoting({
   // --- VOTING ---
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>{controversy.title}</Text>
-      <Text style={styles.flavor} numberOfLines={2}>{controversy.flavor}</Text>
+      <ControversyHeader controversy={controversy} />
 
       {slDeclaration && (
         <View style={styles.slDeclarationBanner}>
@@ -384,32 +448,11 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 24,
   },
-  title: {
-    color: C.gold,
-    fontSize: 20,
-    fontWeight: '700',
-    fontFamily: 'serif',
-    textAlign: 'center',
-  },
-  controversySubtitle: {
-    color: C.paleGold,
-    fontSize: 14,
-    opacity: 0.6,
-    textAlign: 'center',
-  },
   instruction: {
     color: C.paleGold,
     fontSize: 14,
     opacity: 0.7,
     lineHeight: 20,
-    textAlign: 'center',
-  },
-  flavor: {
-    color: C.paleGold,
-    fontSize: 13,
-    fontStyle: 'italic',
-    opacity: 0.6,
-    lineHeight: 18,
     textAlign: 'center',
   },
   resolutionCards: { gap: 10 },
@@ -486,31 +529,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  phaseTitle: {
-    color: C.gold,
-    fontSize: 22,
-    fontWeight: '700',
-    fontFamily: 'serif',
-    textAlign: 'center',
-  },
-  upcomingBlock: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  upcomingLabel: {
-    color: C.paleGold,
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    opacity: 0.5,
-  },
-  upcomingName: {
-    color: C.paleGold,
-    fontSize: 15,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
   waitRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -572,6 +590,18 @@ const styles = StyleSheet.create({
   stanceInFavor: {
     color: C.positive,
     opacity: 1,
+  },
+  followUpHint: {
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    marginLeft: 28,
+  },
+  followUpHintText: {
+    fontSize: 10,
+    fontWeight: '600',
+    fontStyle: 'italic',
   },
   errorText: {
     color: C.error,
