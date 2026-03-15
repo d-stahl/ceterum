@@ -85,6 +85,7 @@ Deno.serve(async (req) => {
     if (snapRes.error) throw snapRes.error;
     if (factionsRes.error) throw factionsRes.error;
     if (axesRes.error) throw axesRes.error;
+    if (countRes.error) throw countRes.error;
 
     const controversy = snapRes.data.snapshot as VoteControversy;
     const engineFactions = buildEngineFactionsFromDb(factionsRes.data ?? []);
@@ -209,17 +210,6 @@ Deno.serve(async (req) => {
 
     // Build vote type_data
     const slBonus = (totalPlayers - 1) * 2;
-    const resolutionTotals: Record<string, number> = {};
-    for (const r of controversy.resolutions) {
-      resolutionTotals[r.key] = 0;
-    }
-    for (const v of (votesRes.data ?? [])) {
-      resolutionTotals[v.resolution_key] = (resolutionTotals[v.resolution_key] ?? 0) + v.influence_spent;
-    }
-    if (csState.senate_leader_declaration) {
-      resolutionTotals[csState.senate_leader_declaration] =
-        (resolutionTotals[csState.senate_leader_declaration] ?? 0) + slBonus;
-    }
 
     const typeData = {
       senateLeaderId: round.senate_leader_id,
@@ -231,7 +221,7 @@ Deno.serve(async (req) => {
         resolutionKey: v.resolution_key,
         influenceSpent: v.influence_spent,
       })),
-      resolutionTotals,
+      resolutionTotals: result.resolutionTotals,
     };
 
     // Insert outcome record
