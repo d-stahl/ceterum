@@ -69,16 +69,26 @@ Functions called with player choices (validated server-side in SQL) are fine to 
 - `submit_senate_leader_actions` (SQL validates: SL identity, pool membership)
 - `declare_resolution` (SQL validates: SL identity, phase)
 
-### Client-side game engine copies
+### Game engine — single source of truth
 
-The game engine modules (`demagogery.ts`, `ruling.ts`, `controversies.ts`) are present in
-`mobile/lib/game-engine/` for two legitimate uses:
+The game engine lives in `mobile/lib/game-engine/`. It is pure TypeScript with no side effects.
+`supabase/functions/_shared/game-engine/` is a **generated copy**, gitignored and kept in sync
+via `scripts/sync-game-engine.sh`. (A symlink won't work because the Deno edge runtime Docker
+container only mounts `supabase/functions`.)
+
+**After editing any game-engine file, run:** `./scripts/sync-game-engine.sh`
+(or use `--watch` mode for auto-sync during development).
+**Never edit the Deno copy directly** — it will be overwritten by the next sync.
+
+All internal imports within game-engine use explicit `.ts` extensions (e.g. `from './axes.ts'`)
+so that both Deno (which requires them) and Metro/TypeScript (with `allowImportingTsExtensions`)
+can resolve them. This means the copy is byte-identical — no import rewriting needed.
+
+Client-side uses:
 1. **Tooltip previews**: Show players expected effects of their placements
 2. **Tests**: Pure logic tests run in the mobile Jest environment
 
-These copies **never feed computed values to the server**. They are UI-only.
-`supabase/functions/_shared/game-engine/` contains Deno-compatible copies of the same modules
-for server-side use. Keep them in sync when changing game mechanics.
+Client code **never feeds computed values to the server** — the engine is UI-only on the client.
 
 ---
 
@@ -113,7 +123,7 @@ Deno.serve(async (req) => {
 Shared utilities live in `supabase/functions/_shared/`:
 - `auth.ts` — `createEdgeClients()`, `verifyMembership()`, `jsonResponse()`
 - `db-transforms.ts` — `buildEngineFactionsFromDb()`, `buildEnginePlacementsFromDb()`, `buildPlayerAffinitiesFromDb()`
-- `game-engine/` — Deno-compatible copies of game engine modules
+- `game-engine/` — Generated copy of `mobile/lib/game-engine/` (gitignored, synced via `scripts/sync-game-engine.sh`)
 
 ---
 
@@ -220,11 +230,11 @@ Functions take data in, return results out. No Supabase calls, no async.
 | `demagogery.ts` | Demagogery phase resolution (influence, power changes) |
 | `ruling.ts` | Ruling phase logic (SL selection, voting, affinity, round end) |
 
-### Keeping Deno copies in sync
+### Syncing game engine to Deno
 
-When changing `mobile/lib/game-engine/X.ts`, also update
-`supabase/functions/_shared/game-engine/X.ts`. The Deno versions require `.ts` import extensions.
-The comment `// Deno-compatible copy` marks these files.
+After editing files in `mobile/lib/game-engine/`, run `./scripts/sync-game-engine.sh` to
+regenerate the Deno copy, then restart the edge runtime. The target directory is gitignored —
+only the source in `mobile/lib/game-engine/` is tracked.
 
 ---
 
