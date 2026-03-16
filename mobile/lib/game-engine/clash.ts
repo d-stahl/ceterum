@@ -1,5 +1,5 @@
-import { AxisKey } from './axes';
-import { ClashConfig } from './controversies';
+import { AxisKey } from './axes.ts';
+import { ClashConfig } from './controversies.ts';
 
 export interface ClashSubmission {
   playerId: string;

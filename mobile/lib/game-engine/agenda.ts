@@ -1,4 +1,4 @@
-import { AXIS_KEYS, AxisKey } from './axes';
+import { AXIS_KEYS, AxisKey } from './axes.ts';
 
 export type PlayerAgenda = Record<AxisKey, number>; // -2 to +2 per axis
 

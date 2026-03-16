@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet, ScrollView, Pressable, Image } from 'react-native';
-import { Controversy } from '../lib/game-engine/controversies';
+import { VoteControversy, CONTROVERSY_MAP } from '../lib/game-engine/controversies';
 import { AXIS_KEYS, AXIS_LABELS, AxisKey } from '../lib/game-engine/axes';
 import { getColorHex } from '../lib/player-colors';
 import { ILLUSTRATION_MAP, AxisEffectSlider, PowerEffectRow } from './ControversyCard';
 import { PlayerAgendaInfo } from './AgendaDots';
-import { C, goldBg, brownBg, whiteBg } from '../lib/theme';
+import { C, goldBg, brownBg, whiteBg, CONTROVERSY_TYPE_COLORS, CONTROVERSY_TYPE_LABELS } from '../lib/theme';
 
 type VoteRow = {
   playerId: string;
@@ -28,7 +28,7 @@ type PlayerInfo = {
 };
 
 type Props = {
-  controversy: Controversy;
+  controversy: VoteControversy;
   resolutionTotals: Record<string, number>;
   winningResolutionKey: string;
   senateLeaderDeclaration: string;
@@ -114,6 +114,22 @@ export default function ResolutionOutcome({
           <Text style={styles.winnerDesc}>{winningResolution.description}</Text>
         )}
       </View>
+
+      {/* Follow-up indicator */}
+      {winningResolution?.followUpKey && (() => {
+        const followUp = CONTROVERSY_MAP[winningResolution.followUpKey];
+        if (!followUp) return null;
+        const typeColor = CONTROVERSY_TYPE_COLORS[followUp.type] ?? C.gray;
+        const typeLabel = CONTROVERSY_TYPE_LABELS[followUp.type] ?? followUp.type;
+        return (
+          <View style={[styles.followUpBanner, { borderColor: typeColor + '60', backgroundColor: typeColor + '12' }]}>
+            <Text style={[styles.followUpLabel, { color: typeColor }]}>
+              This outcome unlocks {/^[aeiou]/i.test(typeLabel) ? 'an' : 'a'} {typeLabel} controversy
+            </Text>
+            <Text style={styles.followUpTitle}>{followUp.title}</Text>
+          </View>
+        );
+      })()}
 
       {/* Vote visualization — stacked bars */}
       <Text style={styles.sectionTitle}>Votes</Text>
@@ -316,6 +332,27 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     lineHeight: 16,
     textAlign: 'center',
+  },
+
+  // Follow-up
+  followUpBanner: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    alignItems: 'center',
+    gap: 2,
+  },
+  followUpLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  followUpTitle: {
+    color: C.paleGold,
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'serif',
   },
 
   // Section header

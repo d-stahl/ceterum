@@ -71,6 +71,90 @@ export async function submitSenateLeaderActions(
   return data;
 }
 
+// --- Endeavour ---
+
+export async function submitEndeavourInvestment(
+  gameId: string,
+  controversyKey: string,
+  influenceInvested: number,
+): Promise<any> {
+  const { data, error } = await supabase.functions.invoke('submit-endeavour', {
+    body: {
+      game_id: gameId,
+      controversy_key: controversyKey,
+      influence_invested: influenceInvested,
+    },
+  });
+  if (error) throw error;
+  return data;
+}
+
+// --- Clash ---
+
+export async function declareControversyOpen(
+  gameId: string,
+  controversyKey: string,
+): Promise<any> {
+  const { data, error } = await supabase.rpc('declare_controversy_open', {
+    p_game_id: gameId,
+    p_controversy_key: controversyKey,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function submitClashAction(
+  gameId: string,
+  controversyKey: string,
+  factionBids: Record<string, number>,
+  commits: boolean,
+): Promise<any> {
+  const { data, error } = await supabase.functions.invoke('submit-clash', {
+    body: {
+      game_id: gameId,
+      controversy_key: controversyKey,
+      faction_bids: factionBids,
+      commits,
+    },
+  });
+  if (error) throw error;
+  return data;
+}
+
+// --- Schism ---
+
+export async function declareSchismAction(
+  gameId: string,
+  controversyKey: string,
+  sideKey: string,
+  teamMemberIds: string[],
+): Promise<any> {
+  const { data, error } = await supabase.rpc('declare_schism_action', {
+    p_game_id: gameId,
+    p_controversy_key: controversyKey,
+    p_side_key: sideKey,
+    p_team_member_ids: teamMemberIds,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function submitSchismVote(
+  gameId: string,
+  controversyKey: string,
+  supports: boolean,
+): Promise<any> {
+  const { data, error } = await supabase.functions.invoke('submit-schism', {
+    body: {
+      game_id: gameId,
+      controversy_key: controversyKey,
+      supports,
+    },
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function advanceRound(gameId: string): Promise<any> {
   const { data, error } = await supabase.functions.invoke('advance-round', {
     body: { game_id: gameId },

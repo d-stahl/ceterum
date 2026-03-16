@@ -1,6 +1,6 @@
-import { CONTROVERSIES, CONTROVERSY_MAP, ROOT_CONTROVERSY_KEYS } from '../controversies';
-import { AXIS_KEYS } from '../axes';
-import { FACTIONS } from '../factions';
+import { CONTROVERSIES, CONTROVERSY_MAP, ROOT_CONTROVERSY_KEYS, VoteControversy } from '../controversies.ts';
+import { AXIS_KEYS } from '../axes.ts';
+import { FACTIONS } from '../factions.ts';
 
 describe('Controversy definitions', () => {
   it('has exactly 20 root controversies', () => {
@@ -14,13 +14,15 @@ describe('Controversy definitions', () => {
 
   it('each controversy has exactly 3 resolutions', () => {
     for (const c of CONTROVERSIES) {
-      expect(c.resolutions).toHaveLength(3);
+      const vc = c as VoteControversy;
+      expect(vc.resolutions).toHaveLength(3);
     }
   });
 
   it('resolution keys are unique within each controversy', () => {
     for (const c of CONTROVERSIES) {
-      const keys = c.resolutions.map((r) => r.key);
+      const vc = c as VoteControversy;
+      const keys = vc.resolutions.map((r) => r.key);
       expect(new Set(keys).size).toBe(3);
     }
   });
@@ -28,7 +30,8 @@ describe('Controversy definitions', () => {
   it('axis effects only reference valid axis keys', () => {
     const validAxes = new Set(AXIS_KEYS);
     for (const c of CONTROVERSIES) {
-      for (const r of c.resolutions) {
+      const vc = c as VoteControversy;
+      for (const r of vc.resolutions) {
         for (const key of Object.keys(r.axisEffects)) {
           expect(validAxes.has(key as any)).toBe(true);
         }
@@ -39,7 +42,8 @@ describe('Controversy definitions', () => {
   it('faction power effects only reference valid faction keys', () => {
     const validFactions = new Set(FACTIONS.map((f) => f.key));
     for (const c of CONTROVERSIES) {
-      for (const r of c.resolutions) {
+      const vc = c as VoteControversy;
+      for (const r of vc.resolutions) {
         for (const key of Object.keys(r.factionPowerEffects)) {
           expect(validFactions.has(key)).toBe(true);
         }
@@ -48,7 +52,7 @@ describe('Controversy definitions', () => {
   });
 
   it('CONTROVERSY_MAP maps all keys', () => {
-    expect(Object.keys(CONTROVERSY_MAP)).toHaveLength(20);
+    expect(Object.keys(CONTROVERSY_MAP)).toHaveLength(23);
     for (const c of CONTROVERSIES) {
       expect(CONTROVERSY_MAP[c.key]).toBe(c);
     }
@@ -76,7 +80,8 @@ describe('Controversy definitions', () => {
 
   it('all resolutions have non-empty descriptions', () => {
     for (const c of CONTROVERSIES) {
-      for (const r of c.resolutions) {
+      const vc = c as VoteControversy;
+      for (const r of vc.resolutions) {
         expect(r.description.length).toBeGreaterThan(0);
       }
     }

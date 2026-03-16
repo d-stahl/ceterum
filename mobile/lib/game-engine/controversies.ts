@@ -1,4 +1,6 @@
-import { AxisKey } from './axes';
+import { AxisKey } from './axes.ts';
+
+// --- Shared types ---
 
 export interface ControversyResolution {
   key: string;
@@ -9,30 +11,90 @@ export interface ControversyResolution {
   followUpKey?: string;
 }
 
-export interface Controversy {
+export type ControversyType = 'vote' | 'clash' | 'endeavour' | 'schism';
+export type ControversyCategory = 'military' | 'social' | 'economic' | 'political' | 'religious';
+
+// --- Outcome types (used by Clash, Endeavour) ---
+
+export interface ControversyOutcome {
+  axisEffects: Partial<Record<AxisKey, number>>;
+  factionPowerEffects: Partial<Record<string, number>>;
+  followUpKey?: string;
+}
+
+// --- Type-specific configs ---
+
+export interface ClashConfig {
+  thresholdPercent: number;  // e.g. 0.70 = 70% of total available faction power
+  factionAmplifiers: Partial<Record<string, number>>;  // factionKey -> multiplier (2 = critical)
+  successOutcome: ControversyOutcome & { victoryPoints: number };
+  failureOutcome: ControversyOutcome;
+}
+
+export interface EndeavourConfig {
+  difficultyPercent: number;  // threshold = sum(initial_influence) × this
+  firstPlaceReward: number;   // max reward in VP equivalent, e.g. 2.5
+  successOutcome: ControversyOutcome;
+  failureOutcome: ControversyOutcome;
+}
+
+export interface SchismSide {
   key: string;
   title: string;
-  category: 'military' | 'social' | 'economic' | 'political' | 'religious';
+  description: string;
+  axisEffects: Partial<Record<AxisKey, number>>;
+  factionPowerEffects: Partial<Record<string, number>>;
+  victoryPoints: number;
+  followUpKey?: string;
+}
+
+export interface SchismConfig {
+  sides: [SchismSide, SchismSide];
+}
+
+// --- Controversy ---
+
+interface ControversyBase {
+  key: string;
+  title: string;
+  category: ControversyCategory;
   flavor: string;
   illustration: string;
+}
+
+export interface VoteControversy extends ControversyBase {
+  type: 'vote';
   resolutions: [ControversyResolution, ControversyResolution, ControversyResolution];
 }
 
-export type ControversyCategory = Controversy['category'];
+export interface ClashControversy extends ControversyBase {
+  type: 'clash';
+  clashConfig: ClashConfig;
+}
 
-export const CATEGORY_LABELS: Record<ControversyCategory, string> = {
-  military: 'Military',
-  social: 'Social',
-  economic: 'Economic',
-  political: 'Political',
-  religious: 'Religious',
-};
+export interface EndeavourControversy extends ControversyBase {
+  type: 'endeavour';
+  endeavourConfig: EndeavourConfig;
+}
+
+export interface SchismControversy extends ControversyBase {
+  type: 'schism';
+  schismConfig: SchismConfig;
+}
+
+export type Controversy = VoteControversy | ClashControversy | EndeavourControversy | SchismControversy;
+
+/** Type guard for vote controversies */
+export function isVoteControversy(c: Controversy): c is VoteControversy {
+  return c.type === 'vote';
+}
 
 export const CONTROVERSIES: Controversy[] = [
   // === MILITARY & FOREIGN POLICY ===
   {
     key: 'carthaginian_menace',
     title: 'The Carthaginian Menace',
+    type: 'vote',
     category: 'military',
     illustration: 'carthage_fleet',
     flavor:
@@ -66,6 +128,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'gallic_incursion',
     title: 'The Gallic Incursion',
+    type: 'vote',
     category: 'military',
     illustration: 'gallic_raiders',
     flavor:
@@ -98,6 +161,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'pontic_alliance',
     title: 'The Pontic Alliance',
+    type: 'vote',
     category: 'military',
     illustration: 'eastern_king',
     flavor:
@@ -129,6 +193,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'greek_colonies',
     title: 'The Greek Colonies',
+    type: 'vote',
     category: 'military',
     illustration: 'greek_city',
     flavor:
@@ -162,6 +227,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'agrarian_question',
     title: 'The Agrarian Question',
+    type: 'vote',
     category: 'social',
     illustration: 'roman_fields',
     flavor:
@@ -193,6 +259,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'slave_uprising',
     title: 'The Slave Uprising',
+    type: 'vote',
     category: 'social',
     illustration: 'slave_revolt',
     flavor:
@@ -225,6 +292,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'italian_allies',
     title: 'The Italian Allies',
+    type: 'vote',
     category: 'social',
     illustration: 'allied_soldiers',
     flavor:
@@ -257,6 +325,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'debt_crisis',
     title: 'The Debt Crisis',
+    type: 'vote',
     category: 'social',
     illustration: 'debt_bondage',
     flavor:
@@ -291,6 +360,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'grain_dole',
     title: 'The Grain Dole',
+    type: 'vote',
     category: 'economic',
     illustration: 'grain_market',
     flavor:
@@ -323,6 +393,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'pirate_menace',
     title: 'The Pirate Menace',
+    type: 'vote',
     category: 'economic',
     illustration: 'pirate_ships',
     flavor:
@@ -334,6 +405,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Grant a commander extraordinary powers to sweep the seas clean.',
         axisEffects: { militarism: 1, commerce: 1, centralization: 1 },
         factionPowerEffects: { nautae: 1, legiones: 1, mercatores: 1, optimates: -1 },
+        followUpKey: 'purging_the_mediterranean',
       },
       {
         key: 'diplomatic_pardon',
@@ -341,6 +413,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Offer pirates land, amnesty, and resettlement in exchange for surrender.',
         axisEffects: { militarism: -1, expansion: -1 },
         factionPowerEffects: { provinciales: 1, agricolae: 1, nautae: -1 },
+        followUpKey: 'pirate_settlements',
       },
       {
         key: 'merchant_convoys',
@@ -348,12 +421,14 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Fund state-organized convoy escorts. Protect the trade without a crusade.',
         axisEffects: { commerce: 1 },
         factionPowerEffects: { mercatores: 1, nautae: 1 },
+        followUpKey: 'outfitting_convoy_fleet',
       },
     ],
   },
   {
     key: 'tax_contracts',
     title: 'The Tax Contracts',
+    type: 'vote',
     category: 'economic',
     illustration: 'tax_collectors',
     flavor:
@@ -387,6 +462,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'sumptuary_question',
     title: 'The Sumptuary Question',
+    type: 'vote',
     category: 'economic',
     illustration: 'roman_banquet',
     flavor:
@@ -422,6 +498,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'tribunes_veto',
     title: "The Tribune's Veto",
+    type: 'vote',
     category: 'political',
     illustration: 'roman_assembly',
     flavor:
@@ -456,6 +533,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'emergency_powers',
     title: 'The Emergency Powers',
+    type: 'vote',
     category: 'political',
     illustration: 'roman_dictator',
     flavor:
@@ -488,6 +566,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'electoral_corruption',
     title: 'The Electoral Corruption',
+    type: 'vote',
     category: 'political',
     illustration: 'roman_election',
     flavor:
@@ -520,6 +599,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'governors_excesses',
     title: "The Governor's Excesses",
+    type: 'vote',
     category: 'political',
     illustration: 'provincial_governor',
     flavor:
@@ -555,6 +635,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'foreign_cults',
     title: 'The Foreign Cults',
+    type: 'vote',
     category: 'religious',
     illustration: 'eastern_temple',
     flavor:
@@ -586,6 +667,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'pontificate_election',
     title: 'The Pontificate Election',
+    type: 'vote',
     category: 'religious',
     illustration: 'roman_priests',
     flavor:
@@ -618,6 +700,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'censors_report',
     title: "The Censors' Report",
+    type: 'vote',
     category: 'religious',
     illustration: 'roman_censors',
     flavor:
@@ -650,6 +733,7 @@ export const CONTROVERSIES: Controversy[] = [
   {
     key: 'sibylline_oracle',
     title: 'The Sibylline Oracle',
+    type: 'vote',
     category: 'religious',
     illustration: 'sibylline_books',
     flavor:
@@ -680,8 +764,88 @@ export const CONTROVERSIES: Controversy[] = [
   },
 ];
 
+// === FOLLOW-UP CONTROVERSIES ===
+
+export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
+  // --- Pirate Menace follow-ups ---
+  {
+    key: 'purging_the_mediterranean',
+    title: 'Purging the Mediterranean',
+    type: 'clash',
+    category: 'military',
+    illustration: 'purging_the_mediterranean',
+    flavor:
+      "The Senate has spoken: Rome will sweep the seas clean. But a naval campaign of this scale demands every faction's commitment. The pirates are entrenched across a thousand islands and hidden coves. Half-measures will only scatter them — total victory requires total support.",
+    clashConfig: {
+      thresholdPercent: 0.70,
+      factionAmplifiers: { nautae: 2, milites: 2 },
+      successOutcome: {
+        axisEffects: { expansion: 1, militarism: 1 },
+        factionPowerEffects: { nautae: 1 },
+        victoryPoints: 3,
+      },
+      failureOutcome: {
+        axisEffects: { militarism: -1, commerce: -1 },
+        factionPowerEffects: { nautae: -1 },
+      },
+    },
+  },
+  {
+    key: 'pirate_settlements',
+    title: 'The Pirate Settlements',
+    type: 'schism',
+    category: 'social',
+    illustration: 'pirates_and_farmers_schism',
+    flavor:
+      "The pardoned pirates are settling on Italian coastland as promised. But the locals are furious — these men burned their ships and murdered their kin not two seasons ago. Tensions boil over into riots. The Senate must decide: honour its word to cold-blooded killers, or break a solemn promise of the Roman people.",
+    schismConfig: {
+      sides: [
+        {
+          key: 'honour_accord',
+          title: 'Honour the Accord',
+          description: 'Stand by the Senate\'s promise. The settlements stay. Rome\'s word must mean something.',
+          axisEffects: { tradition: -1 },
+          factionPowerEffects: { agricolae: -1, nautae: -1 },
+          victoryPoints: 2,
+        },
+        {
+          key: 'break_promise',
+          title: 'Break the Promise',
+          description: 'Drive the pirates from the land. They are murderers, not settlers, and Rome owes them nothing.',
+          axisEffects: { militarism: 1 },
+          factionPowerEffects: { legiones: 1, agricolae: 1 },
+          victoryPoints: 2,
+        },
+      ],
+    },
+  },
+  {
+    key: 'outfitting_convoy_fleet',
+    title: 'Outfitting the Convoy Fleet',
+    type: 'endeavour',
+    category: 'economic',
+    illustration: 'outfitting_the_fleet',
+    flavor:
+      "The Senate authorized convoy escorts — on paper. Now someone has to actually build the ships, hire the crews, and chart the routes. The treasury is thin and the merchants are impatient. If the convoys sail undermanned, they'll be easy prey. If they never sail at all, Rome's trade collapses.",
+    endeavourConfig: {
+      difficultyPercent: 0.50,
+      firstPlaceReward: 2.5,
+      successOutcome: {
+        axisEffects: { commerce: 1 },
+        factionPowerEffects: { mercatores: 1, nautae: 1 },
+      },
+      failureOutcome: {
+        axisEffects: { commerce: -1 },
+        factionPowerEffects: { mercatores: -1, nautae: -1 },
+      },
+    },
+  },
+];
+
+export const ALL_CONTROVERSIES: Controversy[] = [...CONTROVERSIES, ...FOLLOW_UP_CONTROVERSIES];
+
 export const CONTROVERSY_MAP: Record<string, Controversy> = Object.fromEntries(
-  CONTROVERSIES.map((c) => [c.key, c])
+  ALL_CONTROVERSIES.map((c) => [c.key, c])
 );
 
 export const ROOT_CONTROVERSY_KEYS: string[] = CONTROVERSIES.map((c) => c.key);

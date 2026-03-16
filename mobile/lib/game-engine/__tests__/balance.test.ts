@@ -1,5 +1,5 @@
-import { selectAndBalanceFactions } from '../balance';
-import { AXIS_KEYS } from '../axes';
+import { selectAndBalanceFactions } from '../balance.ts';
+import { AXIS_KEYS } from '../axes.ts';
 
 // Deterministic RNG for tests
 function seededRng(seed: number) {
@@ -38,7 +38,7 @@ describe('selectAndBalanceFactions', () => {
   });
 
   it('throws if requesting too many factions', () => {
-    expect(() => selectAndBalanceFactions(10, seededRng(1))).toThrow();
+    expect(() => selectAndBalanceFactions(13, seededRng(1))).toThrow();
   });
 
   it('preserves faction identity (no preference changes larger than needed)', () => {

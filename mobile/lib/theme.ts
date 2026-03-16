@@ -92,7 +92,7 @@ export function blackBg(opacity: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Category colors (moved from game-engine/controversies.ts)
+// Category colors (legacy, kept for reference)
 // ---------------------------------------------------------------------------
 
 export const CATEGORY_COLORS: Record<string, string> = {
@@ -101,4 +101,21 @@ export const CATEGORY_COLORS: Record<string, string> = {
   economic: '#ffa726',
   political: '#5c6bc0',
   religious: '#ab47bc',
+};
+
+// Controversy type colors
+// ---------------------------------------------------------------------------
+
+export const CONTROVERSY_TYPE_COLORS: Record<string, string> = {
+  vote: '#5c6bc0',
+  clash: '#e53935',
+  endeavour: '#ffa726',
+  schism: '#ab47bc',
+};
+
+export const CONTROVERSY_TYPE_LABELS: Record<string, string> = {
+  vote: 'Vote',
+  clash: 'Clash',
+  endeavour: 'Endeavour',
+  schism: 'Schism',
 };

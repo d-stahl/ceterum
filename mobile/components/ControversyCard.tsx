@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Image, ImageSourcePropType, Animated, Pressable } from 'react-native';
-import { Controversy, CATEGORY_LABELS } from '../lib/game-engine/controversies';
+import { Controversy, CONTROVERSY_MAP } from '../lib/game-engine/controversies';
 import { AXIS_LABELS, AxisKey } from '../lib/game-engine/axes';
 import { FACTIONS } from '../lib/game-engine/factions';
 import { getFactionStance, FactionStance } from '../lib/game-engine/ruling';
 import { getColorHex } from '../lib/player-colors';
 import AgendaDots, { PlayerAgendaInfo } from './AgendaDots';
-import { C, goldBg, parchmentBg, brownBg, CATEGORY_COLORS } from '../lib/theme';
+import { C, goldBg, parchmentBg, brownBg, CONTROVERSY_TYPE_COLORS, CONTROVERSY_TYPE_LABELS } from '../lib/theme';
 
 // Static require map for controversy illustrations (add new images here as they become available)
 export const ILLUSTRATION_MAP: Record<string, ImageSourcePropType> = {
@@ -30,6 +30,9 @@ export const ILLUSTRATION_MAP: Record<string, ImageSourcePropType> = {
   roman_priests: require('../assets/images/controversies/roman_priests.png'),
   roman_censors: require('../assets/images/controversies/roman_censors.png'),
   sibylline_books: require('../assets/images/controversies/sibylline_books.png'),
+  purging_the_mediterranean: require('../assets/images/controversies/purging_the_mediterranean.png'),
+  pirates_and_farmers_schism: require('../assets/images/controversies/pirates_and_farmers_schism.png'),
+  outfitting_the_fleet: require('../assets/images/controversies/outfitting_the_fleet.png'),
 };
 const FALLBACK_ILLUSTRATION = require('../assets/images/controversies/roman_fields.png');
 
@@ -225,11 +228,12 @@ export default function ControversyCard({
   resolvedInfo,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const catColor = CATEGORY_COLORS[controversy.category] ?? C.gray;
+  const typeColor = CONTROVERSY_TYPE_COLORS[controversy.type] ?? C.gray;
   const illustrationSource = ILLUSTRATION_MAP[controversy.illustration] ?? FALLBACK_ILLUSTRATION;
   const isResolved = !!resolvedInfo;
 
-  const winningResolution = isResolved
+  const isVote = controversy.type === 'vote';
+  const winningResolution = isResolved && isVote
     ? controversy.resolutions.find((r) => r.key === resolvedInfo.winningResolutionKey)
     : null;
 
@@ -238,8 +242,8 @@ export default function ControversyCard({
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>{controversy.title}</Text>
-        <View style={[styles.categoryBadge, { backgroundColor: catColor + '30', borderColor: catColor + '60' }]}>
-          <Text style={[styles.categoryText, { color: catColor }]}>{CATEGORY_LABELS[controversy.category] ?? controversy.category}</Text>
+        <View style={[styles.categoryBadge, { backgroundColor: typeColor + '30', borderColor: typeColor + '60' }]}>
+          <Text style={[styles.categoryText, { color: typeColor }]}>{CONTROVERSY_TYPE_LABELS[controversy.type] ?? controversy.type}</Text>
         </View>
       </View>
 
@@ -317,13 +321,12 @@ export default function ControversyCard({
             onPress={() => setExpanded((v) => !v)}
           >
             <Text style={styles.detailsButtonText}>
-              {expanded ? 'Hide Resolutions' : 'Show Resolutions'}
+              {expanded ? 'Hide Details' : 'Show Details'}
             </Text>
             <Text style={styles.detailsChevron}>{expanded ? '▴' : '▾'}</Text>
           </Pressable>
 
-          {/* Resolutions (expandable) */}
-          {expanded && (
+          {expanded && isVote && (
             <View style={styles.resolutionsSection}>
               {controversy.resolutions.map((r) => {
                 const axisKeys = Object.keys(r.axisEffects) as string[];
@@ -397,9 +400,66 @@ export default function ControversyCard({
                         </View>
                       );
                     })()}
+
+                    {r.followUpKey && (() => {
+                      const followUp = CONTROVERSY_MAP[r.followUpKey];
+                      if (!followUp) return null;
+                      const ftColor = CONTROVERSY_TYPE_COLORS[followUp.type] ?? C.gray;
+                      const ftLabel = CONTROVERSY_TYPE_LABELS[followUp.type] ?? followUp.type;
+                      return (
+                        <View style={[styles.followUpHint, { borderColor: ftColor + '40' }]}>
+                          <Text style={[styles.followUpHintText, { color: ftColor }]}>
+                            May lead to: {followUp.title} ({ftLabel})
+                          </Text>
+                        </View>
+                      );
+                    })()}
                   </View>
                 );
               })}
+            </View>
+          )}
+
+          {expanded && controversy.type === 'clash' && (
+            <View style={styles.resolutionsSection}>
+              <View style={styles.resolution}>
+                <Text style={styles.resolutionTitle}>Faction Commitment</Text>
+                <Text style={styles.resolutionDesc}>
+                  Players bid influence on factions, then commit or withdraw.
+                  Threshold: {Math.round(controversy.clashConfig.thresholdPercent * 100)}% of total faction power.
+                </Text>
+                {Object.entries(controversy.clashConfig.factionAmplifiers).filter(([, v]) => v && v > 1).map(([fkey, amp]) => (
+                  <Text key={fkey} style={styles.resolutionDesc}>
+                    {factionInfoMap?.[fkey]?.displayName ?? fkey}: {amp}x amplifier
+                  </Text>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {expanded && controversy.type === 'endeavour' && (
+            <View style={styles.resolutionsSection}>
+              <View style={styles.resolution}>
+                <Text style={styles.resolutionTitle}>Collective Investment</Text>
+                <Text style={styles.resolutionDesc}>
+                  All players secretly invest influence. Difficulty: {Math.round(controversy.endeavourConfig.difficultyPercent * 100)}%.
+                  Top investor earns up to {controversy.endeavourConfig.firstPlaceReward} VP.
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {expanded && controversy.type === 'schism' && (
+            <View style={styles.resolutionsSection}>
+              {controversy.schismConfig.sides.map((side) => (
+                <View key={side.key} style={styles.resolution}>
+                  <Text style={styles.resolutionTitle}>{side.title}</Text>
+                  <Text style={styles.resolutionDesc}>{side.description}</Text>
+                  {side.victoryPoints > 0 && (
+                    <Text style={[styles.resolutionDesc, { color: C.gold, fontWeight: '600' }]}>{side.victoryPoints} VP</Text>
+                  )}
+                </View>
+              ))}
             </View>
           )}
         </>
@@ -557,6 +617,18 @@ const styles = StyleSheet.create({
   stanceInFavor: {
     color: C.positive,
     opacity: 1,
+  },
+  followUpHint: {
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    marginTop: 4,
+  },
+  followUpHintText: {
+    fontSize: 9,
+    fontWeight: '600',
+    fontStyle: 'italic',
   },
 
   // Axis effect slider

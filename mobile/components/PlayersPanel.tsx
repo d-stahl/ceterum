@@ -21,6 +21,7 @@ type PlayerInfo = {
 type PlayerState = {
   player_id: string;
   influence: number;
+  victory_points: number;
 };
 
 type Props = {
@@ -104,7 +105,7 @@ export default function PlayersPanel({
         <View style={styles.panelHeader}>
           <View>
             <Text style={styles.panelTitle}>Players</Text>
-            <Text style={styles.panelSubtitle}>Influence & agendas</Text>
+            <Text style={styles.panelSubtitle}>Score, influence & agendas</Text>
           </View>
           <Pressable onPress={onClose} style={styles.closeButton}>
             <Text style={styles.closeText}>✕</Text>
@@ -119,13 +120,20 @@ export default function PlayersPanel({
           {/* Player list */}
           <View style={styles.playerList}>
             {sortedPlayers.map((p) => {
-              const inf = playerStates.find((ps) => ps.player_id === p.player_id)?.influence ?? 0;
+              const ps = playerStates.find((s) => s.player_id === p.player_id);
+              const inf = ps?.influence ?? 0;
+              const vp = ps?.victory_points ?? 0;
               return (
                 <View key={p.player_id} style={styles.playerRow}>
                   <View style={[styles.colorDot, { backgroundColor: getColorHex(p.color) }]} />
                   <Text style={styles.playerName}>
                     {p.player_name}{p.player_id === currentUserId ? <Text style={styles.youLabel}> (You)</Text> : null}
                   </Text>
+                  {vp > 0 && (
+                    <View style={styles.vpBadge}>
+                      <Text style={styles.vpText}>{vp} VP</Text>
+                    </View>
+                  )}
                   <View style={styles.influenceBadge}>
                     <Text style={styles.influenceText}>{inf}</Text>
                   </View>
@@ -260,6 +268,17 @@ const styles = StyleSheet.create({
   influenceText: {
     color: C.gold,
     fontSize: 12,
+    fontWeight: '700',
+  },
+  vpBadge: {
+    backgroundColor: '#ab47bc30',
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  vpText: {
+    color: '#ce93d8',
+    fontSize: 11,
     fontWeight: '700',
   },
   // Agendas section

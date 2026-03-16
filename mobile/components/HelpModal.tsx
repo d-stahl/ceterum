@@ -17,7 +17,10 @@ export type HelpId =
   | 'leader-election'
   | 'ruling-selection'
   | 'ruling-pool'
-  | 'controversy-voting';
+  | 'controversy-voting'
+  | 'controversy-endeavour'
+  | 'controversy-clash'
+  | 'controversy-schism';
 
 type HelpEntry = {
   title: string;
@@ -178,13 +181,53 @@ Other players wait while you make these decisions — use the "On the Horizon" t
   },
   'controversy-voting': {
     title: 'Controversy Vote',
-    body: `Each controversy has two possible resolutions. The Senate Leader publicly declares which they prefer, then all players secretly vote by spending influence.
+    body: `Each controversy has three possible resolutions. The Senate Leader publicly declares which they prefer, then all players secretly vote by spending influence.
 
 The Senate Leader's declared resolution receives an institutional bonus of +2 per other player, giving it a significant advantage. Ties are broken in favor of the Senate Leader's declaration.
 
-You can vote for either resolution regardless of the Senate Leader's declaration. Spending 0 influence is valid — it counts as a vote with no affinity consequences.
+You can vote for any resolution regardless of the Senate Leader's declaration. Spending 0 influence is valid — it counts as a vote with no affinity consequences.
 
 Each faction reacts to the outcome based on whether it moves policy toward or away from their interests. Factions "In Favor" grant +1 affinity to backers. Factions "Opposed" inflict −1 affinity (−2 for the Senate Leader). Neutral factions have no effect. Spending 0 influence exempts you from all affinity consequences.`,
+  },
+  'controversy-endeavour': {
+    title: 'Endeavour',
+    body: `An Endeavour is a collective investment — all players secretly decide how much influence to commit toward a shared goal.
+
+If the total investment meets the threshold, the Endeavour succeeds. Rewards are distributed by rank: the player who invested the most gets the best reward, scaling down for lower ranks. Failed investment is lost with no reward.
+
+The threshold is based on total player influence at the start of the ruling phase. It's displayed on screen so you can gauge whether success is realistic.
+
+The tension: you want the group to succeed (for rewards), but you also want to invest as little as possible while still ranking high. Free-riding is tempting but risky — if too many players hold back, the Endeavour fails and everyone loses their investment.
+
+Investing 0 is allowed but you won't rank for rewards.`,
+  },
+  'controversy-clash': {
+    title: 'Clash',
+    body: `A Clash is a faction commitment game — Rome faces an external threat and players must rally their factions to meet it.
+
+Each player bids influence to claim factions. Bid strength is multiplicative: your bid × your affinity with the faction. The highest bidder wins each faction. Ties split the faction's power.
+
+After bidding, each player secretly declares: Commit or Withdraw. Committed players' factions contribute their power toward the threshold. Withdrawn players sit it out.
+
+If total committed power meets the threshold, the Clash succeeds — all committed players share victory points and policy effects. If it fails, negative effects apply.
+
+Critical factions (marked with a multiplier) contribute amplified power. Claiming and committing a critical faction can make or break the outcome.
+
+The betrayal: grab critical factions, then withdraw. The Clash fails because your factions aren't contributing, and you've denied them to players who would have committed.`,
+  },
+  'controversy-schism': {
+    title: 'Schism',
+    body: `A Schism is an internal loyalty test — the Senate is divided and a small group's loyalty determines the outcome.
+
+Two opposing sides are presented, each with different policy effects and victory points. The Senate Leader declares which side they support, then picks a team from the other players.
+
+Team members (including the Senate Leader) secretly choose: Support or Sabotage. If everyone supports, the Senate Leader's declared side wins. If anyone sabotages, the other side wins instead.
+
+Supporters on a winning team earn victory points and affinity effects. Supporters on a losing team (someone sabotaged) lose influence — humiliation. Saboteurs get affinity effects from the winning side but no victory points.
+
+Why sabotage? Because you prefer the other side's policy effects for your agenda. The missed VP is the cost of betrayal.
+
+The Senate Leader can also sabotage their own declaration — declaring for one side while secretly wanting the other.`,
   },
   'leader-election': {
     title: 'Leader Election',

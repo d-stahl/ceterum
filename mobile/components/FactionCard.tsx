@@ -38,6 +38,7 @@ export type FactionPlacement = {
   playerColor: string;
   workerType: string;
   oratorRole?: string;
+  factionKey: string;
   subRound: number;
   isPreliminary?: boolean;
   isLocked?: boolean;

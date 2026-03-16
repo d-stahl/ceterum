@@ -155,6 +155,7 @@ function GameScreenInner() {
   const [showElectionResults, setShowElectionResults] = useState(false);
   const [showRoundEnd, setShowRoundEnd] = useState(false);
   const [roundEndSnapshot, setRoundEndSnapshot] = useState<{
+    roundId: string;
     roundNumber: number;
     controversyStates: ControversyStateRow[];
     initialFactionPowers: Record<string, number>;
@@ -335,7 +336,8 @@ function GameScreenInner() {
       if (roundAdvanced) {
         placementsRoundIdRef.current = null;
         setPlacements([]);  // Clear stale placements from previous round
-        setDismissedResolvedKeys(new Set());
+        // Only clear dismissed keys if we're not still showing round-end outcomes
+        if (!showRoundEnd) setDismissedResolvedKeys(new Set());
         setOnTheHorizonVisible(true);
       }
     }
@@ -507,6 +509,7 @@ function GameScreenInner() {
         const snappedStates = (freshStates as ControversyStateRow[]) ?? controversyStates;
         setControversyStates(snappedStates);
         setRoundEndSnapshot({
+          roundId: data.id,
           roundNumber: data.round_number,
           controversyStates: snappedStates,
           initialFactionPowers: data.initial_faction_powers ?? {},
@@ -1360,8 +1363,9 @@ function GameScreenInner() {
         <ImageBackground source={votingBg} style={styles.background} resizeMode="cover">
           <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: 0 }]}>
             <ControversyVoting
+              key={undismissedResolved.controversy_key}
               gameId={gameId!}
-              roundId={round!.id}
+              roundId={roundEndSnapshot?.roundId ?? round!.id}
               controversyKey={undismissedResolved.controversy_key}
               currentUserId={currentUserId}
               senateLeaderId={senateLeaderId}

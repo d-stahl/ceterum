@@ -80,3 +80,43 @@ export function buildEngineVotesFromDb(votes: any[]): Vote[] {
     influenceSpent: v.influence_spent,
   }));
 }
+
+/**
+ * Convert game_endeavour_submissions rows to EndeavourSubmission[].
+ * Requires columns: player_id, influence_invested
+ */
+export function buildEndeavourSubmissionsFromDb(
+  submissions: any[],
+): { playerId: string; influenceInvested: number }[] {
+  return (submissions ?? []).map((s) => ({
+    playerId: s.player_id,
+    influenceInvested: s.influence_invested,
+  }));
+}
+
+/**
+ * Convert game_clash_submissions rows to ClashSubmission[].
+ * Requires columns: player_id, faction_bids, commits
+ */
+export function buildClashSubmissionsFromDb(
+  submissions: any[],
+): { playerId: string; factionBids: Record<string, number>; commits: boolean }[] {
+  return (submissions ?? []).map((s) => ({
+    playerId: s.player_id,
+    factionBids: s.faction_bids ?? {},
+    commits: s.commits,
+  }));
+}
+
+/**
+ * Convert game_schism_submissions rows to SchismSubmission[].
+ * Requires columns: player_id, supports
+ */
+export function buildSchismSubmissionsFromDb(
+  submissions: any[],
+): { playerId: string; supports: boolean }[] {
+  return (submissions ?? []).map((s) => ({
+    playerId: s.player_id,
+    supports: s.supports,
+  }));
+}

@@ -6,12 +6,13 @@ import {
   computeAffinityEffects,
   getFactionStance,
   halveInfluence,
-} from '../ruling';
-import { Controversy } from '../controversies';
+} from '../ruling.ts';
+import { Controversy } from '../controversies.ts';
 
 const mockControversy: Controversy = {
   key: 'test',
   title: 'Test',
+  type: 'vote',
   category: 'military',
   flavor: 'Test flavor',
   illustration: 'test',

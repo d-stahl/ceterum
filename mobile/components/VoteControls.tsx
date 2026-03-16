@@ -1,8 +1,9 @@
 import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
-import { C, goldBg, whiteBg } from '../lib/theme';
+import { C, goldBg, whiteBg, CONTROVERSY_TYPE_COLORS, CONTROVERSY_TYPE_LABELS } from '../lib/theme';
 import { AxisEffectSlider, PowerEffectRow, getFactionStances } from './ControversyCard';
 import { PlayerAgendaInfo } from './AgendaDots';
+import { CONTROVERSY_MAP } from '../lib/game-engine/controversies';
 
 type Resolution = {
   key: string;
@@ -10,6 +11,7 @@ type Resolution = {
   description: string;
   axisEffects: Partial<Record<string, number>>;
   factionPowerEffects: Partial<Record<string, number>>;
+  followUpKey?: string;
 };
 
 type FactionInfo = {
@@ -176,6 +178,20 @@ export default function VoteControls({
                           ))}
                         </View>
                       )}
+                    </View>
+                  );
+                })()}
+
+                {r.followUpKey && (() => {
+                  const followUp = CONTROVERSY_MAP[r.followUpKey];
+                  if (!followUp) return null;
+                  const ftColor = CONTROVERSY_TYPE_COLORS[followUp.type] ?? C.gray;
+                  const ftLabel = CONTROVERSY_TYPE_LABELS[followUp.type] ?? followUp.type;
+                  return (
+                    <View style={[styles.followUpHint, { borderColor: ftColor + '40' }]}>
+                      <Text style={[styles.followUpHintText, { color: ftColor }]}>
+                        May lead to: {followUp.title} ({ftLabel})
+                      </Text>
                     </View>
                   );
                 })()}
@@ -400,6 +416,14 @@ const styles = StyleSheet.create({
   stanceInFavor: {
     color: C.positive,
     opacity: 1,
+  },
+  followUpHint: {
+    marginTop: 6,
+  },
+  followUpHintText: {
+    fontSize: 10,
+    fontWeight: '600',
+    fontStyle: 'italic',
   },
   errorText: {
     color: C.error,

@@ -39,8 +39,9 @@ Deno.serve(async (req) => {
         .eq('round_id', round.id)
         // Only include placements that are visible to the caller:
         // - previous sub-rounds (already revealed to all players), or
+        // - locked placements (carried-forward demagogs, always visible), or
         // - the caller's own placements (they know what they submitted)
-        .or(`sub_round.lt.${round.sub_round},player_id.eq.${user.id}`),
+        .or(`sub_round.lt.${round.sub_round},is_locked.eq.true,player_id.eq.${user.id}`),
       adminClient
         .from('game_factions')
         .select('faction_key, display_name, power_level, pref_centralization, pref_expansion, pref_commerce, pref_patrician, pref_tradition, pref_militarism')

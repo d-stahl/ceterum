@@ -122,10 +122,6 @@ export default function RoundEndSummary({
           })}
         </View>
 
-        <Text style={styles.decayNote}>
-          All faction affinities have decayed by 1 toward neutral.
-        </Text>
-
         <Pressable style={styles.continueButton} onPress={onContinue}>
           <Text style={styles.continueButtonText}>
             {isGameOver ? 'View Final Results' : `Begin Round ${roundNumber + 1} →`}
@@ -232,13 +228,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   axesList: { gap: 12 },
-  decayNote: {
-    color: C.paleGold,
-    fontSize: 12,
-    opacity: 0.45,
-    textAlign: 'center',
-    lineHeight: 17,
-  },
   continueButton: {
     backgroundColor: C.gold,
     borderRadius: 10,

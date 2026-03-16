@@ -1,13 +1,13 @@
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView, Image } from 'react-native';
 import { useCallback, useState } from 'react';
-import { Controversy, CONTROVERSY_MAP, CATEGORY_LABELS } from '../lib/game-engine/controversies';
+import { Controversy, CONTROVERSY_MAP } from '../lib/game-engine/controversies';
 import { submitSenateLeaderActions } from '../lib/game-actions';
 import ControversyCard, { ILLUSTRATION_MAP } from './ControversyCard';
 import { PlayerAgendaInfo } from './AgendaDots';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { getColorHex } from '../lib/player-colors';
-import { C, goldBg, CATEGORY_COLORS, negativeBg } from '../lib/theme';
+import { C, goldBg, CONTROVERSY_TYPE_COLORS, CONTROVERSY_TYPE_LABELS, negativeBg } from '../lib/theme';
 
 type FactionInfo = {
   key: string;
@@ -73,8 +73,8 @@ export default function SenateLeaderPoolManager({
     const c = CONTROVERSY_MAP[item];
     if (!c) return null;
     const illustration = ILLUSTRATION_MAP[c.illustration];
-    const catLabel = CATEGORY_LABELS[c.category] ?? c.category;
-    const catColor = CATEGORY_COLORS[c.category] ?? C.gray;
+    const typeLabel = CONTROVERSY_TYPE_LABELS[c.type] ?? c.type;
+    const typeColor = CONTROVERSY_TYPE_COLORS[c.type] ?? C.gray;
 
     return (
       <ScaleDecorator>
@@ -88,8 +88,8 @@ export default function SenateLeaderPoolManager({
           )}
           <View style={styles.orderCardContent}>
             <Text style={styles.orderTitle} numberOfLines={2}>{c.title}</Text>
-            <View style={[styles.categoryTag, { backgroundColor: catColor + '30', borderColor: catColor + '60' }]}>
-              <Text style={[styles.categoryText, { color: catColor }]}>{catLabel}</Text>
+            <View style={[styles.categoryTag, { backgroundColor: typeColor + '30', borderColor: typeColor + '60' }]}>
+              <Text style={[styles.categoryText, { color: typeColor }]}>{typeLabel}</Text>
             </View>
           </View>
         </Pressable>

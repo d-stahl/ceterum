@@ -1,8 +1,8 @@
 import { View, Text, StyleSheet, Image } from 'react-native';
-import { Controversy, CATEGORY_LABELS } from '../lib/game-engine/controversies';
+import { VoteControversy } from '../lib/game-engine/controversies';
 import { AXIS_LABELS, AxisKey } from '../lib/game-engine/axes';
 import { ILLUSTRATION_MAP } from './ControversyCard';
-import { C, goldBg, brownBg, CATEGORY_COLORS } from '../lib/theme';
+import { C, goldBg, brownBg, CONTROVERSY_TYPE_COLORS, CONTROVERSY_TYPE_LABELS } from '../lib/theme';
 
 const FALLBACK_ILLUSTRATION = require('../assets/images/controversies/roman_fields.png');
 
@@ -13,7 +13,7 @@ type ResolvedInfo = {
 };
 
 type Props = {
-  controversy: Controversy;
+  controversy: VoteControversy;
   resolvedInfo: ResolvedInfo;
   factionDisplayNames?: Record<string, string>;
 };
@@ -29,7 +29,7 @@ export default function ResolvedControversySummary({
   resolvedInfo,
   factionDisplayNames,
 }: Props) {
-  const catColor = CATEGORY_COLORS[controversy.category] ?? C.gray;
+  const typeColor = CONTROVERSY_TYPE_COLORS[controversy.type] ?? C.gray;
   const illustrationSource = ILLUSTRATION_MAP[controversy.illustration] ?? FALLBACK_ILLUSTRATION;
   const winningResolution = controversy.resolutions.find(
     (r) => r.key === resolvedInfo.winningResolutionKey,
@@ -47,9 +47,9 @@ export default function ResolvedControversySummary({
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>{controversy.title}</Text>
-        <View style={[styles.categoryBadge, { backgroundColor: catColor + '30', borderColor: catColor + '60' }]}>
-          <Text style={[styles.categoryText, { color: catColor }]}>
-            {CATEGORY_LABELS[controversy.category] ?? controversy.category}
+        <View style={[styles.categoryBadge, { backgroundColor: typeColor + '30', borderColor: typeColor + '60' }]}>
+          <Text style={[styles.categoryText, { color: typeColor }]}>
+            {CONTROVERSY_TYPE_LABELS[controversy.type] ?? controversy.type}
           </Text>
         </View>
       </View>

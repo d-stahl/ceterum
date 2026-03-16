@@ -1,5 +1,5 @@
-import { resolveClash, assignFactions, bidStrength, ClashSubmission } from '../clash';
-import type { ClashConfig } from '../controversies';
+import { resolveClash, assignFactions, bidStrength, ClashSubmission } from '../clash.ts';
+import type { ClashConfig } from '../controversies.ts';
 
 const config: ClashConfig = {
   thresholdPercent: 0.70,

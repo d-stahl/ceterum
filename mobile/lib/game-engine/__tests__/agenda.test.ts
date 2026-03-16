@@ -1,5 +1,5 @@
-import { generateAgendas, PlayerAgenda } from '../agenda';
-import { AXIS_KEYS } from '../axes';
+import { generateAgendas, PlayerAgenda } from '../agenda.ts';
+import { AXIS_KEYS } from '../axes.ts';
 
 describe('generateAgendas', () => {
   const PLAYER_COUNTS = [3, 4, 5, 6, 7, 8];

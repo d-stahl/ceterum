@@ -1,5 +1,5 @@
-import { AXIS_KEYS, AxisKey, AxisPreferences } from './axes';
-import { FACTIONS, FactionDefinition } from './factions';
+import { AXIS_KEYS, AxisKey, AxisPreferences } from './axes.ts';
+import { FACTIONS, FactionDefinition } from './factions.ts';
 
 export interface BalancedFaction {
   key: string;

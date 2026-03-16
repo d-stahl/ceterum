@@ -1,4 +1,4 @@
-import { AxisPreferences } from './axes';
+import { AxisPreferences } from './axes.ts';
 
 export interface FactionDefinition {
   key: string;
@@ -107,6 +107,17 @@ export const FACTIONS: FactionDefinition[] = [
     defaultPreferences: {
       centralization: 0, expansion: 0, commerce: 1,
       patrician: -1, tradition: -1, militarism: -1,
+    },
+  },
+  {
+    key: 'milites',
+    displayName: 'The Soldiers',
+    latinName: 'Milites',
+    description: 'The active legions and their commanders',
+    defaultPower: 3,
+    defaultPreferences: {
+      centralization: 2, expansion: 1, commerce: -1,
+      patrician: 0, tradition: 0, militarism: 2,
     },
   },
   {

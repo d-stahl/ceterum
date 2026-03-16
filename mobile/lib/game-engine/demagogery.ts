@@ -1,5 +1,5 @@
-import { Placement, WorkerType, OratorRole } from './workers';
-import { BalancedFaction } from './balance';
+import { Placement, WorkerType, OratorRole } from './workers.ts';
+import { BalancedFaction } from './balance.ts';
 
 // ── Tunable constants ───────────────────────────────────────────────
 export const DEMAGOG_BASE = 10;

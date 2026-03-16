@@ -10,10 +10,10 @@ import {
   SABOTEUR_POWER_CHANGE,
   PROMOTER_AFFINITY_CHANGE,
   SABOTEUR_AFFINITY_SPLASH,
-} from '../demagogery';
-import { Placement } from '../workers';
-import { BalancedFaction } from '../balance';
-import { validatePlacement } from '../workers';
+} from '../demagogery.ts';
+import { Placement } from '../workers.ts';
+import { BalancedFaction } from '../balance.ts';
+import { validatePlacement } from '../workers.ts';
 
 const testFaction: BalancedFaction = {
   key: 'legiones',
