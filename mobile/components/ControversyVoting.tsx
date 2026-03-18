@@ -233,8 +233,19 @@ export default function ControversyVoting({
     }
 
     const factionPowerEffects: Record<string, number> = {};
+    const factionPowerBefore: Record<string, number> = {};
     for (const [fkey, vals] of Object.entries(outcome.faction_power_outcomes as Record<string, { before: number; after: number }>)) {
       factionPowerEffects[fkey] = vals.after - vals.before;
+      factionPowerBefore[fkey] = vals.before;
+    }
+
+    // Build factionInfoMap with pre-resolution power from stored outcomes
+    const outcomeFactionInfoMap: Record<string, typeof factionInfoMap[string]> = {};
+    for (const [fkey, info] of Object.entries(factionInfoMap)) {
+      outcomeFactionInfoMap[fkey] = {
+        ...info,
+        power: factionPowerBefore[fkey] ?? info.power,
+      };
     }
 
     const affinityEffects: Record<string, Record<string, number>> = {};
@@ -257,7 +268,7 @@ export default function ControversyVoting({
         factionPowerEffects={factionPowerEffects}
         affinityEffects={affinityEffects}
         axisValues={outcomeAxisValues}
-        factionInfoMap={factionInfoMap}
+        factionInfoMap={outcomeFactionInfoMap}
         players={players}
         playerAgendas={playerAgendas}
         onContinue={onContinue}

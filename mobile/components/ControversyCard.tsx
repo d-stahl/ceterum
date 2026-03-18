@@ -47,6 +47,8 @@ type ResolvedInfo = {
   winningResolutionKey: string;
   axisEffects: Record<string, number>;
   factionPowerEffects: Record<string, number>;
+  axisBefore?: Record<string, number>;
+  factionPowerBefore?: Record<string, number>;
 };
 
 type Props = {
@@ -271,8 +273,7 @@ export default function ControversyCard({
                   <Text style={styles.effectsSectionLabel}>Policy Effects</Text>
                   {axisKeys.map((axis) => {
                     const change = resolvedInfo.axisEffects[axis] ?? 0;
-                    // axisValues are current (post-resolution), subtract change to get pre-resolution
-                    const preResolutionVal = (axisValues?.[axis] ?? 0) - change;
+                    const preResolutionVal = resolvedInfo.axisBefore?.[axis] ?? (axisValues?.[axis] ?? 0) - change;
                     return (
                       <AxisEffectSlider
                         key={axis}
@@ -298,12 +299,12 @@ export default function ControversyCard({
                   {factionKeys.map((fkey) => {
                     const change = resolvedInfo.factionPowerEffects[fkey] ?? 0;
                     const info = factionInfoMap?.[fkey];
-                    // power is current (post-resolution), subtract change to get pre-resolution
+                    const preResolutionPower = resolvedInfo.factionPowerBefore?.[fkey] ?? (info?.power ?? 3) - change;
                     return (
                       <PowerEffectRow
                         key={fkey}
                         factionName={info?.displayName ?? fkey}
-                        currentPower={(info?.power ?? 3) - change}
+                        currentPower={preResolutionPower}
                         change={change}
                       />
                     );

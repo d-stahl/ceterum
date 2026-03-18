@@ -17,6 +17,7 @@ export interface FactionAssignment {
 export interface ClashResult {
   factionAssignments: FactionAssignment[];
   committedPower: number;
+  withdrawnPower: number;
   totalAvailablePower: number;
   threshold: number;
   succeeded: boolean;
@@ -132,11 +133,23 @@ export function resolveClash(
   const committers = submissions.filter((s) => s.commits).map((s) => s.playerId);
   const withdrawers = submissions.filter((s) => !s.commits).map((s) => s.playerId);
 
+  // Withdrawn power: sum of amplified power from factions won by withdrawers
+  const withdrawerIds = new Set(withdrawers);
+  let withdrawnPower = 0;
+  for (const assignment of assignments) {
+    for (const winner of assignment.winners) {
+      if (withdrawerIds.has(winner.playerId)) {
+        withdrawnPower += assignment.amplifiedPower * winner.share;
+      }
+    }
+  }
+
   const outcome = succeeded ? config.successOutcome : config.failureOutcome;
 
   return {
     factionAssignments: assignments,
     committedPower: Math.floor(committedPower),
+    withdrawnPower: Math.floor(withdrawnPower),
     totalAvailablePower,
     threshold: Math.floor(threshold),
     succeeded,

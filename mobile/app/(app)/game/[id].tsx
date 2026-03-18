@@ -159,9 +159,13 @@ function GameScreenInner() {
     roundNumber: number;
     controversyStates: ControversyStateRow[];
     initialFactionPowers: Record<string, number>;
+    playerStates: typeof playerStates;
+    axes: typeof axes;
+    factions: typeof factions;
   } | null>(null);
   const [allOutcomes, setAllOutcomes] = useState<OutcomeRow[]>([]);
   const [showResolutions, setShowResolutions] = useState(false);
+  const [showPolicyDetail, setShowPolicyDetail] = useState(false);
   const [tooltipData, setTooltipData] = useState<{
     effect?: WorkerEffect;
     loading?: boolean;
@@ -233,20 +237,26 @@ function GameScreenInner() {
     const p = players.find((pl) => pl.player_id === ps.player_id);
     if (p) playerAgendas.push({ playerId: ps.player_id, name: p.player_name, color: p.color, agenda: ps.agenda });
   });
-  const resolvedMap: Record<string, { winningResolutionKey: string; axisEffects: Record<string, number>; factionPowerEffects: Record<string, number> }> = {};
+  const resolvedMap: Record<string, { winningResolutionKey: string; axisEffects: Record<string, number>; factionPowerEffects: Record<string, number>; axisBefore: Record<string, number>; factionPowerBefore: Record<string, number> }> = {};
   allOutcomes.forEach((oc) => {
     const axisEffects: Record<string, number> = {};
+    const axisBefore: Record<string, number> = {};
     for (const [axis, vals] of Object.entries(oc.axis_outcomes)) {
       axisEffects[axis] = vals.after - vals.before;
+      axisBefore[axis] = vals.before;
     }
     const factionPowerEffects: Record<string, number> = {};
+    const factionPowerBefore: Record<string, number> = {};
     for (const [fkey, vals] of Object.entries(oc.faction_power_outcomes)) {
       factionPowerEffects[fkey] = vals.after - vals.before;
+      factionPowerBefore[fkey] = vals.before;
     }
     resolvedMap[oc.controversy_key] = {
       winningResolutionKey: oc.type_data?.winningResolutionKey ?? '',
       axisEffects,
       factionPowerEffects,
+      axisBefore,
+      factionPowerBefore,
     };
   });
 
@@ -513,6 +523,9 @@ function GameScreenInner() {
           roundNumber: data.round_number,
           controversyStates: snappedStates,
           initialFactionPowers: data.initial_faction_powers ?? {},
+          playerStates: [...playerStates],
+          axes: [...axes],
+          factions: [...factions],
         });
         setShowRoundEnd(true);
       }
@@ -920,29 +933,43 @@ function GameScreenInner() {
       playerScores[pa.playerId] = { perAxis, total };
     }
 
-    const sorted = [...playerStates]
-      .map((ps) => ({ ...ps, score: playerScores[ps.player_id]?.total ?? 0 }))
-      .sort((a, b) => b.score - a.score);
+    // Compute resolution VPs per player from outcomes
+    const resolutionVPs: Record<string, number> = {};
+    const vpOutcomes: { controversyKey: string; type: string; perPlayer: Record<string, number> }[] = [];
+    for (const oc of allOutcomes) {
+      const td = oc.type_data;
+      if (!td) continue;
+      const perPlayer: Record<string, number> = {};
+      if (oc.controversy_type === 'clash' && td.succeeded && td.victoryPoints) {
+        // Clash: all players get VPs on success
+        for (const ps of playerStates) {
+          perPlayer[ps.player_id] = td.victoryPoints;
+        }
+      } else if (oc.controversy_type === 'schism' && td.victoryPoints && td.winnerPlayerIds) {
+        for (const pid of td.winnerPlayerIds) {
+          perPlayer[pid] = td.victoryPoints;
+        }
+      } else if (oc.controversy_type === 'endeavour' && td.succeeded && td.rankings) {
+        for (const r of td.rankings) {
+          if (r.vpAwarded > 0) perPlayer[r.playerId] = r.vpAwarded;
+        }
+      }
+      if (Object.keys(perPlayer).length > 0) {
+        vpOutcomes.push({ controversyKey: oc.controversy_key, type: oc.controversy_type, perPlayer });
+        for (const [pid, vp] of Object.entries(perPlayer)) {
+          resolutionVPs[pid] = (resolutionVPs[pid] ?? 0) + vp;
+        }
+      }
+    }
 
-    const allResolvedMap: Record<string, { winningResolutionKey: string; axisEffects: Record<string, number>; factionPowerEffects: Record<string, number> }> = {};
-    allOutcomes.forEach((oc) => {
-      const axisEffects: Record<string, number> = {};
-      for (const [axis, vals] of Object.entries(oc.axis_outcomes)) {
-        axisEffects[axis] = vals.after - vals.before;
-      }
-      const factionPowerEffects: Record<string, number> = {};
-      for (const [fkey, vals] of Object.entries(oc.faction_power_outcomes)) {
-        factionPowerEffects[fkey] = vals.after - vals.before;
-      }
-      allResolvedMap[oc.controversy_key] = {
-        winningResolutionKey: oc.type_data?.winningResolutionKey ?? '',
-        axisEffects,
-        factionPowerEffects,
-      };
-    });
-    const resolvedControversies = allOutcomes
-      .map((oc) => CONTROVERSY_MAP[oc.controversy_key])
-      .filter(Boolean);
+    // Total score = agenda + resolution VPs
+    const sorted = [...playerStates]
+      .map((ps) => {
+        const agendaScore = playerScores[ps.player_id]?.total ?? 0;
+        const resVPs = resolutionVPs[ps.player_id] ?? 0;
+        return { ...ps, agendaScore, resVPs, totalScore: agendaScore + resVPs };
+      })
+      .sort((a, b) => b.totalScore - a.totalScore);
 
     return (
       <ImageBackground source={gameOverBg} style={styles.background} resizeMode="cover">
@@ -953,7 +980,7 @@ function GameScreenInner() {
           <Text style={styles.phaseTitle}>GAME OVER</Text>
           <Text style={styles.subTitle}>Final Standings</Text>
 
-          {/* Scores */}
+          {/* Final scores */}
           <View style={styles.resultsList}>
             {sorted.map((ps, i) => {
               const player = players.find((p) => p.player_id === ps.player_id);
@@ -962,92 +989,140 @@ function GameScreenInner() {
                   <Text style={styles.resultRank}>{i + 1}.</Text>
                   <View style={[styles.resultDot, { backgroundColor: getColorHex(player?.color ?? 'ivory') }]} />
                   <Text style={styles.resultName}>{player?.player_name ?? 'Unknown'}</Text>
-                  <Text style={styles.resultInfluence}>{ps.score}</Text>
+                  <Text style={styles.resultInfluence}>{ps.totalScore}</Text>
                 </View>
               );
             })}
           </View>
 
-          {/* Score Breakdown */}
-          {playerAgendas.length > 0 && (
-            <View style={styles.gameOverSection}>
-              <Text style={styles.gameOverSectionTitle}>Score Breakdown</Text>
-              {AXIS_KEYS.map((axis) => {
-                const labels = AXIS_LABELS[axis as AxisKey];
-                // Collect scores for players who have an agenda on this axis
-                const axisScorers = playerAgendas
-                  .map((pa) => {
-                    const score = playerScores[pa.playerId]?.perAxis[axis];
-                    if (score == null || score === 0) return null;
-                    return { playerId: pa.playerId, name: pa.name, color: pa.color, score };
-                  })
-                  .filter(Boolean) as { playerId: string; name: string; color: string; score: number }[];
+          <Text style={styles.gameOverSectionTitle}>Score Breakdown</Text>
 
-                const val = axisValuesMap[axis] ?? 0;
-                const positionLabel = val === 0
-                  ? 'Neutral'
-                  : `${Math.abs(val) >= 2 ? 'Extreme' : 'Moderate'} ${val > 0 ? labels.positive : labels.negative}`;
-
+          {/* Policy Agenda section */}
+          <View style={styles.gameOverSection}>
+            <Pressable
+              style={styles.resolutionsToggle}
+              onPress={() => setShowPolicyDetail((v) => !v)}
+            >
+              <Text style={styles.gameOverSubsectionTitle}>Policy Agenda</Text>
+              <Text style={styles.resolutionsChevron}>{showPolicyDetail ? '▲' : '▼'}</Text>
+            </Pressable>
+            {/* Summary: per-player agenda totals */}
+            <View style={styles.vpSummaryList}>
+              {sorted.map((ps) => {
+                const player = players.find((p) => p.player_id === ps.player_id);
                 return (
-                  <View key={axis} style={styles.axisBreakdownBlock}>
-                    <AxisEffectSlider
-                      axis={axis}
-                      change={0}
-                      currentValue={val}
-                      playerAgendas={playerAgendas}
-                    />
-                    <Text style={styles.axisPositionLabel}>{positionLabel}</Text>
-                    {axisScorers.length > 0 && (
-                      <View style={styles.axisScores}>
-                        {axisScorers.map((s) => (
-                          <View key={s.playerId} style={styles.axisScoreRow}>
-                            <View style={[styles.resultDot, { backgroundColor: getColorHex(s.color) }]} />
-                            <Text style={styles.axisScorePlayerName}>{s.name}</Text>
-                            <Text style={styles.axisScoreValue}>+{s.score}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
+                  <View key={ps.player_id} style={styles.vpSummaryRow}>
+                    <View style={[styles.resultDot, { backgroundColor: getColorHex(player?.color ?? 'ivory') }]} />
+                    <Text style={styles.vpSummaryName}>{player?.player_name ?? 'Unknown'}</Text>
+                    <Text style={styles.vpSummaryValue}>+{ps.agendaScore}</Text>
                   </View>
                 );
               })}
             </View>
-          )}
+            {/* Detail: per-axis breakdown */}
+            {showPolicyDetail && (
+              <View style={styles.policyDetailSection}>
+                {AXIS_KEYS.map((axis) => {
+                  const labels = AXIS_LABELS[axis as AxisKey];
+                  const axisScorers = playerAgendas
+                    .map((pa) => {
+                      const score = playerScores[pa.playerId]?.perAxis[axis];
+                      if (score == null || score === 0) return null;
+                      return { playerId: pa.playerId, name: pa.name, color: pa.color, score };
+                    })
+                    .filter(Boolean) as { playerId: string; name: string; color: string; score: number }[];
 
-          {/* Resolutions expandable */}
-          {resolvedControversies.length > 0 && (
-            <View style={styles.gameOverSection}>
-              <Pressable
-                style={styles.resolutionsToggle}
-                onPress={() => setShowResolutions((v) => !v)}
-              >
-                <Text style={styles.gameOverSectionTitle}>
-                  {showResolutions ? 'Hide' : 'Show'} Resolutions ({resolvedControversies.length})
-                </Text>
-                <Text style={styles.resolutionsChevron}>{showResolutions ? '▲' : '▼'}</Text>
-              </Pressable>
-              {showResolutions && (() => {
-                const factionNames: Record<string, string> = {};
-                factions.forEach((f) => { factionNames[f.faction_key] = f.display_name; });
+                  const val = axisValuesMap[axis] ?? 0;
+                  const positionLabel = val === 0
+                    ? 'Neutral'
+                    : `${Math.abs(val) >= 2 ? 'Extreme' : 'Moderate'} ${val > 0 ? labels.positive : labels.negative}`;
+
+                  return (
+                    <View key={axis} style={styles.axisBreakdownBlock}>
+                      <AxisEffectSlider
+                        axis={axis}
+                        change={0}
+                        currentValue={val}
+                        playerAgendas={playerAgendas}
+                      />
+                      <Text style={styles.axisPositionLabel}>{positionLabel}</Text>
+                      {axisScorers.length > 0 && (
+                        <View style={styles.axisScores}>
+                          {axisScorers.map((s) => (
+                            <View key={s.playerId} style={styles.axisScoreRow}>
+                              <View style={[styles.resultDot, { backgroundColor: getColorHex(s.color) }]} />
+                              <Text style={styles.axisScorePlayerName}>{s.name}</Text>
+                              <Text style={styles.axisScoreValue}>+{s.score}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+
+          {/* Resolutions VP section */}
+          <View style={styles.gameOverSection}>
+            <Pressable
+              style={styles.resolutionsToggle}
+              onPress={() => setShowResolutions((v) => !v)}
+            >
+              <Text style={styles.gameOverSubsectionTitle}>Resolutions</Text>
+              <Text style={styles.resolutionsChevron}>{showResolutions ? '▲' : '▼'}</Text>
+            </Pressable>
+            {/* Summary: per-player resolution VP totals */}
+            <View style={styles.vpSummaryList}>
+              {sorted.map((ps) => {
+                const player = players.find((p) => p.player_id === ps.player_id);
                 return (
-                  <View style={styles.resolutionsList}>
-                    {resolvedControversies.filter(isVoteControversy).map((c) => {
-                      const info = allResolvedMap[c.key];
-                      if (!info) return null;
-                      return (
-                        <ResolvedControversySummary
-                          key={c.key}
-                          controversy={c}
-                          resolvedInfo={info}
-                          factionDisplayNames={factionNames}
-                        />
-                      );
-                    })}
+                  <View key={ps.player_id} style={styles.vpSummaryRow}>
+                    <View style={[styles.resultDot, { backgroundColor: getColorHex(player?.color ?? 'ivory') }]} />
+                    <Text style={styles.vpSummaryName}>{player?.player_name ?? 'Unknown'}</Text>
+                    <Text style={styles.vpSummaryValue}>+{ps.resVPs}</Text>
                   </View>
                 );
-              })()}
+              })}
             </View>
-          )}
+            {/* Detail: per-controversy VP breakdown */}
+            {showResolutions && (
+              <View style={styles.resolutionsList}>
+                {vpOutcomes.map((vpo) => {
+                  const controversy = CONTROVERSY_MAP[vpo.controversyKey];
+                  if (!controversy) return null;
+                  const illustrationSource = ILLUSTRATION_MAP[controversy.illustration] ?? null;
+                  return (
+                    <View key={vpo.controversyKey} style={styles.vpOutcomeCard}>
+                      {illustrationSource && (
+                        <Image source={illustrationSource} style={styles.vpOutcomeIllustration} resizeMode="cover" />
+                      )}
+                      <Text style={styles.vpOutcomeTitle}>{controversy.title}</Text>
+                      <Text style={styles.vpOutcomeType}>
+                        {vpo.type.charAt(0).toUpperCase() + vpo.type.slice(1)}
+                      </Text>
+                      <View style={styles.vpOutcomePlayers}>
+                        {Object.entries(vpo.perPlayer).map(([pid, vp]) => {
+                          const player = players.find((p) => p.player_id === pid);
+                          return (
+                            <View key={pid} style={styles.vpSummaryRow}>
+                              <View style={[styles.resultDot, { backgroundColor: getColorHex(player?.color ?? 'ivory') }]} />
+                              <Text style={styles.vpSummaryName}>{player?.player_name ?? 'Unknown'}</Text>
+                              <Text style={styles.vpSummaryValue}>+{vp}</Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  );
+                })}
+                {vpOutcomes.length === 0 && (
+                  <Text style={styles.emptyVPText}>No VP-awarding resolutions this game.</Text>
+                )}
+              </View>
+            )}
+          </View>
 
           <Pressable style={styles.actionButton} onPress={() => router.replace('/(app)/home')}>
             <Text style={styles.actionButtonText}>Return Home</Text>
@@ -1165,6 +1240,7 @@ function GameScreenInner() {
         visible={playersVisible}
         onClose={() => setPlayersVisible((v) => !v)}
         hideTab
+        allOutcomes={allOutcomes}
       />
       <FactionsPanel
         factions={factionInfoList}
@@ -1405,7 +1481,8 @@ function GameScreenInner() {
             roundNumber={snappedRoundNumber}
             isGameOver={snappedRoundNumber >= 6}
             playerInfluences={players.map((p) => {
-              const currentInf = playerStates.find((ps) => ps.player_id === p.player_id)?.influence ?? 0;
+              const snappedPS = roundEndSnapshot?.playerStates ?? playerStates;
+              const currentInf = snappedPS.find((ps) => ps.player_id === p.player_id)?.influence ?? 0;
               return {
                 player_id: p.player_id,
                 player_name: p.player_name,
@@ -1414,9 +1491,9 @@ function GameScreenInner() {
                 influenceAfter: Math.ceil(currentInf / 2),
               };
             })}
-            axes={axes}
+            axes={roundEndSnapshot?.axes ?? axes}
             playerAgendas={playerAgendas}
-            factionPowers={factions.map((f) => ({
+            factionPowers={(roundEndSnapshot?.factions ?? factions).map((f) => ({
               faction_key: f.faction_key,
               display_name: f.display_name,
               power_level: f.power_level,
@@ -1855,5 +1932,71 @@ const styles = StyleSheet.create({
     color: C.gold,
     fontSize: 11,
     fontWeight: '700',
+  },
+  gameOverSubsectionTitle: {
+    color: C.paleGold,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  vpSummaryList: {
+    gap: 4,
+    paddingLeft: 4,
+  },
+  vpSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  vpSummaryName: {
+    color: C.paleGold,
+    fontSize: 12,
+    flex: 1,
+  },
+  vpSummaryValue: {
+    color: C.gold,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  policyDetailSection: {
+    marginTop: 8,
+  },
+  vpOutcomeCard: {
+    backgroundColor: goldBg(0.06),
+    borderRadius: 8,
+    padding: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: goldBg(0.4),
+    gap: 4,
+  },
+  vpOutcomeIllustration: {
+    width: '100%',
+    height: 60,
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  vpOutcomeTitle: {
+    color: C.paleGold,
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: 'serif',
+  },
+  vpOutcomeType: {
+    color: C.paleGold,
+    fontSize: 10,
+    opacity: 0.5,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  vpOutcomePlayers: {
+    gap: 3,
+    marginTop: 2,
+  },
+  emptyVPText: {
+    color: C.paleGold,
+    fontSize: 12,
+    opacity: 0.5,
+    fontStyle: 'italic',
   },
 });

@@ -198,63 +198,43 @@ export default function ClashVoting({
           <Text style={styles.resultLabel}>
             {succeeded ? 'Rome Prevails' : 'Rome Falters'}
           </Text>
-          <Text style={styles.resultDetail}>
-            {td.committedPower} / {td.threshold} power committed
-          </Text>
+          <Text style={styles.resultCommitted}>{td.committedPower} power committed</Text>
+          {td.withdrawnPower > 0 && (
+            <Text style={styles.resultWithdrawn}>{td.withdrawnPower} power withdrawn</Text>
+          )}
+          <Text style={styles.resultThreshold}>Threshold: {td.threshold}</Text>
         </View>
 
-        {/* Faction assignments */}
+        {/* Per-faction breakdown */}
         {td.factionAssignments && (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Faction Champions</Text>
-            {td.factionAssignments.filter((fa: any) => fa.winners.length > 0).map((fa: any) => (
-              <View key={fa.factionKey} style={styles.factionResultRow}>
-                <Text style={styles.factionResultName}>
-                  {factionInfoMap?.[fa.factionKey]?.displayName ?? fa.factionKey}
-                </Text>
-                <View style={styles.factionResultWinners}>
-                  {fa.winners.map((w: any) => {
-                    const player = players.find((p) => p.player_id === w.playerId);
-                    const isCommitter = (td.committers ?? []).includes(w.playerId);
-                    return (
-                      <View key={w.playerId} style={styles.winnerChip}>
-                        <View style={[styles.playerDot, { backgroundColor: getColorHex(player?.color ?? '') }]} />
-                        <Text style={[styles.winnerName, !isCommitter && styles.winnerWithdrew]}>
-                          {player?.player_name ?? 'Unknown'}
-                        </Text>
-                        {!isCommitter && <Text style={styles.withdrewBadge}>withdrew</Text>}
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Committers / Withdrawers */}
-        <View style={styles.commitSummaryRow}>
-          <View style={styles.commitGroup}>
-            <Text style={[styles.commitGroupLabel, { color: C.positive }]}>Committed</Text>
-            {(td.committers ?? []).map((pid: string) => {
-              const p = players.find((pl) => pl.player_id === pid);
+            {td.factionAssignments.filter((fa: any) => fa.winners.length > 0).map((fa: any) => {
+              const winner = fa.winners[0];
+              const player = players.find((p) => p.player_id === winner?.playerId);
+              const isCommitter = (td.committers ?? []).includes(winner?.playerId);
+              const factionPower = fa.amplifiedPower ?? fa.power ?? 0;
               return (
-                <Text key={pid} style={styles.commitPlayerName}>{p?.player_name ?? pid}</Text>
+                <View key={fa.factionKey} style={styles.factionResultRow}>
+                  <Text style={styles.factionResultName}>
+                    {factionInfoMap?.[fa.factionKey]?.displayName ?? fa.factionKey}
+                  </Text>
+                  <View style={styles.factionResultDetail}>
+                    <View style={styles.winnerChip}>
+                      <View style={[styles.playerDot, { backgroundColor: getColorHex(player?.color ?? '') }]} />
+                      <Text style={styles.winnerName}>{player?.player_name ?? 'Unknown'}</Text>
+                    </View>
+                    <Text style={[
+                      styles.factionPowerContrib,
+                      isCommitter ? styles.powerContribCommit : styles.powerContribWithdraw,
+                    ]}>
+                      {factionPower} power {isCommitter ? 'contributed' : 'withheld'}
+                    </Text>
+                  </View>
+                </View>
               );
             })}
           </View>
-          {(td.withdrawers ?? []).length > 0 && (
-            <View style={styles.commitGroup}>
-              <Text style={[styles.commitGroupLabel, { color: C.negative }]}>Withdrew</Text>
-              {(td.withdrawers ?? []).map((pid: string) => {
-                const p = players.find((pl) => pl.player_id === pid);
-                return (
-                  <Text key={pid} style={styles.commitPlayerName}>{p?.player_name ?? pid}</Text>
-                );
-              })}
-            </View>
-          )}
-        </View>
+        )}
 
         {/* Effects */}
         {Object.keys(axisEffects).filter((k) => axisEffects[k] !== 0).length > 0 && (
@@ -349,10 +329,10 @@ export default function ClashVoting({
       {/* Threshold info */}
       <View style={styles.thresholdBanner}>
         <Text style={styles.thresholdLabel}>
-          Threshold: {Math.round(config.thresholdPercent * 100)}% of total faction power
+          Threshold: {Math.round(amplifiedFactions.reduce((s, f) => s + f.amplifiedPower, 0) * config.thresholdPercent)} power
         </Text>
         <Text style={styles.thresholdNote}>
-          Committed players' faction power must reach the threshold
+          {Math.round(config.thresholdPercent * 100)}% of {amplifiedFactions.reduce((s, f) => s + f.amplifiedPower, 0)} total faction power
         </Text>
       </View>
 
@@ -360,7 +340,7 @@ export default function ClashVoting({
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Bid for Factions</Text>
         <Text style={styles.sectionNote}>
-          Influence remaining: {currentInfluence - totalBid}/{currentInfluence}
+          Influence spent: {totalBid} / {currentInfluence}
         </Text>
 
         {amplifiedFactions.map((f) => {
@@ -368,6 +348,7 @@ export default function ClashVoting({
           const bidVal = parsedBids[f.key];
           const strength = bidStrength(bidVal, affinity);
           const isAmplified = f.amplifier > 1;
+          const atLimit = totalBid >= currentInfluence;
 
           return (
             <View key={f.key} style={styles.factionBidCard}>
@@ -392,20 +373,24 @@ export default function ClashVoting({
                   <Text style={styles.stepButtonText}>−</Text>
                 </Pressable>
                 <TextInput
-                  style={styles.bidInput}
+                  style={[styles.bidInput, !bidValid && bidVal > 0 && styles.bidInputOverspend]}
                   value={bids[f.key] ?? '0'}
                   onChangeText={(t) => setBids((prev) => ({ ...prev, [f.key]: t }))}
                   keyboardType="number-pad"
                   maxLength={4}
                 />
                 <Pressable
-                  style={styles.stepButton}
-                  onPress={() => setBids((prev) => ({
-                    ...prev,
-                    [f.key]: String((parsedBids[f.key] ?? 0) + 1),
-                  }))}
+                  style={[styles.stepButton, atLimit && styles.stepButtonDisabled]}
+                  onPress={() => {
+                    if (atLimit) return;
+                    setBids((prev) => ({
+                      ...prev,
+                      [f.key]: String((parsedBids[f.key] ?? 0) + 1),
+                    }));
+                  }}
+                  disabled={atLimit}
                 >
-                  <Text style={styles.stepButtonText}>+</Text>
+                  <Text style={[styles.stepButtonText, atLimit && styles.stepButtonTextDisabled]}>+</Text>
                 </Pressable>
 
                 {bidVal > 0 && (
@@ -581,10 +566,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  stepButtonDisabled: {
+    opacity: 0.3,
+  },
   stepButtonText: {
     color: C.gold,
     fontSize: 18,
     lineHeight: 22,
+  },
+  stepButtonTextDisabled: {
+    opacity: 0.4,
   },
   bidInput: {
     backgroundColor: whiteBg(0.06),
@@ -598,6 +589,10 @@ const styles = StyleSheet.create({
     width: 56,
     height: 32,
     paddingVertical: 0,
+  },
+  bidInputOverspend: {
+    borderColor: C.error,
+    borderWidth: 2,
   },
   strengthPreview: {
     color: C.paleGold,
@@ -737,15 +732,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  resultDetail: {
-    color: C.paleGold,
+  resultCommitted: {
+    color: C.positive,
     fontSize: 13,
+    fontWeight: '600',
+  },
+  resultWithdrawn: {
+    color: C.negative,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  resultThreshold: {
+    color: C.paleGold,
+    fontSize: 12,
     opacity: 0.7,
   },
   factionResultRow: {
     backgroundColor: goldBg(0.06),
     borderRadius: 6,
-    padding: 8,
+    padding: 10,
     gap: 4,
   },
   factionResultName: {
@@ -753,39 +758,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  factionResultWinners: { gap: 4 },
+  factionResultDetail: {
+    gap: 2,
+    paddingLeft: 4,
+  },
   winnerChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingLeft: 8,
   },
   winnerName: {
     color: C.paleGold,
     fontSize: 12,
   },
-  winnerWithdrew: {
-    opacity: 0.5,
-  },
-  withdrewBadge: {
-    color: C.negative,
-    fontSize: 10,
+  factionPowerContrib: {
+    fontSize: 11,
     fontWeight: '600',
+    paddingLeft: 16,
   },
-  commitSummaryRow: {
-    flexDirection: 'row',
-    gap: 12,
+  powerContribCommit: {
+    color: C.positive,
   },
-  commitGroup: { flex: 1, gap: 4 },
-  commitGroupLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  commitPlayerName: {
-    color: C.paleGold,
-    fontSize: 12,
+  powerContribWithdraw: {
+    color: C.negative,
   },
   effectsSection: { gap: 6, marginTop: 4 },
   continueButton: {

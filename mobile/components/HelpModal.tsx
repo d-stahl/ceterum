@@ -265,19 +265,20 @@ export default function HelpModal({ helpId, onDismiss }: Props) {
       animationType="slide"
       onRequestClose={onDismiss}
     >
-      <Pressable style={styles.backdrop} onPress={onDismiss}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
+      <View style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
+        <View style={styles.sheet}>
           <View style={styles.handle} />
           <Text style={styles.title}>{entry.title}</Text>
           <View style={styles.divider} />
-          <ScrollView>
+          <ScrollView style={{ flex: 1 }}>
             <Text style={styles.body}>{entry.body}</Text>
           </ScrollView>
           <Pressable style={styles.closeButton} onPress={onDismiss}>
             <Text style={styles.closeButtonText}>Got it</Text>
           </Pressable>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }

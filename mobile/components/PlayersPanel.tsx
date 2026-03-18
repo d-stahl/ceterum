@@ -2,9 +2,9 @@ import {
   View, Text, StyleSheet, Pressable, ScrollView, Animated,
   Dimensions, PanResponder,
 } from 'react-native';
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
 import { getColorHex } from '../lib/player-colors';
-import { AXIS_KEYS } from '../lib/game-engine/axes';
+import { AXIS_KEYS, AXIS_LABELS, AxisKey, computeAxisScore } from '../lib/game-engine/axes';
 import { C, goldBg, darkBrownBg } from '../lib/theme';
 import { PlayerAgendaInfo } from './AgendaDots';
 import { AxisEffectSlider } from './ControversyCard';
@@ -24,6 +24,12 @@ type PlayerState = {
   victory_points: number;
 };
 
+type OutcomeRow = {
+  controversy_key: string;
+  controversy_type: string;
+  type_data: any;
+};
+
 type Props = {
   players: PlayerInfo[];
   playerStates: PlayerState[];
@@ -33,6 +39,7 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   hideTab?: boolean;
+  allOutcomes?: OutcomeRow[];
 };
 
 export default function PlayersPanel({
@@ -44,6 +51,7 @@ export default function PlayersPanel({
   visible,
   onClose,
   hideTab,
+  allOutcomes = [],
 }: Props) {
   const slideAnim = useRef(new Animated.Value(PANEL_WIDTH)).current;
 
@@ -69,8 +77,50 @@ export default function PlayersPanel({
     },
   }), [onClose]);
 
-  // Sort players by influence desc
+  const [showPolicyDetail, setShowPolicyDetail] = useState(false);
+  const [showResolutionDetail, setShowResolutionDetail] = useState(false);
+
+  // Compute scores
+  const agendaScores: Record<string, number> = {};
+  const perAxisScores: Record<string, Record<string, number>> = {};
+  for (const pa of playerAgendas) {
+    let total = 0;
+    const perAxis: Record<string, number> = {};
+    for (const axis of AXIS_KEYS) {
+      const agendaPos = pa.agenda[axis];
+      if (agendaPos == null) continue;
+      const score = computeAxisScore(axes[axis] ?? 0, agendaPos);
+      perAxis[axis] = score;
+      total += score;
+    }
+    agendaScores[pa.playerId] = total;
+    perAxisScores[pa.playerId] = perAxis;
+  }
+
+  const resolutionVPs: Record<string, number> = {};
+  for (const oc of allOutcomes) {
+    const td = oc.type_data;
+    if (!td) continue;
+    if (oc.controversy_type === 'clash' && td.succeeded && td.victoryPoints) {
+      for (const ps of playerStates) {
+        resolutionVPs[ps.player_id] = (resolutionVPs[ps.player_id] ?? 0) + td.victoryPoints;
+      }
+    } else if (oc.controversy_type === 'schism' && td.victoryPoints && td.winnerPlayerIds) {
+      for (const pid of td.winnerPlayerIds) {
+        resolutionVPs[pid] = (resolutionVPs[pid] ?? 0) + td.victoryPoints;
+      }
+    } else if (oc.controversy_type === 'endeavour' && td.succeeded && td.rankings) {
+      for (const r of td.rankings) {
+        if (r.vpAwarded > 0) resolutionVPs[r.playerId] = (resolutionVPs[r.playerId] ?? 0) + r.vpAwarded;
+      }
+    }
+  }
+
+  // Sort players by total score desc
   const sortedPlayers = [...players].sort((a, b) => {
+    const scoreA = (agendaScores[a.player_id] ?? 0) + (resolutionVPs[a.player_id] ?? 0);
+    const scoreB = (agendaScores[b.player_id] ?? 0) + (resolutionVPs[b.player_id] ?? 0);
+    if (scoreB !== scoreA) return scoreB - scoreA;
     const infA = playerStates.find((ps) => ps.player_id === a.player_id)?.influence ?? 0;
     const infB = playerStates.find((ps) => ps.player_id === b.player_id)?.influence ?? 0;
     return infB - infA;
@@ -142,19 +192,81 @@ export default function PlayersPanel({
             })}
           </View>
 
-          {/* Agenda sliders */}
+          {/* Current Standing */}
           {playerAgendas.length > 0 && (
-            <View style={styles.agendasSection}>
-              <Text style={styles.sectionTitle}>Agenda Positions</Text>
-              {AXIS_KEYS.map((axis) => (
-                <AxisEffectSlider
-                  key={axis}
-                  axis={axis}
-                  change={0}
-                  currentValue={axes[axis] ?? 0}
-                  playerAgendas={playerAgendas}
-                />
-              ))}
+            <View style={styles.standingSection}>
+              <Text style={styles.sectionTitle}>Current Standing</Text>
+
+              {/* Policy Agenda */}
+              <View style={styles.standingBlock}>
+                <Pressable
+                  style={styles.standingToggle}
+                  onPress={() => setShowPolicyDetail((v) => !v)}
+                >
+                  <Text style={styles.standingLabel}>Policy Agenda</Text>
+                  <Text style={styles.chevron}>{showPolicyDetail ? '▲' : '▼'}</Text>
+                </Pressable>
+                <View style={styles.scoreSummary}>
+                  {sortedPlayers.map((p) => (
+                    <View key={p.player_id} style={styles.scoreRow}>
+                      <View style={[styles.colorDot, { backgroundColor: getColorHex(p.color) }]} />
+                      <Text style={styles.scorePlayerName}>{p.player_name}</Text>
+                      <Text style={styles.scoreValue}>+{agendaScores[p.player_id] ?? 0}</Text>
+                    </View>
+                  ))}
+                </View>
+                {showPolicyDetail && (
+                  <View style={styles.policyDetail}>
+                    {AXIS_KEYS.map((axis) => {
+                      const labels = AXIS_LABELS[axis as AxisKey];
+                      const val = axes[axis] ?? 0;
+                      const posLabel = val === 0
+                        ? 'Neutral'
+                        : `${Math.abs(val) >= 2 ? 'Extreme' : 'Moderate'} ${val > 0 ? labels.positive : labels.negative}`;
+                      const scorers = playerAgendas
+                        .map((pa) => {
+                          const s = perAxisScores[pa.playerId]?.[axis];
+                          if (!s) return null;
+                          return { id: pa.playerId, name: pa.name, color: pa.color, score: s };
+                        })
+                        .filter(Boolean) as { id: string; name: string; color: string; score: number }[];
+                      return (
+                        <View key={axis} style={styles.axisBlock}>
+                          <AxisEffectSlider axis={axis} change={0} currentValue={val} playerAgendas={playerAgendas} />
+                          <Text style={styles.axisLabel}>{posLabel}</Text>
+                          {scorers.map((s) => (
+                            <View key={s.id} style={styles.scoreRow}>
+                              <View style={[styles.colorDot, { backgroundColor: getColorHex(s.color) }]} />
+                              <Text style={styles.scorePlayerName}>{s.name}</Text>
+                              <Text style={styles.scoreValue}>+{s.score}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+
+              {/* Resolutions */}
+              <View style={styles.standingBlock}>
+                <Pressable
+                  style={styles.standingToggle}
+                  onPress={() => setShowResolutionDetail((v) => !v)}
+                >
+                  <Text style={styles.standingLabel}>Resolutions</Text>
+                  <Text style={styles.chevron}>{showResolutionDetail ? '▲' : '▼'}</Text>
+                </Pressable>
+                <View style={styles.scoreSummary}>
+                  {sortedPlayers.map((p) => (
+                    <View key={p.player_id} style={styles.scoreRow}>
+                      <View style={[styles.colorDot, { backgroundColor: getColorHex(p.color) }]} />
+                      <Text style={styles.scorePlayerName}>{p.player_name}</Text>
+                      <Text style={styles.scoreValue}>+{resolutionVPs[p.player_id] ?? 0}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
             </View>
           )}
         </ScrollView>
@@ -281,15 +393,68 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-  // Agendas section
-  agendasSection: {
-    gap: 4,
+  // Standing section
+  standingSection: {
+    gap: 12,
   },
   sectionTitle: {
     color: C.gold,
     fontSize: 13,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: 4,
     opacity: 0.8,
+  },
+  standingBlock: {
+    gap: 6,
+  },
+  standingToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  standingLabel: {
+    color: C.paleGold,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  chevron: {
+    color: C.gold,
+    fontSize: 12,
+    opacity: 0.6,
+  },
+  scoreSummary: {
+    gap: 3,
+    paddingLeft: 4,
+  },
+  scoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  scorePlayerName: {
+    color: C.paleGold,
+    fontSize: 12,
+    flex: 1,
+  },
+  scoreValue: {
+    color: C.gold,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  policyDetail: {
+    marginTop: 6,
+    gap: 8,
+  },
+  axisBlock: {
+    gap: 2,
+  },
+  axisLabel: {
+    color: C.paleGold,
+    fontSize: 11,
+    opacity: 0.55,
+    fontStyle: 'italic',
+    paddingLeft: 4,
   },
 });

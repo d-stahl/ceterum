@@ -232,6 +232,7 @@ Deno.serve(async (req) => {
     const typeData = {
       threshold: result.threshold,
       committedPower: result.committedPower,
+      withdrawnPower: result.withdrawnPower,
       totalAvailablePower: result.totalAvailablePower,
       succeeded: result.succeeded,
       factionAssignments: result.factionAssignments.map((a: any) => ({
