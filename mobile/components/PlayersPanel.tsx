@@ -6,6 +6,7 @@ import { useEffect, useRef, useMemo, useState } from 'react';
 import { getColorHex } from '../lib/player-colors';
 import { AXIS_KEYS, AXIS_LABELS, AxisKey, computeAxisScore } from '../lib/game-engine/axes';
 import { C, goldBg, darkBrownBg } from '../lib/theme';
+import { CONTROVERSY_MAP } from '../lib/game-engine/controversies';
 import { PlayerAgendaInfo } from './AgendaDots';
 import { AxisEffectSlider } from './ControversyCard';
 
@@ -172,18 +173,12 @@ export default function PlayersPanel({
             {sortedPlayers.map((p) => {
               const ps = playerStates.find((s) => s.player_id === p.player_id);
               const inf = ps?.influence ?? 0;
-              const vp = ps?.victory_points ?? 0;
               return (
                 <View key={p.player_id} style={styles.playerRow}>
                   <View style={[styles.colorDot, { backgroundColor: getColorHex(p.color) }]} />
                   <Text style={styles.playerName}>
                     {p.player_name}{p.player_id === currentUserId ? <Text style={styles.youLabel}> (You)</Text> : null}
                   </Text>
-                  {vp > 0 && (
-                    <View style={styles.vpBadge}>
-                      <Text style={styles.vpText}>{vp} VP</Text>
-                    </View>
-                  )}
                   <View style={styles.influenceBadge}>
                     <Text style={styles.influenceText}>{inf}</Text>
                   </View>
@@ -266,6 +261,60 @@ export default function PlayersPanel({
                     </View>
                   ))}
                 </View>
+                {showResolutionDetail && (
+                  <View style={styles.policyDetail}>
+                    {allOutcomes.filter((oc) => {
+                      const td = oc.type_data;
+                      if (!td) return false;
+                      if (oc.controversy_type === 'clash') return td.succeeded && td.victoryPoints;
+                      if (oc.controversy_type === 'schism') return td.victoryPoints && td.winnerPlayerIds?.length;
+                      if (oc.controversy_type === 'endeavour') return td.succeeded && td.rankings?.some((r: any) => r.vpAwarded > 0);
+                      return false;
+                    }).map((oc) => {
+                      const title = CONTROVERSY_MAP[oc.controversy_key]?.title ?? oc.controversy_key;
+                      const td = oc.type_data;
+                      const perPlayer: { pid: string; vp: number }[] = [];
+                      if (oc.controversy_type === 'clash') {
+                        for (const ps of playerStates) {
+                          perPlayer.push({ pid: ps.player_id, vp: td.victoryPoints });
+                        }
+                      } else if (oc.controversy_type === 'schism') {
+                        for (const pid of td.winnerPlayerIds) {
+                          perPlayer.push({ pid, vp: td.victoryPoints });
+                        }
+                      } else if (oc.controversy_type === 'endeavour') {
+                        for (const r of td.rankings) {
+                          if (r.vpAwarded > 0) perPlayer.push({ pid: r.playerId, vp: r.vpAwarded });
+                        }
+                      }
+                      return (
+                        <View key={oc.controversy_key} style={styles.axisBlock}>
+                          <Text style={styles.resolutionTitle}>{title}</Text>
+                          {perPlayer.map(({ pid, vp }) => {
+                            const player = players.find((p) => p.player_id === pid);
+                            return (
+                              <View key={pid} style={styles.scoreRow}>
+                                <View style={[styles.colorDot, { backgroundColor: getColorHex(player?.color ?? '') }]} />
+                                <Text style={styles.scorePlayerName}>{player?.player_name ?? 'Unknown'}</Text>
+                                <Text style={styles.scoreValue}>+{vp}</Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      );
+                    })}
+                    {allOutcomes.filter((oc) => {
+                      const td = oc.type_data;
+                      if (!td) return false;
+                      if (oc.controversy_type === 'clash') return td.succeeded && td.victoryPoints;
+                      if (oc.controversy_type === 'schism') return td.victoryPoints && td.winnerPlayerIds?.length;
+                      if (oc.controversy_type === 'endeavour') return td.succeeded && td.rankings?.some((r: any) => r.vpAwarded > 0);
+                      return false;
+                    }).length === 0 && (
+                      <Text style={styles.axisLabel}>No VP-awarding resolutions yet</Text>
+                    )}
+                  </View>
+                )}
               </View>
             </View>
           )}
@@ -382,17 +431,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  vpBadge: {
-    backgroundColor: '#ab47bc30',
-    borderRadius: 10,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  vpText: {
-    color: '#ce93d8',
-    fontSize: 11,
-    fontWeight: '700',
-  },
   // Standing section
   standingSection: {
     gap: 12,
@@ -456,5 +494,11 @@ const styles = StyleSheet.create({
     opacity: 0.55,
     fontStyle: 'italic',
     paddingLeft: 4,
+  },
+  resolutionTitle: {
+    color: C.paleGold,
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
   },
 });

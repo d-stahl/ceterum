@@ -24,11 +24,19 @@ export interface ControversyOutcome {
 
 // --- Type-specific configs ---
 
+export interface ClashPersonalEffects {
+  commitSuccess: { affinityBonus: number };      // affinity bonus with won factions
+  commitFailure: { influenceLoss: number; affinityPenalty: number }; // influence lost + affinity penalty with won factions
+  withdrawSuccess: { affinityPenalty: number };   // affinity penalty with won factions ("you held us back")
+  // withdrawFailure: no effect (stayed home, no blame)
+}
+
 export interface ClashConfig {
   thresholdPercent: number;  // e.g. 0.70 = 70% of total available faction power
   factionAmplifiers: Partial<Record<string, number>>;  // factionKey -> multiplier (2 = critical)
   successOutcome: ControversyOutcome & { victoryPoints: number };
   failureOutcome: ControversyOutcome;
+  personalEffects?: ClashPersonalEffects;  // per-player effects scoped to won factions
 }
 
 export interface EndeavourConfig {
@@ -787,6 +795,11 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       failureOutcome: {
         axisEffects: { militarism: -1, commerce: -1 },
         factionPowerEffects: { nautae: -1 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 3, affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -2 },
       },
     },
   },

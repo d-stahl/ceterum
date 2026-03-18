@@ -65,6 +65,7 @@ type Round = {
   upcoming_pool: string[];
   initial_faction_powers: Record<string, number> | null;
   initial_influence: Record<string, number> | null;
+  end_of_round_influence: Record<string, number> | null;
 };
 
 type PlayerInfo = {
@@ -159,6 +160,7 @@ function GameScreenInner() {
     roundNumber: number;
     controversyStates: ControversyStateRow[];
     initialFactionPowers: Record<string, number>;
+    endOfRoundInfluence: Record<string, number> | null;
     playerStates: typeof playerStates;
     axes: typeof axes;
     factions: typeof factions;
@@ -496,7 +498,7 @@ function GameScreenInner() {
   async function loadRound() {
     const { data } = await supabase
       .from('game_rounds')
-      .select('id, round_number, phase, sub_round, senate_leader_id, controversy_pool, controversies_resolved, upcoming_pool, initial_faction_powers, initial_influence')
+      .select('id, round_number, phase, sub_round, senate_leader_id, controversy_pool, controversies_resolved, upcoming_pool, initial_faction_powers, initial_influence, end_of_round_influence')
       .eq('game_id', gameId)
       .order('round_number', { ascending: false })
       .limit(1)
@@ -523,6 +525,7 @@ function GameScreenInner() {
           roundNumber: data.round_number,
           controversyStates: snappedStates,
           initialFactionPowers: data.initial_faction_powers ?? {},
+          endOfRoundInfluence: data.end_of_round_influence ?? null,
           playerStates: [...playerStates],
           axes: [...axes],
           factions: [...factions],
@@ -1175,6 +1178,21 @@ function GameScreenInner() {
   const myTotalPlacements = placements.filter((p) => p.player_id === currentUserId).length;
   const isSittingOut = myTotalPlacements >= 3 && phase === 'demagogery';
 
+  // Auto-submit sit-out when all slots are locked (e.g. all demagog carry-forwards).
+  // This triggers the server-side done-count check so resolution can fire.
+  const sitOutSubmittedRef = useRef(false);
+  useEffect(() => {
+    if (!isSittingOut || sitOutSubmittedRef.current || !factions.length || !gameId) return;
+    sitOutSubmittedRef.current = true;
+    submitPlacement(gameId, factions[0].id, 'orator', 'demagog').catch(() => {
+      // Expected to silently succeed (SQL skips INSERT for sit-out players)
+    });
+  }, [isSittingOut, factions, gameId]);
+  // Reset sit-out tracker when round changes
+  useEffect(() => {
+    sitOutSubmittedRef.current = false;
+  }, [round?.id]);
+
   // "Done" this sub-round = placed this sub-round (non-locked) OR sitting out (>= 3 total)
   const doneCount = round
     ? players.filter((p) => {
@@ -1481,8 +1499,10 @@ function GameScreenInner() {
             roundNumber={snappedRoundNumber}
             isGameOver={snappedRoundNumber >= 6}
             playerInfluences={players.map((p) => {
-              const snappedPS = roundEndSnapshot?.playerStates ?? playerStates;
-              const currentInf = snappedPS.find((ps) => ps.player_id === p.player_id)?.influence ?? 0;
+              const endInf = roundEndSnapshot?.endOfRoundInfluence;
+              const currentInf = endInf
+                ? (endInf[p.player_id] ?? 0)
+                : (roundEndSnapshot?.playerStates ?? playerStates).find((ps) => ps.player_id === p.player_id)?.influence ?? 0;
               return {
                 player_id: p.player_id,
                 player_name: p.player_name,

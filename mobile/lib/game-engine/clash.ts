@@ -1,5 +1,5 @@
 import { AxisKey } from './axes.ts';
-import { ClashConfig } from './controversies.ts';
+import { ClashConfig, ClashPersonalEffects } from './controversies.ts';
 
 export interface ClashSubmission {
   playerId: string;
@@ -14,6 +14,14 @@ export interface FactionAssignment {
   amplifiedPower: number;   // after amplifier
 }
 
+export interface PlayerPersonalEffect {
+  vpAwarded: number;
+  influenceLoss: number;
+  affinityDelta: number;        // bonus or penalty applied to won factions
+  wonFactions: string[];        // faction keys this player won
+  committed: boolean;
+}
+
 export interface ClashResult {
   factionAssignments: FactionAssignment[];
   committedPower: number;
@@ -26,6 +34,7 @@ export interface ClashResult {
   victoryPoints: number;  // 0 on failure
   committers: string[];
   withdrawers: string[];
+  personalEffects: Record<string, PlayerPersonalEffect>;
 }
 
 /** Compute bid strength: influence × (1 + affinity × 0.10) */
@@ -146,6 +155,47 @@ export function resolveClash(
 
   const outcome = succeeded ? config.successOutcome : config.failureOutcome;
 
+  // Compute won factions per player
+  const wonFactions: Record<string, string[]> = {};
+  for (const sub of submissions) wonFactions[sub.playerId] = [];
+  for (const assignment of assignments) {
+    for (const winner of assignment.winners) {
+      if (!wonFactions[winner.playerId]) wonFactions[winner.playerId] = [];
+      wonFactions[winner.playerId].push(assignment.factionKey);
+    }
+  }
+
+  // Compute per-player personal effects
+  const pe = config.personalEffects;
+  const personalEffects: Record<string, PlayerPersonalEffect> = {};
+  for (const sub of submissions) {
+    const effect: PlayerPersonalEffect = {
+      vpAwarded: 0,
+      influenceLoss: 0,
+      affinityDelta: 0,
+      wonFactions: wonFactions[sub.playerId] ?? [],
+      committed: sub.commits,
+    };
+    if (pe) {
+      if (sub.commits && succeeded) {
+        effect.vpAwarded = config.successOutcome.victoryPoints;
+        effect.affinityDelta = pe.commitSuccess.affinityBonus;
+      } else if (sub.commits && !succeeded) {
+        effect.influenceLoss = pe.commitFailure.influenceLoss;
+        effect.affinityDelta = pe.commitFailure.affinityPenalty;
+      } else if (!sub.commits && succeeded) {
+        effect.affinityDelta = pe.withdrawSuccess.affinityPenalty;
+      }
+      // !commits && !succeeded → no personal effect
+    } else {
+      // Legacy: no personal effects, VP to all committers on success
+      if (sub.commits && succeeded) {
+        effect.vpAwarded = config.successOutcome.victoryPoints;
+      }
+    }
+    personalEffects[sub.playerId] = effect;
+  }
+
   return {
     factionAssignments: assignments,
     committedPower: Math.floor(committedPower),
@@ -158,5 +208,6 @@ export function resolveClash(
     victoryPoints: succeeded ? config.successOutcome.victoryPoints : 0,
     committers,
     withdrawers,
+    personalEffects,
   };
 }

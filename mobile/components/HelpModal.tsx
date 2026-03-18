@@ -209,11 +209,15 @@ Each player bids influence to claim factions. Bid strength is multiplicative: yo
 
 After bidding, each player secretly declares: Commit or Withdraw. Committed players' factions contribute their power toward the threshold. Withdrawn players sit it out.
 
-If total committed power meets the threshold, the Clash succeeds — all committed players share victory points and policy effects. If it fails, negative effects apply.
+Your consequences depend on your choice and the outcome:
+• Commit + Success: Victory points + affinity bonus with your factions
+• Commit + Failure: Influence loss + affinity penalty with your factions
+• Withdraw + Success: No VP + affinity penalty ("you held us back")
+• Withdraw + Failure: No effect (stayed home, no blame)
 
 Critical factions (marked with a multiplier) contribute amplified power. Claiming and committing a critical faction can make or break the outcome.
 
-The betrayal: grab critical factions, then withdraw. The Clash fails because your factions aren't contributing, and you've denied them to players who would have committed.`,
+The betrayal: grab critical factions, then withdraw. The Clash fails because your factions aren't contributing, and you've denied them to players who would have committed. But if the Clash succeeds anyway, your factions will resent your cowardice.`,
   },
   'controversy-schism': {
     title: 'Schism',
@@ -271,7 +275,7 @@ export default function HelpModal({ helpId, onDismiss }: Props) {
           <View style={styles.handle} />
           <Text style={styles.title}>{entry.title}</Text>
           <View style={styles.divider} />
-          <ScrollView style={{ flex: 1 }}>
+          <ScrollView style={{ flexShrink: 1 }}>
             <Text style={styles.body}>{entry.body}</Text>
           </ScrollView>
           <Pressable style={styles.closeButton} onPress={onDismiss}>

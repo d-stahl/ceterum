@@ -137,14 +137,30 @@ Deno.serve(async (req) => {
         .eq('faction_key', factionKey);
     }
 
-    // Award VP to committers on success
-    if (result.succeeded && result.victoryPoints > 0) {
-      for (const committerId of result.committers) {
+    // Apply personal effects (VP, influence loss) per player
+    for (const [playerId, pe] of Object.entries(result.personalEffects)) {
+      if (pe.vpAwarded > 0) {
         await adminClient.rpc('increment_victory_points', {
           p_game_id: game_id,
-          p_player_id: committerId,
-          p_amount: result.victoryPoints,
+          p_player_id: playerId,
+          p_amount: pe.vpAwarded,
         });
+      }
+      if (pe.influenceLoss > 0) {
+        // Deduct influence (floor at 0)
+        const { data: ps } = await adminClient
+          .from('game_player_state')
+          .select('influence')
+          .eq('game_id', game_id)
+          .eq('player_id', playerId)
+          .single();
+        if (ps) {
+          await adminClient
+            .from('game_player_state')
+            .update({ influence: Math.max(0, ps.influence - pe.influenceLoss) })
+            .eq('game_id', game_id)
+            .eq('player_id', playerId);
+        }
       }
     }
 
@@ -202,6 +218,39 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Apply personal affinity effects scoped to won factions
+    for (const [playerId, pe] of Object.entries(result.personalEffects)) {
+      if (pe.affinityDelta === 0 || pe.wonFactions.length === 0) continue;
+      for (const factionKey of pe.wonFactions) {
+        // Track in affinityEffects for outcome display
+        if (!affinityEffects[playerId]) affinityEffects[playerId] = {};
+        affinityEffects[playerId][factionKey] = (affinityEffects[playerId][factionKey] ?? 0) + pe.affinityDelta;
+        // Track before if not already captured
+        if (!affinityBefore[playerId]) affinityBefore[playerId] = {};
+
+        // Fetch current affinity and apply
+        const { data: currentAff } = await adminClient
+          .from('game_player_faction_affinity')
+          .select('faction_id, affinity')
+          .eq('game_id', game_id)
+          .eq('player_id', playerId)
+          .eq('faction_id', (factions.find((f: any) => f.faction_key === factionKey) as any)?.id)
+          .single();
+        if (currentAff) {
+          if (affinityBefore[playerId][factionKey] == null) {
+            affinityBefore[playerId][factionKey] = currentAff.affinity;
+          }
+          const newAff = Math.max(-5, Math.min(5, currentAff.affinity + pe.affinityDelta));
+          await adminClient
+            .from('game_player_faction_affinity')
+            .update({ affinity: newAff })
+            .eq('game_id', game_id)
+            .eq('player_id', playerId)
+            .eq('faction_id', currentAff.faction_id);
+        }
+      }
+    }
+
     // Build outcome data
     const axisOutcomes: Record<string, { before: number; after: number }> = {};
     for (const [axis, delta] of Object.entries(result.axisEffects)) {
@@ -246,6 +295,7 @@ Deno.serve(async (req) => {
       committers: result.committers,
       withdrawers: result.withdrawers,
       victoryPoints: result.victoryPoints,
+      personalEffects: result.personalEffects,
     };
 
     const { error: outcomeError } = await adminClient

@@ -115,6 +115,7 @@ export default function ClashVoting({
   }
 
   const config = controversy.clashConfig;
+  const pe = config.personalEffects ?? null;
   const amplifiedFactions = activeFactionKeys.map((fkey) => ({
     key: fkey,
     name: factionInfoMap?.[fkey]?.displayName ?? fkey,
@@ -265,6 +266,47 @@ export default function ClashVoting({
           </View>
         )}
 
+        {/* Personal effects per player */}
+        {td.personalEffects && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Player Outcomes</Text>
+            {players.map((p) => {
+              const eff = td.personalEffects?.[p.player_id];
+              if (!eff) return null;
+              const committed = eff.committed;
+              const parts: string[] = [];
+              if (eff.vpAwarded > 0) parts.push(`+${eff.vpAwarded} VP`);
+              if (eff.influenceLoss > 0) parts.push(`−${eff.influenceLoss} influence`);
+              if (eff.affinityDelta !== 0 && eff.wonFactions.length > 0) {
+                const sign = eff.affinityDelta > 0 ? '+' : '';
+                const fNames = eff.wonFactions.map((fk: string) => factionInfoMap?.[fk]?.displayName ?? fk).join(', ');
+                parts.push(`Affinity ${sign}${eff.affinityDelta} with ${fNames}`);
+              }
+              return (
+                <View key={p.player_id} style={styles.personalEffectRow}>
+                  <View style={styles.personalEffectHeader}>
+                    <View style={[styles.playerDot, { backgroundColor: getColorHex(p.color) }]} />
+                    <Text style={styles.personalEffectName}>{p.player_name}</Text>
+                    <Text style={[
+                      styles.personalEffectChoice,
+                      committed ? styles.powerContribCommit : styles.powerContribWithdraw,
+                    ]}>
+                      {committed ? 'Committed' : 'Withdrew'}
+                    </Text>
+                  </View>
+                  {parts.length > 0 ? (
+                    parts.map((part, i) => (
+                      <Text key={i} style={styles.personalEffectDetail}>{part}</Text>
+                    ))
+                  ) : (
+                    <Text style={styles.personalEffectDetail}>No effect</Text>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
+
         <Pressable style={styles.continueButton} onPress={onContinue}>
           <Text style={styles.continueButtonText}>Continue</Text>
         </Pressable>
@@ -364,13 +406,14 @@ export default function ClashVoting({
 
               <View style={styles.bidInputRow}>
                 <Pressable
-                  style={styles.stepButton}
+                  style={[styles.stepButton, bidVal <= 0 && styles.stepButtonDisabled]}
                   onPress={() => setBids((prev) => ({
                     ...prev,
                     [f.key]: String(Math.max(0, (parsedBids[f.key] ?? 0) - 1)),
                   }))}
+                  disabled={bidVal <= 0}
                 >
-                  <Text style={styles.stepButtonText}>−</Text>
+                  <Text style={[styles.stepButtonText, bidVal <= 0 && styles.stepButtonTextDisabled]}>−</Text>
                 </Pressable>
                 <TextInput
                   style={[styles.bidInput, !bidValid && bidVal > 0 && styles.bidInputOverspend]}
@@ -413,42 +456,74 @@ export default function ClashVoting({
         )}
       </View>
 
-      {/* Commit / Withdraw */}
+      {/* Commit / Withdraw with consequences */}
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Commitment</Text>
-        {isSL ? (
-          <Text style={styles.slForcedNote}>As Senate Leader, you must commit.</Text>
-        ) : (
-          <View style={styles.commitToggle}>
-            <Pressable
-              style={[styles.commitOption, commits && styles.commitOptionActive]}
-              onPress={() => setCommits(true)}
-            >
-              <Text style={[styles.commitOptionText, commits && styles.commitOptionTextActive]}>
-                Commit
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.commitOption, !commits && styles.withdrawOptionActive]}
-              onPress={() => setCommits(false)}
-            >
-              <Text style={[styles.commitOptionText, !commits && styles.commitOptionTextActive]}>
-                Withdraw
-              </Text>
-            </Pressable>
-          </View>
-        )}
-      </View>
-
-      {/* Outcomes preview */}
-      <View style={styles.outcomesRow}>
-        <View style={[styles.outcomeCard, styles.outcomeSuccess]}>
-          <Text style={styles.outcomeLabel}>On Success</Text>
-          <Text style={styles.outcomeVP}>{config.successOutcome.victoryPoints} VP each</Text>
-        </View>
-        <View style={[styles.outcomeCard, styles.outcomeFailure]}>
-          <Text style={styles.outcomeLabel}>On Failure</Text>
-          <Text style={styles.outcomeEffect}>No VP</Text>
+        <Text style={styles.sectionLabel}>Your Decision</Text>
+        <View style={styles.commitToggle}>
+          <Pressable
+            style={[styles.quadrantBox, commits && styles.quadrantBoxCommitActive]}
+            onPress={() => setCommits(true)}
+            disabled={isSL}
+          >
+            <Text style={[styles.quadrantTitle, commits && styles.quadrantTitleActive]}>
+              {isSL ? '■ COMMIT (Required)' : '■ COMMIT'}
+            </Text>
+            {pe ? (
+              <>
+                <Text style={styles.quadrantSubhead}>On Success</Text>
+                <Text style={styles.quadrantEffect}>+{config.successOutcome.victoryPoints} VP</Text>
+                {pe.commitSuccess.affinityBonus !== 0 && (
+                  <Text style={styles.quadrantEffect}>Affinity +{pe.commitSuccess.affinityBonus} with your factions</Text>
+                )}
+                <View style={styles.quadrantDivider} />
+                <Text style={styles.quadrantSubhead}>On Failure</Text>
+                {pe.commitFailure.influenceLoss > 0 && (
+                  <Text style={styles.quadrantEffectBad}>−{pe.commitFailure.influenceLoss} influence</Text>
+                )}
+                {pe.commitFailure.affinityPenalty !== 0 && (
+                  <Text style={styles.quadrantEffectBad}>Affinity {pe.commitFailure.affinityPenalty} with your factions</Text>
+                )}
+              </>
+            ) : (
+              <>
+                <Text style={styles.quadrantSubhead}>On Success</Text>
+                <Text style={styles.quadrantEffect}>+{config.successOutcome.victoryPoints} VP</Text>
+                <View style={styles.quadrantDivider} />
+                <Text style={styles.quadrantSubhead}>On Failure</Text>
+                <Text style={styles.quadrantEffectNeutral}>No VP</Text>
+              </>
+            )}
+          </Pressable>
+          <Pressable
+            style={[styles.quadrantBox, !commits && styles.quadrantBoxWithdrawActive, isSL && styles.quadrantBoxDisabled]}
+            onPress={() => setCommits(false)}
+            disabled={isSL}
+          >
+            <Text style={[styles.quadrantTitle, !commits && styles.quadrantTitleActive, isSL && { opacity: 0.3 }]}>
+              WITHDRAW
+            </Text>
+            {pe ? (
+              <>
+                <Text style={styles.quadrantSubhead}>On Success</Text>
+                <Text style={styles.quadrantEffectBad}>No VP</Text>
+                {pe.withdrawSuccess.affinityPenalty !== 0 && (
+                  <Text style={styles.quadrantEffectBad}>Affinity {pe.withdrawSuccess.affinityPenalty} with your factions</Text>
+                )}
+                <View style={styles.quadrantDivider} />
+                <Text style={styles.quadrantSubhead}>On Failure</Text>
+                <Text style={styles.quadrantEffectNeutral}>No effect</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.quadrantSubhead}>On Success</Text>
+                <Text style={styles.quadrantEffectNeutral}>No VP</Text>
+                <View style={styles.quadrantDivider} />
+                <Text style={styles.quadrantSubhead}>On Failure</Text>
+                <Text style={styles.quadrantEffectNeutral}>No effect</Text>
+              </>
+            )}
+            {isSL && <Text style={styles.slDisabledNote}>Senate Leader must commit</Text>}
+          </Pressable>
         </View>
       </View>
 
@@ -605,69 +680,76 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  commitOption: {
+  quadrantBox: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: goldBg(0.3),
-    alignItems: 'center',
-  },
-  commitOptionActive: {
-    backgroundColor: C.positive + '25',
-    borderColor: C.positive + '60',
-  },
-  withdrawOptionActive: {
-    backgroundColor: C.negative + '25',
-    borderColor: C.negative + '60',
-  },
-  commitOptionText: {
-    color: C.paleGold,
-    fontSize: 14,
-    fontWeight: '600',
-    opacity: 0.5,
-  },
-  commitOptionTextActive: {
-    opacity: 1,
-  },
-  slForcedNote: {
-    color: C.gold,
-    fontSize: 13,
-    opacity: 0.7,
-    fontStyle: 'italic',
-  },
-  outcomesRow: { flexDirection: 'row', gap: 8 },
-  outcomeCard: {
-    flex: 1,
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 10,
+    padding: 12,
     gap: 4,
     borderWidth: 1,
+    borderColor: goldBg(0.25),
+    backgroundColor: navyBg(0.5),
   },
-  outcomeSuccess: {
-    backgroundColor: C.positive + '12',
-    borderColor: C.positive + '30',
+  quadrantBoxCommitActive: {
+    backgroundColor: C.positive + '18',
+    borderColor: C.positive + '50',
+    borderWidth: 2,
   },
-  outcomeFailure: {
-    backgroundColor: C.negative + '12',
-    borderColor: C.negative + '30',
+  quadrantBoxWithdrawActive: {
+    backgroundColor: C.negative + '18',
+    borderColor: C.negative + '50',
+    borderWidth: 2,
   },
-  outcomeLabel: {
+  quadrantBoxDisabled: {
+    opacity: 0.35,
+  },
+  quadrantTitle: {
+    color: C.paleGold,
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    opacity: 0.5,
+    marginBottom: 4,
+  },
+  quadrantTitleActive: {
+    opacity: 1,
+    color: C.gold,
+  },
+  quadrantSubhead: {
     color: C.paleGold,
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
+    opacity: 0.5,
+    marginTop: 2,
   },
-  outcomeVP: {
+  quadrantEffect: {
     color: C.gold,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '600',
   },
-  outcomeEffect: {
+  quadrantEffectBad: {
+    color: C.negative,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  quadrantEffectNeutral: {
     color: C.paleGold,
-    fontSize: 11,
-    opacity: 0.7,
+    fontSize: 12,
+    opacity: 0.5,
+  },
+  quadrantDivider: {
+    height: 1,
+    backgroundColor: goldBg(0.15),
+    marginVertical: 4,
+  },
+  slDisabledNote: {
+    color: C.paleGold,
+    fontSize: 10,
+    opacity: 0.5,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
   submitButton: {
     backgroundColor: C.gold,
@@ -799,5 +881,36 @@ const styles = StyleSheet.create({
     color: C.error,
     fontSize: 13,
     textAlign: 'center',
+  },
+  personalEffectRow: {
+    backgroundColor: navyBg(0.5),
+    borderRadius: 8,
+    padding: 10,
+    gap: 3,
+    marginBottom: 6,
+  },
+  personalEffectHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  personalEffectName: {
+    color: C.paleGold,
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+  },
+  personalEffectChoice: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  personalEffectDetail: {
+    color: C.paleGold,
+    fontSize: 12,
+    opacity: 0.8,
+    paddingLeft: 18,
   },
 });
