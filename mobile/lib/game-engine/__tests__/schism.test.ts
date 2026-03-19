@@ -1,23 +1,28 @@
-import { resolveSchism, schismTeamSize } from '../schism.ts';
+import { resolveSchism, resolveSchismBets, schismTeamSize } from '../schism.ts';
+import { VP_TO_INFLUENCE_RATE } from '../constants.ts';
 import type { SchismConfig } from '../controversies.ts';
 
 const config: SchismConfig = {
   sides: [
     {
-      key: 'support_pirates',
-      title: 'Negotiate with the pirates',
-      description: 'Seek terms with the pirate captains',
+      key: 'side_a',
+      title: 'Side A',
+      description: 'First option',
       axisEffects: { commerce: 1, militarism: -1 },
       factionPowerEffects: { nautae: 1 },
-      victoryPoints: 2,
+      supportVP: 2,
+      betrayVP: 1,
+      allBetrayVP: 0.5,
     },
     {
-      key: 'crush_pirates',
-      title: 'Crush the pirates',
-      description: 'Send the fleet to destroy them',
+      key: 'side_b',
+      title: 'Side B',
+      description: 'Second option',
       axisEffects: { militarism: 1, commerce: -1 },
       factionPowerEffects: { milites: 1 },
-      victoryPoints: 3,
+      supportVP: 3,
+      betrayVP: 2,
+      allBetrayVP: 1,
     },
   ],
 };
@@ -39,107 +44,178 @@ describe('schismTeamSize', () => {
   });
 });
 
-describe('resolveSchism', () => {
-  it('succeeds when all team members support', () => {
+describe('resolveSchism — PD payoffs', () => {
+  it('all support: each team member gets supportVP from declared side', () => {
     const result = resolveSchism(
       [
         { playerId: 'alice', supports: true },
         { playerId: 'bob', supports: true },
       ],
       config,
-      'support_pirates',
+      'side_a',
       ['alice', 'bob'],
     );
 
     expect(result.wasSabotaged).toBe(false);
-    expect(result.winningSideKey).toBe('support_pirates');
+    expect(result.winningSideKey).toBe('side_a');
     expect(result.axisEffects).toEqual({ commerce: 1, militarism: -1 });
-    expect(result.victoryPoints).toBe(2);
-    expect(result.supporters).toEqual(['alice', 'bob']);
-    expect(result.saboteurs).toEqual([]);
+    // All support → each gets side_a.supportVP = 2
+    expect(result.rewards).toEqual([
+      { playerId: 'alice', vpAwarded: 2, influenceAwarded: 0 },
+      { playerId: 'bob', vpAwarded: 2, influenceAwarded: 0 },
+    ]);
   });
 
-  it('flips to other side when any member sabotages', () => {
+  it('mixed: saboteurs get betrayVP, supporters get 0', () => {
     const result = resolveSchism(
       [
         { playerId: 'alice', supports: true },
         { playerId: 'bob', supports: false },
       ],
       config,
-      'support_pirates',
+      'side_a',
       ['alice', 'bob'],
     );
 
     expect(result.wasSabotaged).toBe(true);
-    expect(result.winningSideKey).toBe('crush_pirates');
-    expect(result.axisEffects).toEqual({ militarism: 1, commerce: -1 });
-    expect(result.victoryPoints).toBe(3);
-    expect(result.supporters).toEqual(['alice']);
-    expect(result.saboteurs).toEqual(['bob']);
+    expect(result.winningSideKey).toBe('side_b');
+    // Mixed → bob (saboteur) gets side_a.betrayVP = 1, alice gets 0
+    expect(result.rewards).toEqual([
+      { playerId: 'bob', vpAwarded: 1, influenceAwarded: 0 },
+    ]);
   });
 
-  it('flips even with multiple saboteurs', () => {
+  it('all sabotage: each saboteur gets allBetrayVP with fractional conversion', () => {
     const result = resolveSchism(
       [
         { playerId: 'alice', supports: false },
+        { playerId: 'bob', supports: false },
+      ],
+      config,
+      'side_a',
+      ['alice', 'bob'],
+    );
+
+    expect(result.wasSabotaged).toBe(true);
+    expect(result.winningSideKey).toBe('side_b');
+    // All betray → each gets side_a.allBetrayVP = 0.5 → 0 VP + 10 influence
+    expect(result.rewards).toEqual([
+      { playerId: 'alice', vpAwarded: 0, influenceAwarded: 10 },
+      { playerId: 'bob', vpAwarded: 0, influenceAwarded: 10 },
+    ]);
+  });
+
+  it('uses declared side payoffs (side B declared)', () => {
+    const result = resolveSchism(
+      [
+        { playerId: 'alice', supports: true },
+        { playerId: 'bob', supports: true },
+      ],
+      config,
+      'side_b',
+      ['alice', 'bob'],
+    );
+
+    expect(result.wasSabotaged).toBe(false);
+    expect(result.winningSideKey).toBe('side_b');
+    // All support → side_b.supportVP = 3
+    expect(result.rewards).toEqual([
+      { playerId: 'alice', vpAwarded: 3, influenceAwarded: 0 },
+      { playerId: 'bob', vpAwarded: 3, influenceAwarded: 0 },
+    ]);
+  });
+
+  it('mixed with side B declared: saboteurs get side_b.betrayVP', () => {
+    const result = resolveSchism(
+      [
+        { playerId: 'alice', supports: false },
+        { playerId: 'bob', supports: true },
+      ],
+      config,
+      'side_b',
+      ['alice', 'bob'],
+    );
+
+    expect(result.wasSabotaged).toBe(true);
+    expect(result.winningSideKey).toBe('side_a');
+    // Mixed → alice (saboteur) gets side_b.betrayVP = 2
+    expect(result.rewards).toEqual([
+      { playerId: 'alice', vpAwarded: 2, influenceAwarded: 0 },
+    ]);
+  });
+
+  it('preserves team member ids and supporter/saboteur lists', () => {
+    const result = resolveSchism(
+      [
+        { playerId: 'alice', supports: true },
         { playerId: 'bob', supports: false },
         { playerId: 'carol', supports: true },
       ],
       config,
-      'support_pirates',
+      'side_a',
       ['alice', 'bob', 'carol'],
     );
 
-    expect(result.wasSabotaged).toBe(true);
-    expect(result.winningSideKey).toBe('crush_pirates');
-    expect(result.saboteurs).toEqual(['alice', 'bob']);
-    expect(result.supporters).toEqual(['carol']);
+    expect(result.teamMembers).toEqual(['alice', 'bob', 'carol']);
+    expect(result.supporters).toEqual(['alice', 'carol']);
+    expect(result.saboteurs).toEqual(['bob']);
   });
+});
 
-  it('works when SL declares side B', () => {
-    const result = resolveSchism(
-      [
-        { playerId: 'alice', supports: true },
-        { playerId: 'bob', supports: true },
-      ],
-      config,
-      'crush_pirates',
-      ['alice', 'bob'],
+describe('resolveSchismBets', () => {
+  it('correct bet on support: 2× stake converted to VP + influence', () => {
+    const results = resolveSchismBets(
+      [{ playerId: 'charlie', predictsSupport: true, stakeInfluence: 20 }],
+      false, // wasSabotaged = false → support succeeded
     );
 
-    expect(result.wasSabotaged).toBe(false);
-    expect(result.winningSideKey).toBe('crush_pirates');
-    expect(result.slDeclaredSideKey).toBe('crush_pirates');
-    expect(result.axisEffects).toEqual({ militarism: 1, commerce: -1 });
-    expect(result.factionPowerEffects).toEqual({ milites: 1 });
+    // 20 stake × 2 = 40 payout. 40/20 = 2 VP, 0 influence remainder
+    expect(results).toEqual([
+      { playerId: 'charlie', won: true, stakeInfluence: 20, vpAwarded: 2, influenceAwarded: 0 },
+    ]);
   });
 
-  it('sabotage on side B flips to side A', () => {
-    const result = resolveSchism(
-      [
-        { playerId: 'alice', supports: false },
-        { playerId: 'bob', supports: true },
-      ],
-      config,
-      'crush_pirates',
-      ['alice', 'bob'],
+  it('correct bet on sabotage: 2× stake converted to VP + influence', () => {
+    const results = resolveSchismBets(
+      [{ playerId: 'charlie', predictsSupport: false, stakeInfluence: 12 }],
+      true, // wasSabotaged = true → sabotage happened
     );
 
-    expect(result.wasSabotaged).toBe(true);
-    expect(result.winningSideKey).toBe('support_pirates');
-    expect(result.axisEffects).toEqual({ commerce: 1, militarism: -1 });
+    // 12 × 2 = 24. 24/20 = 1.2 → 1 VP + round(0.2×20) = 4 influence
+    expect(results).toEqual([
+      { playerId: 'charlie', won: true, stakeInfluence: 12, vpAwarded: 1, influenceAwarded: 4 },
+    ]);
   });
 
-  it('preserves team member ids', () => {
-    const result = resolveSchism(
-      [
-        { playerId: 'alice', supports: true },
-      ],
-      config,
-      'support_pirates',
-      ['alice', 'bob'],
+  it('wrong bet: lose entire stake, no reward', () => {
+    const results = resolveSchismBets(
+      [{ playerId: 'charlie', predictsSupport: true, stakeInfluence: 15 }],
+      true, // wasSabotaged = true → support failed
     );
 
-    expect(result.teamMembers).toEqual(['alice', 'bob']);
+    expect(results).toEqual([
+      { playerId: 'charlie', won: false, stakeInfluence: 15, vpAwarded: 0, influenceAwarded: 0 },
+    ]);
+  });
+
+  it('empty bets: returns empty array', () => {
+    expect(resolveSchismBets([], false)).toEqual([]);
+  });
+
+  it('multiple bets: each resolved independently', () => {
+    const results = resolveSchismBets(
+      [
+        { playerId: 'charlie', predictsSupport: false, stakeInfluence: 10 },
+        { playerId: 'dave', predictsSupport: true, stakeInfluence: 5 },
+      ],
+      true, // sabotage happened
+    );
+
+    // charlie: correct. 10×2=20 → 1 VP + 0 inf
+    // dave: wrong. loses 5.
+    expect(results).toEqual([
+      { playerId: 'charlie', won: true, stakeInfluence: 10, vpAwarded: 1, influenceAwarded: 0 },
+      { playerId: 'dave', won: false, stakeInfluence: 5, vpAwarded: 0, influenceAwarded: 0 },
+    ]);
   });
 });
