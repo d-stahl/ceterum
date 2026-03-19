@@ -1,6 +1,6 @@
 import { createEdgeClients, corsHeaders, jsonResponse, errorResponse } from '../_shared/auth.ts';
 import { buildSchismSubmissionsFromDb, buildEngineFactionsFromDb } from '../_shared/db-transforms.ts';
-import { resolveSchism } from '../_shared/game-engine/schism.ts';
+import { resolveSchism, resolveSchismBets } from '../_shared/game-engine/schism.ts';
 import { computeAffinityEffects } from '../_shared/game-engine/ruling.ts';
 import type { AxisKey } from '../_shared/game-engine/axes.ts';
 import type { SchismControversy } from '../_shared/game-engine/controversies.ts';
@@ -127,16 +127,58 @@ Deno.serve(async (req) => {
         .eq('faction_key', factionKey);
     }
 
-    // Award VP to supporters on success, saboteurs on sabotage
-    if (result.victoryPoints > 0) {
-      const vpRecipients = result.wasSabotaged ? result.saboteurs : result.supporters;
-      for (const playerId of vpRecipients) {
+    // Award PD rewards to team members
+    for (const reward of result.rewards) {
+      if (reward.vpAwarded > 0) {
         await adminClient.rpc('increment_victory_points', {
           p_game_id: game_id,
-          p_player_id: playerId,
-          p_amount: result.victoryPoints,
+          p_player_id: reward.playerId,
+          p_amount: reward.vpAwarded,
         });
       }
+      if (reward.influenceAwarded > 0) {
+        await adminClient.rpc('increment_influence', {
+          p_game_id: game_id,
+          p_player_id: reward.playerId,
+          p_amount: reward.influenceAwarded,
+        });
+      }
+    }
+
+    // Resolve outsider bets
+    const { data: betRows } = await adminClient
+      .from('game_schism_bets')
+      .select('player_id, predicts_support, stake_influence')
+      .eq('round_id', round.id)
+      .eq('controversy_key', controversy_key);
+
+    const bets = (betRows ?? []).map((b: any) => ({
+      playerId: b.player_id,
+      predictsSupport: b.predicts_support,
+      stakeInfluence: b.stake_influence,
+    }));
+
+    const betResults = resolveSchismBets(bets, result.wasSabotaged);
+
+    for (const br of betResults) {
+      if (br.won) {
+        // Return 2× stake as VP + influence (stake was already deducted by SQL RPC)
+        if (br.vpAwarded > 0) {
+          await adminClient.rpc('increment_victory_points', {
+            p_game_id: game_id,
+            p_player_id: br.playerId,
+            p_amount: br.vpAwarded,
+          });
+        }
+        if (br.influenceAwarded > 0) {
+          await adminClient.rpc('increment_influence', {
+            p_game_id: game_id,
+            p_player_id: br.playerId,
+            p_amount: br.influenceAwarded,
+          });
+        }
+      }
+      // If lost: influence already deducted, nothing to do
     }
 
     // Compute affinity effects based on the winning side's axis shifts
@@ -239,7 +281,8 @@ Deno.serve(async (req) => {
       teamMembers: result.teamMembers,
       supporters: result.supporters,
       saboteurs: result.saboteurs,
-      victoryPoints: result.victoryPoints,
+      rewards: result.rewards,
+      betResults,
     };
 
     const { error: outcomeError } = await adminClient
