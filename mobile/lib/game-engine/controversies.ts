@@ -52,7 +52,12 @@ export interface SchismSide {
   description: string;
   axisEffects: Partial<Record<AxisKey, number>>;
   factionPowerEffects: Partial<Record<string, number>>;
-  victoryPoints: number;
+  /** VP each team member gets if all support */
+  supportVP: number;
+  /** VP each saboteur gets if some (but not all) sabotage */
+  betrayVP: number;
+  /** VP each saboteur gets if ALL sabotage */
+  allBetrayVP: number;
   followUpKey?: string;
 }
 
@@ -819,7 +824,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Stand by the Senate\'s promise. The settlements stay. Rome\'s word must mean something.',
           axisEffects: { tradition: -1 },
           factionPowerEffects: { agricolae: -1, nautae: -1 },
-          victoryPoints: 2,
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
         },
         {
           key: 'break_promise',
@@ -827,7 +834,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Drive the pirates from the land. They are murderers, not settlers, and Rome owes them nothing.',
           axisEffects: { militarism: 1 },
           factionPowerEffects: { legiones: 1, agricolae: 1 },
-          victoryPoints: 2,
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
         },
       ],
     },
