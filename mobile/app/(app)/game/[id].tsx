@@ -908,6 +908,26 @@ function GameScreenInner() {
 
   const hasPreliminary = !!drag.preliminaryPlacement;
 
+  // Sit-out logic: must be above early returns so hooks are always called.
+  const phase = round?.phase ?? 'demagogery';
+  const myTotalPlacements = placements.filter((p) => p.player_id === currentUserId).length;
+  const isSittingOut = myTotalPlacements >= 3 && phase === 'demagogery';
+
+  // Auto-submit sit-out when all slots are locked (e.g. all demagog carry-forwards).
+  // This triggers the server-side done-count check so resolution can fire.
+  const sitOutSubmittedRef = useRef(false);
+  useEffect(() => {
+    if (!isSittingOut || sitOutSubmittedRef.current || !factions.length || !gameId) return;
+    sitOutSubmittedRef.current = true;
+    submitPlacement(gameId, factions[0].id, 'orator', 'demagog').catch(() => {
+      // Expected to silently succeed (SQL skips INSERT for sit-out players)
+    });
+  }, [isSittingOut, factions, gameId]);
+  // Reset sit-out tracker when round changes
+  useEffect(() => {
+    sitOutSubmittedRef.current = false;
+  }, [round?.id]);
+
   if (loading) {
     return (
       <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
@@ -948,9 +968,14 @@ function GameScreenInner() {
         for (const ps of playerStates) {
           perPlayer[ps.player_id] = td.victoryPoints;
         }
-      } else if (oc.controversy_type === 'schism' && td.victoryPoints && td.winnerPlayerIds) {
-        for (const pid of td.winnerPlayerIds) {
-          perPlayer[pid] = td.victoryPoints;
+      } else if (oc.controversy_type === 'schism' && td.rewards) {
+        for (const r of td.rewards) {
+          if (r.vpAwarded > 0) perPlayer[r.playerId] = r.vpAwarded;
+        }
+        if (td.betResults) {
+          for (const br of td.betResults) {
+            if (br.vpAwarded > 0) perPlayer[br.playerId] = (perPlayer[br.playerId] ?? 0) + br.vpAwarded;
+          }
         }
       } else if (oc.controversy_type === 'endeavour' && td.succeeded && td.rankings) {
         for (const r of td.rankings) {
@@ -1170,28 +1195,6 @@ function GameScreenInner() {
       </ImageBackground>
     );
   }
-
-  // --- Phase routing ---
-  const phase = round?.phase ?? 'demagogery';
-
-  // Sit-out logic: player with >= 3 placements this round has no workers left
-  const myTotalPlacements = placements.filter((p) => p.player_id === currentUserId).length;
-  const isSittingOut = myTotalPlacements >= 3 && phase === 'demagogery';
-
-  // Auto-submit sit-out when all slots are locked (e.g. all demagog carry-forwards).
-  // This triggers the server-side done-count check so resolution can fire.
-  const sitOutSubmittedRef = useRef(false);
-  useEffect(() => {
-    if (!isSittingOut || sitOutSubmittedRef.current || !factions.length || !gameId) return;
-    sitOutSubmittedRef.current = true;
-    submitPlacement(gameId, factions[0].id, 'orator', 'demagog').catch(() => {
-      // Expected to silently succeed (SQL skips INSERT for sit-out players)
-    });
-  }, [isSittingOut, factions, gameId]);
-  // Reset sit-out tracker when round changes
-  useEffect(() => {
-    sitOutSubmittedRef.current = false;
-  }, [round?.id]);
 
   // "Done" this sub-round = placed this sub-round (non-locked) OR sitting out (>= 3 total)
   const doneCount = round

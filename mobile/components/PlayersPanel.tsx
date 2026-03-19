@@ -106,9 +106,14 @@ export default function PlayersPanel({
       for (const ps of playerStates) {
         resolutionVPs[ps.player_id] = (resolutionVPs[ps.player_id] ?? 0) + td.victoryPoints;
       }
-    } else if (oc.controversy_type === 'schism' && td.victoryPoints && td.winnerPlayerIds) {
-      for (const pid of td.winnerPlayerIds) {
-        resolutionVPs[pid] = (resolutionVPs[pid] ?? 0) + td.victoryPoints;
+    } else if (oc.controversy_type === 'schism' && td.rewards) {
+      for (const r of td.rewards) {
+        if (r.vpAwarded > 0) resolutionVPs[r.playerId] = (resolutionVPs[r.playerId] ?? 0) + r.vpAwarded;
+      }
+      if (td.betResults) {
+        for (const br of td.betResults) {
+          if (br.vpAwarded > 0) resolutionVPs[br.playerId] = (resolutionVPs[br.playerId] ?? 0) + br.vpAwarded;
+        }
       }
     } else if (oc.controversy_type === 'endeavour' && td.succeeded && td.rankings) {
       for (const r of td.rankings) {
@@ -267,7 +272,7 @@ export default function PlayersPanel({
                       const td = oc.type_data;
                       if (!td) return false;
                       if (oc.controversy_type === 'clash') return td.succeeded && td.victoryPoints;
-                      if (oc.controversy_type === 'schism') return td.victoryPoints && td.winnerPlayerIds?.length;
+                      if (oc.controversy_type === 'schism') return td.rewards?.some((r: any) => r.vpAwarded > 0) || td.betResults?.some((br: any) => br.vpAwarded > 0);
                       if (oc.controversy_type === 'endeavour') return td.succeeded && td.rankings?.some((r: any) => r.vpAwarded > 0);
                       return false;
                     }).map((oc) => {
@@ -279,8 +284,11 @@ export default function PlayersPanel({
                           perPlayer.push({ pid: ps.player_id, vp: td.victoryPoints });
                         }
                       } else if (oc.controversy_type === 'schism') {
-                        for (const pid of td.winnerPlayerIds) {
-                          perPlayer.push({ pid, vp: td.victoryPoints });
+                        for (const r of (td.rewards ?? [])) {
+                          if (r.vpAwarded > 0) perPlayer.push({ pid: r.playerId, vp: r.vpAwarded });
+                        }
+                        for (const br of (td.betResults ?? [])) {
+                          if (br.vpAwarded > 0) perPlayer.push({ pid: br.playerId, vp: br.vpAwarded });
                         }
                       } else if (oc.controversy_type === 'endeavour') {
                         for (const r of td.rankings) {
@@ -307,7 +315,7 @@ export default function PlayersPanel({
                       const td = oc.type_data;
                       if (!td) return false;
                       if (oc.controversy_type === 'clash') return td.succeeded && td.victoryPoints;
-                      if (oc.controversy_type === 'schism') return td.victoryPoints && td.winnerPlayerIds?.length;
+                      if (oc.controversy_type === 'schism') return td.rewards?.some((r: any) => r.vpAwarded > 0) || td.betResults?.some((br: any) => br.vpAwarded > 0);
                       if (oc.controversy_type === 'endeavour') return td.succeeded && td.rankings?.some((r: any) => r.vpAwarded > 0);
                       return false;
                     }).length === 0 && (
