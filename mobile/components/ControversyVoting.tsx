@@ -191,6 +191,8 @@ export default function ControversyVoting({
         activeFactionKeys={activeFactionKeys}
         factionInfoMap={factionInfoMap}
         axisValues={axisValues}
+        playerAgendas={playerAgendas}
+        currentInfluence={currentInfluence}
         onContinue={onContinue}
       />
     );

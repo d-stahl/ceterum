@@ -1,14 +1,17 @@
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
+import Slider from '@react-native-community/slider';
 import { supabase } from '../lib/supabase';
-import { declareSchismAction, submitSchismVote } from '../lib/game-actions';
+import { declareSchismAction, submitSchismVote, submitSchismBet } from '../lib/game-actions';
 import { CONTROVERSY_MAP } from '../lib/game-engine/controversies';
 import type { SchismControversy, SchismSide } from '../lib/game-engine/controversies';
 import { schismTeamSize } from '../lib/game-engine/schism';
+import { VP_TO_INFLUENCE_RATE } from '../lib/game-engine/constants';
 import { AxisEffectSlider, PowerEffectRow } from './ControversyCard';
 import ControversyHeader from './ControversyHeader';
 import { getColorHex } from '../lib/player-colors';
 import { C, goldBg, navyBg, CONTROVERSY_TYPE_COLORS } from '../lib/theme';
+import type { PlayerAgendaInfo } from './AgendaDots';
 
 type PlayerInfo = {
   player_id: string;
@@ -33,6 +36,8 @@ type Props = {
   activeFactionKeys: string[];
   factionInfoMap: Record<string, FactionInfo>;
   axisValues?: Record<string, number>;
+  playerAgendas?: PlayerAgendaInfo[];
+  currentInfluence: number;
   onContinue: () => void;
 };
 
@@ -41,6 +46,98 @@ type ControversyStateRow = {
   schism_declared_side: string | null;
   schism_team_members: string[] | null;
 };
+
+function formatReward(rawVP: number): string {
+  const vp = Math.floor(rawVP);
+  const inf = Math.round((rawVP - vp) * VP_TO_INFLUENCE_RATE);
+  if (vp > 0 && inf > 0) return `${vp} VP + ${inf} Inf`;
+  if (vp > 0) return `${vp} VP`;
+  if (inf > 0) return `${inf} Inf`;
+  return '0';
+}
+
+function OutsiderBetPanel({ gameId, controversyKey, maxInfluence, onBetPlaced, onError }: {
+  gameId: string;
+  controversyKey: string;
+  maxInfluence: number;
+  onBetPlaced: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [prediction, setPrediction] = useState<boolean | null>(null);
+  const [stake, setStake] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handlePlaceBet() {
+    if (prediction === null || stake <= 0 || submitting) return;
+    setSubmitting(true);
+    try {
+      await submitSchismBet(gameId, controversyKey, prediction, stake);
+      onBetPlaced();
+    } catch (e: any) {
+      onError(e.message ?? 'Bet failed');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const potentialPayout = stake * 2;
+
+  return (
+    <View style={styles.betPanel}>
+      <Text style={styles.sectionLabel}>Place a Bet (Optional)</Text>
+      <Text style={styles.betHint}>
+        Wager influence on the outcome. Win = 2× stake as VP. Lose = lose your stake.
+      </Text>
+
+      <View style={styles.betPredictionRow}>
+        <Pressable
+          style={[styles.betOption, prediction === true && styles.betOptionSelected]}
+          onPress={() => setPrediction(true)}
+        >
+          <Text style={styles.betOptionText}>Support succeeds</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.betOption, prediction === false && styles.betOptionSelected]}
+          onPress={() => setPrediction(false)}
+        >
+          <Text style={styles.betOptionText}>Sabotage happens</Text>
+        </Pressable>
+      </View>
+
+      {prediction !== null && (
+        <>
+          <Text style={styles.betStakeLabel}>
+            Stake: {stake} / {maxInfluence} influence
+          </Text>
+          <Slider
+            minimumValue={1}
+            maximumValue={Math.max(1, maxInfluence)}
+            step={1}
+            value={stake}
+            onValueChange={setStake}
+            minimumTrackTintColor={C.gold}
+            maximumTrackTintColor={goldBg(0.3)}
+            thumbTintColor={C.gold}
+          />
+          {stake > 0 && (
+            <Text style={styles.betPreview}>
+              If correct: {formatReward(potentialPayout / VP_TO_INFLUENCE_RATE)}
+            </Text>
+          )}
+          <Pressable
+            style={[styles.declareButton, (stake <= 0 || submitting) && styles.submitDisabled]}
+            onPress={handlePlaceBet}
+            disabled={stake <= 0 || submitting}
+          >
+            <Text style={styles.declareButtonText}>
+              {submitting ? 'Placing…' : `Bet ${stake} Influence`}
+            </Text>
+          </Pressable>
+        </>
+      )}
+    </View>
+  );
+}
 
 export default function SchismVoting({
   gameId,
@@ -52,6 +149,8 @@ export default function SchismVoting({
   activeFactionKeys,
   factionInfoMap,
   axisValues,
+  playerAgendas,
+  currentInfluence,
   onContinue,
 }: Props) {
   const [csState, setCsState] = useState<ControversyStateRow | null>(null);
@@ -61,6 +160,7 @@ export default function SchismVoting({
   const [declaring, setDeclaring] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [betPlaced, setBetPlaced] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -219,6 +319,44 @@ export default function SchismVoting({
           })}
         </View>
 
+        {/* Rewards */}
+        {td.rewards && td.rewards.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Rewards</Text>
+            {td.rewards.map((r: any) => {
+              const player = players.find((p) => p.player_id === r.playerId);
+              return (
+                <View key={r.playerId} style={styles.teamRevealRow}>
+                  <View style={[styles.playerDot, { backgroundColor: getColorHex(player?.color ?? '') }]} />
+                  <Text style={styles.teamPlayerName}>{player?.player_name ?? 'Unknown'}</Text>
+                  <Text style={styles.supportBadge}>{formatReward(r.vpAwarded + r.influenceAwarded / VP_TO_INFLUENCE_RATE)}</Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Bet outcomes */}
+        {td.betResults && td.betResults.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Bets</Text>
+            {td.betResults.map((br: any) => {
+              const player = players.find((p) => p.player_id === br.playerId);
+              return (
+                <View key={br.playerId} style={styles.teamRevealRow}>
+                  <View style={[styles.playerDot, { backgroundColor: getColorHex(player?.color ?? '') }]} />
+                  <Text style={styles.teamPlayerName}>{player?.player_name ?? 'Unknown'}</Text>
+                  {br.won ? (
+                    <Text style={styles.supportBadge}>Won {formatReward(br.vpAwarded + br.influenceAwarded / VP_TO_INFLUENCE_RATE)}</Text>
+                  ) : (
+                    <Text style={styles.sabotageBadge}>Lost {br.stakeInfluence} Inf</Text>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
+
         {/* Effects */}
         {Object.keys(axisEffects).filter((k) => axisEffects[k] !== 0).length > 0 && (
           <View style={styles.effectsSection}>
@@ -277,6 +415,7 @@ export default function SchismVoting({
               activeFactionKeys={activeFactionKeys}
               factionInfoMap={factionInfoMap}
               axisValues={axisValues}
+              playerAgendas={playerAgendas}
             />
           ))}
         </View>
@@ -358,12 +497,12 @@ export default function SchismVoting({
     );
   }
 
-  // Not on team: waiting screen
+  // Not on team: show side previews and optional betting
   if (!isOnTeam) {
     const slPlayer = players.find((p) => p.player_id === senateLeaderId);
     const teamNames = teamMembers.map((id) => players.find((p) => p.player_id === id)?.player_name ?? 'Unknown');
     return (
-      <View style={styles.centerContainer}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <ControversyHeader controversy={controversy} />
         <Text style={styles.waitText}>
           {slPlayer?.player_name ?? 'The Senate Leader'} declared: {declaredSide.title}
@@ -371,8 +510,36 @@ export default function SchismVoting({
         <Text style={styles.teamListText}>
           Team: {teamNames.join(', ')}
         </Text>
-        <Text style={styles.waitText}>Waiting for the team to vote…</Text>
-      </View>
+
+        {/* Side previews for outsiders */}
+        <View style={styles.section}>
+          <SideCard side={declaredSide} isSelected={false} onPress={() => {}}
+            activeFactionKeys={activeFactionKeys} factionInfoMap={factionInfoMap}
+            axisValues={axisValues} label="If supported" playerAgendas={playerAgendas} />
+          <SideCard side={otherSide} isSelected={false} onPress={() => {}}
+            activeFactionKeys={activeFactionKeys} factionInfoMap={factionInfoMap}
+            axisValues={axisValues} label="If sabotaged" playerAgendas={playerAgendas} />
+        </View>
+
+        {error && <Text style={styles.errorText}>{error}</Text>}
+
+        {/* Betting UI */}
+        {!submitted && !betPlaced && (
+          <OutsiderBetPanel
+            gameId={gameId}
+            controversyKey={controversyKey}
+            maxInfluence={currentInfluence}
+            onBetPlaced={() => setBetPlaced(true)}
+            onError={setError}
+          />
+        )}
+        {betPlaced && (
+          <Text style={styles.waitingText}>Bet placed — waiting for team to vote…</Text>
+        )}
+        {!betPlaced && (
+          <Text style={styles.waitText}>Waiting for the team to vote…</Text>
+        )}
+      </ScrollView>
     );
   }
 
@@ -402,6 +569,7 @@ export default function SchismVoting({
           factionInfoMap={factionInfoMap}
           axisValues={axisValues}
           label="If supported"
+          playerAgendas={playerAgendas}
         />
         <SideCard
           side={otherSide}
@@ -411,6 +579,7 @@ export default function SchismVoting({
           factionInfoMap={factionInfoMap}
           axisValues={axisValues}
           label="If sabotaged"
+          playerAgendas={playerAgendas}
         />
       </View>
 
@@ -446,7 +615,7 @@ export default function SchismVoting({
 
 // --- Side Card subcomponent ---
 
-function SideCard({ side, isSelected, onPress, activeFactionKeys, factionInfoMap, axisValues, label }: {
+function SideCard({ side, isSelected, onPress, activeFactionKeys, factionInfoMap, axisValues, label, playerAgendas }: {
   side: SchismSide;
   isSelected: boolean;
   onPress: () => void;
@@ -454,6 +623,7 @@ function SideCard({ side, isSelected, onPress, activeFactionKeys, factionInfoMap
   factionInfoMap: Record<string, FactionInfo>;
   axisValues?: Record<string, number>;
   label?: string;
+  playerAgendas?: PlayerAgendaInfo[];
 }) {
   const axisKeys = Object.keys(side.axisEffects);
   const factionKeys = Object.keys(side.factionPowerEffects).filter((k) => activeFactionKeys.includes(k));
@@ -466,9 +636,11 @@ function SideCard({ side, isSelected, onPress, activeFactionKeys, factionInfoMap
       {label && <Text style={styles.sideCardLabel}>{label}</Text>}
       <Text style={styles.sideCardTitle}>{side.title}</Text>
       <Text style={styles.sideCardDesc}>{side.description}</Text>
-      {side.victoryPoints > 0 && (
-        <Text style={styles.sideCardVP}>{side.victoryPoints} VP</Text>
-      )}
+      <View style={styles.vpSummary}>
+        <Text style={styles.vpRow}>All support: {formatReward(side.supportVP)} each</Text>
+        <Text style={styles.vpRow}>Betrayers get: {formatReward(side.betrayVP)}</Text>
+        <Text style={styles.vpRow}>All betray: {formatReward(side.allBetrayVP)} each</Text>
+      </View>
       {axisKeys.length > 0 && (
         <View style={styles.sideEffects}>
           {axisKeys.map((axis) => (
@@ -477,6 +649,7 @@ function SideCard({ side, isSelected, onPress, activeFactionKeys, factionInfoMap
               axis={axis}
               change={side.axisEffects[axis as keyof typeof side.axisEffects] ?? 0}
               currentValue={axisValues?.[axis] ?? 0}
+              playerAgendas={playerAgendas}
             />
           ))}
         </View>
@@ -558,12 +731,17 @@ const styles = StyleSheet.create({
     opacity: 0.65,
     lineHeight: 16,
   },
-  sideCardVP: {
-    color: C.gold,
-    fontSize: 13,
-    fontWeight: '700',
-  },
   sideEffects: { gap: 6, marginTop: 4 },
+  // VP / PD payoff summary
+  vpSummary: {
+    gap: 2,
+    marginTop: 2,
+  },
+  vpRow: {
+    color: C.gold,
+    fontSize: 11,
+    opacity: 0.75,
+  },
   // Team picker
   teamPickRow: {
     flexDirection: 'row',
@@ -755,5 +933,52 @@ const styles = StyleSheet.create({
     color: C.error,
     fontSize: 13,
     textAlign: 'center',
+  },
+  // Outsider betting panel
+  betPanel: {
+    backgroundColor: navyBg(0.88),
+    borderWidth: 1,
+    borderColor: goldBg(0.25),
+    borderRadius: 10,
+    padding: 12,
+    gap: 8,
+  },
+  betHint: {
+    color: C.paleGold,
+    fontSize: 12,
+    opacity: 0.6,
+    lineHeight: 16,
+  },
+  betPredictionRow: {
+    flexDirection: 'row' as const,
+    gap: 8,
+  },
+  betOption: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: goldBg(0.3),
+    alignItems: 'center' as const,
+  },
+  betOptionSelected: {
+    backgroundColor: schismColor + '25',
+    borderColor: schismColor,
+  },
+  betOptionText: {
+    color: C.paleGold,
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  betStakeLabel: {
+    color: C.paleGold,
+    fontSize: 12,
+    opacity: 0.7,
+  },
+  betPreview: {
+    color: C.gold,
+    fontSize: 13,
+    fontWeight: '600' as const,
+    textAlign: 'center' as const,
   },
 });
