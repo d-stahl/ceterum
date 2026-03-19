@@ -155,6 +155,22 @@ export async function submitSchismVote(
   return data;
 }
 
+export async function submitSchismBet(
+  gameId: string,
+  controversyKey: string,
+  predictsSupport: boolean,
+  stakeInfluence: number,
+): Promise<any> {
+  const { data, error } = await supabase.rpc('submit_schism_bet', {
+    p_game_id: gameId,
+    p_controversy_key: controversyKey,
+    p_predicts_support: predictsSupport,
+    p_stake_influence: stakeInfluence,
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function advanceRound(gameId: string): Promise<any> {
   const { data, error } = await supabase.functions.invoke('advance-round', {
     body: { game_id: gameId },
