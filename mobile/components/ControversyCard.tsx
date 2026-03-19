@@ -456,9 +456,9 @@ export default function ControversyCard({
                 <View key={side.key} style={styles.resolution}>
                   <Text style={styles.resolutionTitle}>{side.title}</Text>
                   <Text style={styles.resolutionDesc}>{side.description}</Text>
-                  {side.victoryPoints > 0 && (
-                    <Text style={[styles.resolutionDesc, { color: C.gold, fontWeight: '600' }]}>{side.victoryPoints} VP</Text>
-                  )}
+                  <Text style={[styles.resolutionDesc, { color: C.gold, fontWeight: '600' }]}>
+                    Support: {side.supportVP} VP · Betray: {side.betrayVP} VP · All betray: {side.allBetrayVP} VP
+                  </Text>
                 </View>
               ))}
             </View>
