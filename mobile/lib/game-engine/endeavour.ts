@@ -1,8 +1,8 @@
 import { AxisKey } from './axes.ts';
 import { EndeavourConfig } from './controversies.ts';
 
-/** Global conversion rate: 1 fractional VP = this many influence */
-export const VP_TO_INFLUENCE_RATE = 20;
+export { VP_TO_INFLUENCE_RATE } from './constants.ts';
+import { VP_TO_INFLUENCE_RATE } from './constants.ts';
 
 export interface EndeavourSubmission {
   playerId: string;
