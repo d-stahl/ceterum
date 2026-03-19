@@ -221,17 +221,21 @@ The betrayal: grab critical factions, then withdraw. The Clash fails because you
   },
   'controversy-schism': {
     title: 'Schism',
-    body: `A Schism is an internal loyalty test — the Senate is divided and a small group's loyalty determines the outcome.
+    body: `A Schism is a prisoner's dilemma — the Senate is divided and a small team's loyalty determines the outcome.
 
-Two opposing sides are presented, each with different policy effects and victory points. The Senate Leader declares which side they support, then picks a team from the other players.
+Two opposing sides are presented, each with different policy effects. The Senate Leader declares which side they support, then picks a team from the other players.
 
-Team members (including the Senate Leader) secretly choose: Support or Sabotage. If everyone supports, the Senate Leader's declared side wins. If anyone sabotages, the other side wins instead.
+Team members secretly choose: Support or Sabotage. The payoffs follow a prisoner's dilemma:
 
-Supporters on a winning team earn victory points and affinity effects. Supporters on a losing team (someone sabotaged) lose influence — humiliation. Saboteurs get affinity effects from the winning side but no victory points.
+• All Support: Everyone earns the full reward (e.g. 2 VP each). The declared side's policy effects apply.
+• Mixed (some betray): Saboteurs earn a reduced reward (e.g. 1 VP). Loyal supporters get nothing. The other side's policy effects apply instead.
+• All Betray: Everyone earns the worst payout (e.g. 0.5 VP, converted to influence). The other side's effects apply.
 
-Why sabotage? Because you prefer the other side's policy effects for your agenda. The missed VP is the cost of betrayal.
+Fractional VP is converted to influence (1 VP = 20 influence).
 
-The Senate Leader can also sabotage their own declaration — declaring for one side while secretly wanting the other.`,
+Outsider Betting: Players not on the team can wager influence on the outcome — will the team support or will someone sabotage? Correct predictions pay 2× the stake, converted to VP and influence. Wrong predictions lose the entire stake. Betting is optional.
+
+The tension: cooperation pays best, but betrayal is safer. Being the only loyalist when others betray is the worst outcome.`,
   },
   'leader-election': {
     title: 'Leader Election',
