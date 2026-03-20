@@ -803,7 +803,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       },
       personalEffects: {
         commitSuccess: { affinityBonus: 1 },
-        commitFailure: { influenceLoss: 3, affinityPenalty: -2 },
+        commitFailure: { influenceLoss: 10, affinityPenalty: -2 },
         withdrawSuccess: { affinityPenalty: -2 },
       },
     },
