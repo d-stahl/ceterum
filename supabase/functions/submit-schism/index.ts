@@ -12,27 +12,56 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { game_id, controversy_key, supports } = await req.json();
-    if (!game_id || !controversy_key || supports == null) {
+    const body = await req.json();
+    const { game_id, controversy_key } = body;
+    if (!game_id || !controversy_key) {
       return errorResponse('Missing required fields', 400);
     }
 
     const { anonClient, adminClient } = await createEdgeClients(req.headers.get('Authorization'));
 
-    // Submit vote via anon client (validates team membership, phase, deduplication)
-    const { data: submitResult, error: submitError } = await anonClient.rpc('submit_schism_vote', {
-      p_game_id: game_id,
-      p_controversy_key: controversy_key,
-      p_supports: supports,
-    });
+    let submitResult: any;
 
-    if (submitError) return errorResponse(submitError.message, 422);
+    if (body.action === 'bet') {
+      const { predicts_support, stake_influence } = body;
+      if (predicts_support == null || !stake_influence) {
+        return errorResponse('Missing bet fields', 400);
+      }
+      const { data, error } = await anonClient.rpc('submit_schism_bet', {
+        p_game_id: game_id,
+        p_controversy_key: controversy_key,
+        p_predicts_support: predicts_support,
+        p_stake_influence: stake_influence,
+      });
+      if (error) return errorResponse(error.message, 422);
+      submitResult = data;
+    } else if (body.action === 'pass') {
+      const { data, error } = await anonClient.rpc('pass_schism_bet', {
+        p_game_id: game_id,
+        p_controversy_key: controversy_key,
+      });
+      if (error) return errorResponse(error.message, 422);
+      submitResult = data;
+    } else {
+      // Team member voting (default, backwards-compatible)
+      const { supports } = body;
+      if (supports == null) {
+        return errorResponse('Missing supports field', 400);
+      }
+      const { data, error } = await anonClient.rpc('submit_schism_vote', {
+        p_game_id: game_id,
+        p_controversy_key: controversy_key,
+        p_supports: supports,
+      });
+      if (error) return errorResponse(error.message, 422);
+      submitResult = data;
+    }
 
     if (submitResult?.status !== 'ready_for_resolution') {
       return jsonResponse(submitResult);
     }
 
-    // Last team member submitted — resolve server-side
+    // All players have acted — resolve server-side
     const { data: round, error: roundError } = await adminClient
       .from('game_rounds')
       .select('id, round_number, phase, senate_leader_id')

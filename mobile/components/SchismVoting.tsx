@@ -1,7 +1,7 @@
 import { View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { declareSchismAction, submitSchismVote, submitSchismBet } from '../lib/game-actions';
+import { declareSchismAction, submitSchismVote, submitSchismBet, passSchismBet } from '../lib/game-actions';
 import { CONTROVERSY_MAP } from '../lib/game-engine/controversies';
 import type { SchismControversy, SchismSide } from '../lib/game-engine/controversies';
 import { schismTeamSize } from '../lib/game-engine/schism';
@@ -175,6 +175,7 @@ export default function SchismVoting({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [betPlaced, setBetPlaced] = useState(false);
+  const [betPassed, setBetPassed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -538,20 +539,34 @@ export default function SchismVoting({
         {error && <Text style={styles.errorText}>{error}</Text>}
 
         {/* Betting UI */}
-        {!submitted && !betPlaced && (
-          <OutsiderBetPanel
-            gameId={gameId}
-            controversyKey={controversyKey}
-            maxInfluence={currentInfluence}
-            onBetPlaced={() => setBetPlaced(true)}
-            onError={setError}
-          />
+        {!submitted && !betPlaced && !betPassed && (
+          <>
+            <OutsiderBetPanel
+              gameId={gameId}
+              controversyKey={controversyKey}
+              maxInfluence={currentInfluence}
+              onBetPlaced={() => setBetPlaced(true)}
+              onError={setError}
+            />
+            <Pressable
+              style={styles.skipBetButton}
+              onPress={async () => {
+                try {
+                  await passSchismBet(gameId, controversyKey);
+                  setBetPassed(true);
+                } catch (e: any) {
+                  setError(e.message ?? 'Pass failed');
+                }
+              }}
+            >
+              <Text style={styles.skipBetText}>Skip Bet</Text>
+            </Pressable>
+          </>
         )}
-        {betPlaced && (
-          <Text style={styles.waitingText}>Bet placed — waiting for team to vote…</Text>
-        )}
-        {!betPlaced && (
-          <Text style={styles.waitText}>Waiting for the team to vote…</Text>
+        {(betPlaced || betPassed) && (
+          <Text style={styles.waitingText}>
+            {betPlaced ? 'Bet placed' : 'Bet skipped'} — waiting for others…
+          </Text>
         )}
       </ScrollView>
     );
@@ -1026,5 +1041,14 @@ const styles = StyleSheet.create({
     width: 70,
     height: 36,
     paddingVertical: 0,
+  },
+  skipBetButton: {
+    paddingVertical: 10,
+    alignItems: 'center' as const,
+  },
+  skipBetText: {
+    color: C.paleGold,
+    fontSize: 13,
+    opacity: 0.5,
   },
 });

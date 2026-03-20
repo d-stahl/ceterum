@@ -161,11 +161,29 @@ export async function submitSchismBet(
   predictsSupport: boolean,
   stakeInfluence: number,
 ): Promise<any> {
-  const { data, error } = await supabase.rpc('submit_schism_bet', {
-    p_game_id: gameId,
-    p_controversy_key: controversyKey,
-    p_predicts_support: predictsSupport,
-    p_stake_influence: stakeInfluence,
+  const { data, error } = await supabase.functions.invoke('submit-schism', {
+    body: {
+      game_id: gameId,
+      controversy_key: controversyKey,
+      action: 'bet',
+      predicts_support: predictsSupport,
+      stake_influence: stakeInfluence,
+    },
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function passSchismBet(
+  gameId: string,
+  controversyKey: string,
+): Promise<any> {
+  const { data, error } = await supabase.functions.invoke('submit-schism', {
+    body: {
+      game_id: gameId,
+      controversy_key: controversyKey,
+      action: 'pass',
+    },
   });
   if (error) throw error;
   return data;
