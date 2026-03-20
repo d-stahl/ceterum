@@ -191,51 +191,39 @@ Each faction reacts to the outcome based on whether it moves policy toward or aw
   },
   'controversy-endeavour': {
     title: 'Endeavour',
-    body: `An Endeavour is a collective investment — all players secretly decide how much influence to commit toward a shared goal.
+    body: `An Endeavour is a collective undertaking — Rome has committed to action, and now every senator must decide how much of their political capital to invest.
 
-If the total investment meets the threshold, the Endeavour succeeds. Rewards are distributed by rank: the player who invested the most gets the best reward, scaling down for lower ranks. Failed investment is lost with no reward.
+If the total investment meets the threshold, the Endeavour succeeds. Those who invested the most reap the greatest rewards — victory points and influence scaled by contribution. Those who invested little get little. If the Endeavour fails, all invested influence is lost and no one is rewarded.
 
-The threshold is based on total player influence at the start of the ruling phase. It's displayed on screen so you can gauge whether success is realistic.
+The threshold is displayed, so you can judge whether success is realistic. The temptation is to hold back and let others carry the burden — but if too many senators think the same way, the whole enterprise collapses and everyone loses what they put in.
 
-The tension: you want the group to succeed (for rewards), but you also want to invest as little as possible while still ranking high. Free-riding is tempting but risky — if too many players hold back, the Endeavour fails and everyone loses their investment.
-
-Investing 0 is allowed but you won't rank for rewards.`,
+Investing nothing is permitted, but earns nothing.`,
   },
   'controversy-clash': {
     title: 'Clash',
-    body: `A Clash is a faction commitment game — Rome faces an external threat and players must rally their factions to meet it.
+    body: `A Clash is a trial of Roman resolve — an external threat demands the Senate rally its factions or face the consequences.
 
-Each player bids influence to claim factions. Bid strength is multiplicative: your bid × your affinity with the faction. The highest bidder wins each faction. Ties split the faction's power.
+Each player bids influence to claim factions. Your bid is amplified by your affinity with each faction — a senator with deep ties can claim a faction cheaply. The highest bidder wins each faction's loyalty. Ties split the faction's support.
 
-After bidding, each player secretly declares: Commit or Withdraw. Committed players' factions contribute their power toward the threshold. Withdrawn players sit it out.
+After bidding, each player secretly chooses: Commit your factions to the fight, or Withdraw them. Committed factions contribute their power toward the threshold. Withdrawn factions sit idle.
 
-Your consequences depend on your choice and the outcome:
-• Commit + Success: Victory points + affinity bonus with your factions
-• Commit + Failure: Influence loss + affinity penalty with your factions
-• Withdraw + Success: No VP + affinity penalty ("you held us back")
-• Withdraw + Failure: No effect (stayed home, no blame)
+If the Clash succeeds, those who committed earn glory — victory points and stronger bonds with their factions. If it fails, those who committed suffer — lost influence and damaged reputations. Those who withdrew from a successful Clash are resented by their factions for cowardice. Those who withdrew from a failure escape unscathed.
 
-Critical factions (marked with a multiplier) contribute amplified power. Claiming and committing a critical faction can make or break the outcome.
-
-The betrayal: grab critical factions, then withdraw. The Clash fails because your factions aren't contributing, and you've denied them to players who would have committed. But if the Clash succeeds anyway, your factions will resent your cowardice.`,
+The ruthless play: seize critical factions, then withdraw. The Clash fails because your factions aren't fighting, and you've denied them to those who would have committed. But if Rome prevails despite your betrayal, your factions will remember your cowardice.`,
   },
   'controversy-schism': {
     title: 'Schism',
-    body: `A Schism is a prisoner's dilemma — the Senate is divided and a small team's loyalty determines the outcome.
+    body: `A Schism is a test of loyalty — the Senate is divided and a chosen few will determine the outcome through trust or treachery.
 
-Two opposing sides are presented, each with different policy effects. The Senate Leader declares which side they support, then picks a team from the other players.
+Two opposing sides are presented, each with different policy effects. The Senate Leader declares which side they champion, then selects a team from the other players.
 
-Team members secretly choose: Support or Sabotage. The payoffs follow a prisoner's dilemma:
+Team members secretly choose: Stand with the Senate Leader, or betray them. If every member holds true, the declared side prevails and the whole team is richly rewarded. If anyone betrays, the other side wins instead — the traitors claim a lesser reward for themselves while loyal members are left with nothing, humiliated for misplacing their trust.
 
-• All Support: Everyone earns the full reward (e.g. 2 VP each). The declared side's policy effects apply.
-• Mixed (some betray): Saboteurs earn a reduced reward (e.g. 1 VP). Loyal supporters get nothing. The other side's policy effects apply instead.
-• All Betray: Everyone earns the worst payout (e.g. 0.5 VP, converted to influence). The other side's effects apply.
+If every single member betrays, they all share the worst possible outcome — a pittance split among conspirators who trusted no one, not even each other.
 
-Fractional VP is converted to influence (1 VP = 20 influence).
+Players not on the team may place wagers on the outcome — will loyalty or treachery prevail? Correct predictions are handsomely rewarded. Wrong predictions cost you your stake. Wagering is optional.
 
-Outsider Betting: Players not on the team can wager influence on the outcome — will the team support or will someone sabotage? Correct predictions pay 2× the stake, converted to VP and influence. Wrong predictions lose the entire stake. Betting is optional.
-
-The tension: cooperation pays best, but betrayal is safer. Being the only loyalist when others betray is the worst outcome.`,
+The stakes are clear: unity pays best, but betrayal is the safer path. The worst fate is to stand alone in loyalty while others reach for the knife.`,
   },
   'leader-election': {
     title: 'Leader Election',
