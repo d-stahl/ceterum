@@ -38,7 +38,57 @@ export function generateAgendas(playerIds: string[]): Record<string, PlayerAgend
     }
   }
 
+  // Step 4: Equalize extremity across players
+  equalizeExtremity(result as Record<string, PlayerAgenda>, playerIds);
+
   return result as Record<string, PlayerAgenda>;
+}
+
+/**
+ * Equalize "extremity scores" across players by swapping positions on random axes.
+ *
+ * Extremity = sum of |position| across all axes. A player with all extremes (±2)
+ * has extremity 12; all center (0) has extremity 0.
+ *
+ * Swapping two players' positions on a single axis preserves all per-axis constraints
+ * (zero-sum, declumping) since the set of values on that axis is unchanged.
+ */
+function equalizeExtremity(
+  agendas: Record<string, PlayerAgenda>,
+  playerIds: string[],
+): void {
+  const MAX_SPREAD = 4;
+  const MAX_ITER = playerIds.length * AXIS_KEYS.length * 5;
+
+  for (let iter = 0; iter < MAX_ITER; iter++) {
+    const scores = playerIds.map((pid) => ({
+      pid,
+      score: AXIS_KEYS.reduce((sum, axis) => sum + Math.abs(agendas[pid][axis]), 0),
+    }));
+    scores.sort((a, b) => a.score - b.score);
+
+    const spread = scores[scores.length - 1].score - scores[0].score;
+    if (spread <= MAX_SPREAD) return;
+
+    const low = scores[0];
+    const high = scores[scores.length - 1];
+
+    // Find axes where swapping would reduce the spread
+    const candidates = AXIS_KEYS.filter((axis) => {
+      const hVal = Math.abs(agendas[high.pid][axis]);
+      const lVal = Math.abs(agendas[low.pid][axis]);
+      return hVal > lVal;
+    });
+
+    if (candidates.length === 0) break;
+
+    const axis = candidates[Math.floor(Math.random() * candidates.length)];
+
+    // Swap
+    const tmp = agendas[high.pid][axis];
+    agendas[high.pid][axis] = agendas[low.pid][axis];
+    agendas[low.pid][axis] = tmp;
+  }
 }
 
 function balance(positions: number[], n: number): void {

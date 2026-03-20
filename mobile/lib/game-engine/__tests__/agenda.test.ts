@@ -53,6 +53,17 @@ describe('generateAgendas', () => {
           }
         }
       });
+
+      it('extremity scores are within 4 of each other', () => {
+        for (let run = 0; run < RUNS; run++) {
+          const agendas = generateAgendas(playerIds);
+          const scores = playerIds.map((pid) =>
+            AXIS_KEYS.reduce((sum, axis) => sum + Math.abs(agendas[pid][axis]), 0)
+          );
+          const spread = Math.max(...scores) - Math.min(...scores);
+          expect(spread).toBeLessThanOrEqual(4);
+        }
+      });
     });
   }
 });
