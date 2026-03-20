@@ -1,6 +1,5 @@
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
-import Slider from '@react-native-community/slider';
 import { supabase } from '../lib/supabase';
 import { declareSchismAction, submitSchismVote, submitSchismBet } from '../lib/game-actions';
 import { CONTROVERSY_MAP } from '../lib/game-engine/controversies';
@@ -64,11 +63,15 @@ function OutsiderBetPanel({ gameId, controversyKey, maxInfluence, onBetPlaced, o
   onError: (msg: string) => void;
 }) {
   const [prediction, setPrediction] = useState<boolean | null>(null);
-  const [stake, setStake] = useState(0);
+  const [stakeInput, setStakeInput] = useState('0');
   const [submitting, setSubmitting] = useState(false);
 
+  const parsed = parseInt(stakeInput, 10);
+  const stake = isNaN(parsed) ? 0 : parsed;
+  const isValid = stakeInput.trim() !== '' && !isNaN(parsed) && parsed >= 1 && parsed <= maxInfluence;
+
   async function handlePlaceBet() {
-    if (prediction === null || stake <= 0 || submitting) return;
+    if (prediction === null || !isValid || submitting) return;
     setSubmitting(true);
     try {
       await submitSchismBet(gameId, controversyKey, prediction, stake);
@@ -109,25 +112,36 @@ function OutsiderBetPanel({ gameId, controversyKey, maxInfluence, onBetPlaced, o
           <Text style={styles.betStakeLabel}>
             Stake: {stake} / {maxInfluence} influence
           </Text>
-          <Slider
-            minimumValue={1}
-            maximumValue={Math.max(1, maxInfluence)}
-            step={1}
-            value={stake}
-            onValueChange={setStake}
-            minimumTrackTintColor={C.gold}
-            maximumTrackTintColor={goldBg(0.3)}
-            thumbTintColor={C.gold}
-          />
+          <View style={styles.stakeInputRow}>
+            <Pressable
+              style={styles.stepButton}
+              onPress={() => setStakeInput(String(Math.max(0, stake - 1)))}
+            >
+              <Text style={styles.stepButtonText}>−</Text>
+            </Pressable>
+            <TextInput
+              style={styles.stakeInput}
+              value={stakeInput}
+              onChangeText={setStakeInput}
+              keyboardType="number-pad"
+              maxLength={4}
+            />
+            <Pressable
+              style={styles.stepButton}
+              onPress={() => setStakeInput(String(Math.min(maxInfluence, stake + 1)))}
+            >
+              <Text style={styles.stepButtonText}>+</Text>
+            </Pressable>
+          </View>
           {stake > 0 && (
             <Text style={styles.betPreview}>
               If correct: {formatReward(potentialPayout / VP_TO_INFLUENCE_RATE)}
             </Text>
           )}
           <Pressable
-            style={[styles.declareButton, (stake <= 0 || submitting) && styles.submitDisabled]}
+            style={[styles.declareButton, (!isValid || submitting) && styles.submitDisabled]}
             onPress={handlePlaceBet}
-            disabled={stake <= 0 || submitting}
+            disabled={!isValid || submitting}
           >
             <Text style={styles.declareButtonText}>
               {submitting ? 'Placing…' : `Bet ${stake} Influence`}
@@ -980,5 +994,37 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600' as const,
     textAlign: 'center' as const,
+  },
+  stakeInputRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: 12,
+  },
+  stepButton: {
+    width: 36,
+    height: 36,
+    backgroundColor: goldBg(0.15),
+    borderRadius: 8,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  stepButtonText: {
+    color: C.gold,
+    fontSize: 20,
+    lineHeight: 24,
+  },
+  stakeInput: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: goldBg(0.3),
+    borderRadius: 8,
+    color: C.paleGold,
+    fontSize: 18,
+    fontWeight: '700' as const,
+    textAlign: 'center' as const,
+    width: 70,
+    height: 36,
+    paddingVertical: 0,
   },
 });
