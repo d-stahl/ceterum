@@ -317,6 +317,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Grant citizenship to all Italian allies immediately and without condition.',
         axisEffects: { patrician: -2, centralization: 1 },
         factionPowerEffects: { provinciales: 2, plebeii: 1, optimates: -1 },
+        followUpKey: 'assembly_crisis',
       },
       {
         key: 'gradual_integration',
@@ -325,6 +326,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Offer a path to citizenship over time through military service and demonstrated loyalty.',
         axisEffects: { patrician: -1 },
         factionPowerEffects: { legiones: 1, fabri: 1, provinciales: 1 },
+        followUpKey: 'loyalty_campaigns',
       },
       {
         key: 'firm_refusal',
@@ -332,6 +334,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: "Rome's privileges belong to Romans. The allies knew the terms when they joined.",
         axisEffects: { patrician: 1, tradition: 1 },
         factionPowerEffects: { optimates: 1, pontifices: 1, provinciales: -2, servi: -1 },
+        followUpKey: 'social_war',
       },
     ],
   },
@@ -859,6 +862,88 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       failureOutcome: {
         axisEffects: { commerce: -1 },
         factionPowerEffects: { mercatores: -1, nautae: -1 },
+      },
+    },
+  },
+  // --- Italian Allies follow-ups ---
+  {
+    key: 'assembly_crisis',
+    title: 'The Assembly Crisis',
+    type: 'schism',
+    category: 'political',
+    illustration: 'crowded_assembly',
+    flavor:
+      'The new citizens have arrived — all of them, all at once. The tribal assemblies are in chaos. Old Romans who once commanded a comfortable majority now find themselves outvoted by men who spoke Oscan last year. A faction demands the new citizens be confined to a handful of overflow tribes where their votes count for almost nothing.',
+    schismConfig: {
+      sides: [
+        {
+          key: 'restrict_tribes',
+          title: 'Restrict the New Tribes',
+          description: 'Confine new citizens to four overflow tribes. They have citizenship — but not equal power.',
+          axisEffects: { centralization: -1, patrician: 1 },
+          factionPowerEffects: { optimates: 1, plebeii: 1, provinciales: -2 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+        {
+          key: 'equal_distribution',
+          title: 'Equal Tribal Distribution',
+          description: 'Distribute new citizens equally across all thirty-five tribes. A citizen is a citizen.',
+          axisEffects: { centralization: -2, expansion: 1 },
+          factionPowerEffects: { provinciales: 1, plebeii: -2, optimates: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+      ],
+    },
+  },
+  {
+    key: 'loyalty_campaigns',
+    title: 'The Loyalty Campaigns',
+    type: 'endeavour',
+    category: 'military',
+    illustration: 'allied_legions_marching',
+    flavor:
+      "The Senate's promise is clear: citizenship through service. Allied communities across Italy are mustering their young men for joint campaigns on the frontier. But Rome has set the bar high — these are not token patrols. If the campaigns succeed, a generation of allies will have earned their place in the Republic with blood. If they fail, the whole integration program will be branded a mistake.",
+    endeavourConfig: {
+      difficultyPercent: 0.55,
+      firstPlaceReward: 3,
+      successOutcome: {
+        axisEffects: { expansion: 1, militarism: 1 },
+        factionPowerEffects: { milites: 1, legiones: 1, agricolae: -1 },
+      },
+      failureOutcome: {
+        axisEffects: { centralization: -1 },
+        factionPowerEffects: { provinciales: -1, nautae: -1, plebeii: -1 },
+      },
+    },
+  },
+  {
+    key: 'social_war',
+    title: 'The Social War',
+    type: 'clash',
+    category: 'military',
+    illustration: 'italian_battlefield',
+    flavor:
+      "The allies have taken up arms. From Picenum to Campania, communities that furnished Rome's best soldiers now turn those skills against her. The rebels fight with Roman training, Roman discipline, and Roman fury. Coastal allies blockade the ports. Fields burn across the peninsula. This is not a foreign war — it is a civil one, and it will be decided by commitment, not cleverness.",
+    clashConfig: {
+      thresholdPercent: 0.65,
+      factionAmplifiers: { legiones: 2, milites: 2 },
+      successOutcome: {
+        axisEffects: { militarism: 1, centralization: -1 },
+        factionPowerEffects: { legiones: 1, milites: 1, agricolae: -1 },
+        victoryPoints: 2,
+      },
+      failureOutcome: {
+        axisEffects: { commerce: -1, expansion: -1 },
+        factionPowerEffects: { nautae: -1, mercatores: -1, plebeii: -1 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 10, affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -2 },
       },
     },
   },
