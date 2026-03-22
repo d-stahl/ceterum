@@ -198,7 +198,7 @@ export const CONTROVERSIES: Controversy[] = [
         key: 'reject_alliance',
         title: 'Reject Alliance',
         description: "Rome needs no eastern entanglements. The Republic's strength lies in its focus.",
-        axisEffects: { expansion: -1, tradition: 1 },
+        axisEffects: { expansion: -1 },
         factionPowerEffects: { optimates: 1, pontifices: 1, mercatores: -1, milites: -1 },
       },
     ],
@@ -250,14 +250,14 @@ export const CONTROVERSIES: Controversy[] = [
         key: 'land_redistribution',
         title: 'Land Redistribution',
         description: 'Seize excess public land and divide it among landless citizens.',
-        axisEffects: { patrician: -1, commerce: -1 },
+        axisEffects: { commerce: -1 },
         factionPowerEffects: { plebeii: 1, agricolae: 1, optimates: -1 },
       },
       {
         key: 'regulated_ownership',
         title: 'Regulated Ownership',
         description: 'Cap individual land holdings but compensate current occupants fairly.',
-        axisEffects: { tradition: -1 },
+        axisEffects: {},
         factionPowerEffects: { fabri: 1, milites: 1 },
       },
       {
@@ -290,7 +290,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Conditional Reform',
         description:
           'Suppress the revolt, but promise improved conditions and legal paths to manumission.',
-        axisEffects: { tradition: -1, patrician: -1 },
+        axisEffects: { patrician: -1 },
         factionPowerEffects: { servi: 1, fabri: 1, optimates: -1 },
       },
       {
@@ -323,7 +323,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Gradual Integration',
         description:
           'Offer a path to citizenship over time through military service and demonstrated loyalty.',
-        axisEffects: { patrician: -1, tradition: -1 },
+        axisEffects: { patrician: -1 },
         factionPowerEffects: { legiones: 1, fabri: 1, provinciales: 1 },
       },
       {
@@ -355,7 +355,7 @@ export const CONTROVERSIES: Controversy[] = [
         key: 'interest_caps',
         title: 'Interest Caps',
         description: 'Limit interest rates and regulate lending practices going forward.',
-        axisEffects: { tradition: -1 },
+        axisEffects: {},
         factionPowerEffects: { milites: 1, servi: 1, plebeii: 1 },
       },
       {
@@ -383,7 +383,7 @@ export const CONTROVERSIES: Controversy[] = [
         key: 'state_grain_dole',
         title: 'State Grain Dole',
         description: 'Establish regular free or heavily subsidized grain for all citizens.',
-        axisEffects: { patrician: -1, centralization: 1 },
+        axisEffects: { centralization: 1 },
         factionPowerEffects: { plebeii: 2, fabri: 1, agricolae: -1 },
       },
       {
@@ -452,7 +452,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'State Tax Collection',
         description:
           "End the contract system. Rome's officials collect taxes directly and are accountable to Rome.",
-        axisEffects: { centralization: 1, patrician: -1 },
+        axisEffects: { centralization: 1 },
         factionPowerEffects: { provinciales: 1, plebeii: 1, mercatores: -1 },
       },
       {
@@ -486,7 +486,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Sumptuary Laws',
         description:
           'Legally limit spending on banquets, dress, and luxury goods. Rome must show discipline.',
-        axisEffects: { tradition: 1, centralization: 1 },
+        axisEffects: { centralization: 1 },
         factionPowerEffects: { pontifices: 1, plebeii: 1, optimates: -1, mercatores: -1, servi: -1 },
       },
       {
@@ -530,7 +530,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Defend the Veto',
         description:
           "The tribune's power is sacrosanct. Any restriction sets a precedent that will be exploited.",
-        axisEffects: { patrician: -1, centralization: -1 },
+        axisEffects: { centralization: -1 },
         factionPowerEffects: { plebeii: 1, milites: 1, servi: 1 },
       },
       {
@@ -571,7 +571,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Senate Consensus',
         description:
           'Govern through deliberation despite the slowness. The Republic was not built in a day.',
-        axisEffects: { expansion: -1, tradition: 1 },
+        axisEffects: { expansion: -1 },
         factionPowerEffects: { optimates: 1, pontifices: 1, legiones: -1, milites: -1 },
       },
     ],
@@ -623,7 +623,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Trial and Punishment',
         description:
           'Bring him to justice. No man is above the law, regardless of his victories.',
-        axisEffects: { patrician: -1, centralization: 1 },
+        axisEffects: { centralization: 1 },
         factionPowerEffects: { provinciales: 1, plebeii: 1, legiones: -1, optimates: -1 },
       },
       {
@@ -638,7 +638,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Pardon and Reform',
         description:
           'Pardon him for past service but institute new accountability for future governors.',
-        axisEffects: { tradition: -1 },
+        axisEffects: {},
         factionPowerEffects: { provinciales: 1, servi: 1, optimates: -1 },
       },
     ],
@@ -672,7 +672,7 @@ export const CONTROVERSIES: Controversy[] = [
         key: 'open_syncretism',
         title: 'Open Syncretism',
         description: 'Formally incorporate the foreign gods into the Roman pantheon.',
-        axisEffects: { tradition: -2, patrician: -1 },
+        axisEffects: { tradition: -2 },
         factionPowerEffects: { provinciales: 1, plebeii: 1, pontifices: -1 },
       },
     ],
@@ -738,7 +738,7 @@ export const CONTROVERSIES: Controversy[] = [
         key: 'dismiss_report',
         title: 'Dismiss the Report',
         description: 'The censors are political actors pursuing vendettas. Disregard their findings entirely.',
-        axisEffects: { tradition: -1, expansion: -1 },
+        axisEffects: { expansion: -1 },
         factionPowerEffects: { plebeii: 1, servi: 1, pontifices: -1 },
       },
     ],
@@ -763,14 +763,14 @@ export const CONTROVERSIES: Controversy[] = [
         key: 'reinterpret_oracle',
         title: 'Reinterpret the Oracle',
         description: 'The Books speak in symbols. A simpler, cheaper ceremony satisfies their spirit.',
-        axisEffects: { tradition: -1 },
+        axisEffects: {},
         factionPowerEffects: { pontifices: -1, fabri: 1 },
       },
       {
         key: 'reject_oracle',
         title: 'Reject the Oracle',
         description: 'Rome was not built on omens. This is priestcraft and politics, nothing more.',
-        axisEffects: { tradition: -1, militarism: 1 },
+        axisEffects: { militarism: 1 },
         factionPowerEffects: { pontifices: -1, legiones: 1, plebeii: 1 },
       },
     ],
