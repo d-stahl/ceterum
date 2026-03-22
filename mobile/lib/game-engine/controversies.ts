@@ -118,7 +118,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Military Campaign',
         description: 'Dispatch legions and fleet to strike Carthage before she grows stronger.',
         axisEffects: { expansion: 1, militarism: 1 },
-        factionPowerEffects: { legiones: 1, nautae: 1, mercatores: 1, provinciales: -1 },
+        factionPowerEffects: { legiones: 1, nautae: 1, mercatores: 1, provinciales: -1, servi: -1 },
       },
       {
         key: 'economic_pressure',
@@ -134,7 +134,7 @@ export const CONTROVERSIES: Controversy[] = [
         description:
           'Negotiate a treaty that recognizes spheres of influence. Peace is profitable.',
         axisEffects: { militarism: -1 },
-        factionPowerEffects: { mercatores: 1, nautae: 1, legiones: -1 },
+        factionPowerEffects: { mercatores: 1, nautae: 1, legiones: -1, milites: -1 },
       },
     ],
   },
@@ -152,7 +152,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Punitive Expedition',
         description: 'Send the legions north to crush the raiders and push them back beyond the mountains.',
         axisEffects: { militarism: 1, expansion: 1 },
-        factionPowerEffects: { legiones: 1, agricolae: 1 },
+        factionPowerEffects: { legiones: 1, agricolae: 1, servi: -1 },
       },
       {
         key: 'defensive_fortifications',
@@ -167,7 +167,7 @@ export const CONTROVERSIES: Controversy[] = [
         description:
           'Offer the Gauls land in sparsely populated regions in exchange for peace and service.',
         axisEffects: { expansion: -1, militarism: -1 },
-        factionPowerEffects: { provinciales: 1, agricolae: -1, legiones: -1 },
+        factionPowerEffects: { provinciales: 1, agricolae: -1, legiones: -1, milites: -1 },
       },
     ],
   },
@@ -199,7 +199,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Reject Alliance',
         description: "Rome needs no eastern entanglements. The Republic's strength lies in its focus.",
         axisEffects: { expansion: -1, tradition: 1 },
-        factionPowerEffects: { optimates: 1, pontifices: 1, mercatores: -1 },
+        factionPowerEffects: { optimates: 1, pontifices: 1, mercatores: -1, milites: -1 },
       },
     ],
   },
@@ -331,7 +331,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Firm Refusal',
         description: "Rome's privileges belong to Romans. The allies knew the terms when they joined.",
         axisEffects: { patrician: 1, tradition: 1 },
-        factionPowerEffects: { optimates: 1, pontifices: 1, provinciales: -2 },
+        factionPowerEffects: { optimates: 1, pontifices: 1, provinciales: -2, servi: -1 },
       },
     ],
   },
@@ -425,7 +425,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Diplomatic Pardon',
         description: 'Offer pirates land, amnesty, and resettlement in exchange for surrender.',
         axisEffects: { militarism: -1, expansion: -1 },
-        factionPowerEffects: { provinciales: 1, agricolae: 1, nautae: -1 },
+        factionPowerEffects: { provinciales: 1, agricolae: 1, nautae: -1, milites: -1 },
         followUpKey: 'pirate_settlements',
       },
       {
@@ -487,7 +487,7 @@ export const CONTROVERSIES: Controversy[] = [
         description:
           'Legally limit spending on banquets, dress, and luxury goods. Rome must show discipline.',
         axisEffects: { tradition: 1, centralization: 1 },
-        factionPowerEffects: { pontifices: 1, plebeii: 1, optimates: -1, mercatores: -1 },
+        factionPowerEffects: { pontifices: 1, plebeii: 1, optimates: -1, mercatores: -1, servi: -1 },
       },
       {
         key: 'luxury_tax',
@@ -572,7 +572,7 @@ export const CONTROVERSIES: Controversy[] = [
         description:
           'Govern through deliberation despite the slowness. The Republic was not built in a day.',
         axisEffects: { expansion: -1, tradition: 1 },
-        factionPowerEffects: { optimates: 1, pontifices: 1, legiones: -1 },
+        factionPowerEffects: { optimates: 1, pontifices: 1, legiones: -1, milites: -1 },
       },
     ],
   },
@@ -725,7 +725,7 @@ export const CONTROVERSIES: Controversy[] = [
         description:
           'Enforce moral laws, expel compromised senators, and restore the discipline of the ancestors.',
         axisEffects: { tradition: 1, patrician: 1 },
-        factionPowerEffects: { pontifices: 1, milites: 1, plebeii: -1, mercatores: -1 },
+        factionPowerEffects: { pontifices: 1, milites: 1, plebeii: -1, mercatores: -1, servi: -1 },
       },
       {
         key: 'selective_reform',
