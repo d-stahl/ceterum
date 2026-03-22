@@ -158,8 +158,8 @@ export const CONTROVERSIES: Controversy[] = [
         key: 'defensive_fortifications',
         title: 'Defensive Fortifications',
         description: 'Build walls and strengthen the northern frontier. Let them raid emptiness.',
-        axisEffects: { centralization: 1, expansion: -1 },
-        factionPowerEffects: { fabri: 2, legiones: 1 },
+        axisEffects: { expansion: -1 },
+        factionPowerEffects: { fabri: 1, legiones: 1 },
       },
       {
         key: 'tribal_settlement',
@@ -460,8 +460,8 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Regulated Contracts',
         description:
           'Keep the publicani but create oversight boards and provincial appeals processes.',
-        axisEffects: { tradition: -1 },
-        factionPowerEffects: { mercatores: 1, fabri: 1, provinciales: 1 },
+        axisEffects: { centralization: -1 },
+        factionPowerEffects: { mercatores: 1, provinciales: 1 },
       },
       {
         key: 'free_market_contracts',
@@ -530,8 +530,8 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Defend the Veto',
         description:
           "The tribune's power is sacrosanct. Any restriction sets a precedent that will be exploited.",
-        axisEffects: { patrician: -1, expansion: -1 },
-        factionPowerEffects: { plebeii: 1, fabri: 1, servi: 1 },
+        axisEffects: { patrician: -1, centralization: -1 },
+        factionPowerEffects: { plebeii: 1, milites: 1, servi: 1 },
       },
       {
         key: 'reform_assembly',
@@ -705,8 +705,8 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Merit-Based Selection',
         description:
           'Reform the selection to choose the most learned and pious candidate, regardless of birth.',
-        axisEffects: { tradition: -1, centralization: 1 },
-        factionPowerEffects: { pontifices: 1, fabri: 1 },
+        axisEffects: { tradition: -1 },
+        factionPowerEffects: { pontifices: 1 },
       },
     ],
   },
@@ -731,8 +731,8 @@ export const CONTROVERSIES: Controversy[] = [
         key: 'selective_reform',
         title: 'Selective Reform',
         description: 'Update Roman moral standards to reflect the modern, cosmopolitan Republic.',
-        axisEffects: { tradition: -1, patrician: -1 },
-        factionPowerEffects: { fabri: 1, mercatores: 1 },
+        axisEffects: { tradition: -1 },
+        factionPowerEffects: { provinciales: 1, mercatores: 1 },
       },
       {
         key: 'dismiss_report',
