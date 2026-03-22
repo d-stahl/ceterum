@@ -7,7 +7,7 @@
  * Run from app/ directory.
  */
 
-import { ALL_CONTROVERSIES, Controversy } from '../mobile/lib/game-engine/controversies';
+import { CONTROVERSIES, FOLLOW_UP_CONTROVERSIES, ALL_CONTROVERSIES, Controversy, ControversyType } from '../mobile/lib/game-engine/controversies';
 import { AXIS_KEYS, AXIS_LABELS, AxisKey } from '../mobile/lib/game-engine/axes';
 import { FACTIONS } from '../mobile/lib/game-engine/factions';
 
@@ -158,6 +158,17 @@ function printTally(tally: EffectTally) {
 
 console.log(`Total controversies: ${ALL_CONTROVERSIES.length}`);
 console.log(`Total outcomes: ${outcomes.length}`);
+console.log();
+
+// Type breakdown
+const types: ControversyType[] = ['vote', 'clash', 'endeavour', 'schism'];
+console.log('# Controversy Types');
+console.log();
+for (const t of types) {
+  const root = CONTROVERSIES.filter(c => c.type === t).length;
+  const followUp = FOLLOW_UP_CONTROVERSIES.filter(c => c.type === t).length;
+  console.log(`  ${t}: ${root} root, ${followUp} follow-up`);
+}
 console.log();
 
 console.log('# Policy Effects');

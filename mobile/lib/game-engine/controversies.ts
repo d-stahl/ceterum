@@ -223,7 +223,7 @@ export const CONTROVERSIES: Controversy[] = [
         key: 'protected_alliance',
         title: 'Protected Alliance',
         description: 'Defend them militarily while respecting their autonomy and customs.',
-        axisEffects: { militarism: -1, expansion: -1 },
+        axisEffects: { militarism: -1, centralization: -1 },
         factionPowerEffects: { nautae: 1, mercatores: 1, provinciales: 1 },
       },
       {
@@ -356,7 +356,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Interest Caps',
         description: 'Limit interest rates and regulate lending practices going forward.',
         axisEffects: { tradition: -1 },
-        factionPowerEffects: { fabri: 1, mercatores: 1, plebeii: 1 },
+        factionPowerEffects: { milites: 1, mercatores: 1, plebeii: 1 },
       },
       {
         key: 'enforce_contracts',
@@ -493,7 +493,7 @@ export const CONTROVERSIES: Controversy[] = [
         key: 'luxury_tax',
         title: 'Luxury Tax',
         description: 'Tax luxury imports and redistribute proceeds to public works and grain.',
-        axisEffects: { tradition: -1, commerce: -1 },
+        axisEffects: { commerce: -1 },
         factionPowerEffects: { fabri: 1, plebeii: 1, mercatores: -1 },
       },
       {
@@ -563,7 +563,7 @@ export const CONTROVERSIES: Controversy[] = [
         key: 'expanded_consular_authority',
         title: 'Expanded Consular Authority',
         description: 'Allow the consuls to act without Senate approval for the duration of the crisis.',
-        axisEffects: { centralization: 1, tradition: -1 },
+        axisEffects: { centralization: 1 },
         factionPowerEffects: { optimates: 1, legiones: 1 },
       },
       {
@@ -665,8 +665,8 @@ export const CONTROVERSIES: Controversy[] = [
         key: 'regulated_tolerance',
         title: 'Regulated Tolerance',
         description: 'Allow foreign worship in designated areas under civic oversight.',
-        axisEffects: { tradition: -1, expansion: -1 },
-        factionPowerEffects: { provinciales: 1, mercatores: 1, fabri: 1 },
+        axisEffects: { tradition: -1, centralization: -1 },
+        factionPowerEffects: { provinciales: 1, mercatores: 1 },
       },
       {
         key: 'open_syncretism',
