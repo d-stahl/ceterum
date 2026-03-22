@@ -1,6 +1,19 @@
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { WorkerType, OratorRole } from './game-engine/workers';
 import { WorkerEffect } from './game-engine/demagogery';
+
+async function invokeEdgeFunction(name: string, body: Record<string, unknown>): Promise<any> {
+  const { data, error } = await supabase.functions.invoke(name, { body });
+  if (error) {
+    if (error instanceof FunctionsHttpError) {
+      const responseBody = await error.context.json().catch(() => null);
+      throw new Error(responseBody?.error ?? responseBody?.message ?? error.message);
+    }
+    throw error;
+  }
+  return data;
+}
 
 export async function submitLeaderVote(
   gameId: string,
@@ -78,15 +91,11 @@ export async function submitEndeavourInvestment(
   controversyKey: string,
   influenceInvested: number,
 ): Promise<any> {
-  const { data, error } = await supabase.functions.invoke('submit-endeavour', {
-    body: {
-      game_id: gameId,
-      controversy_key: controversyKey,
-      influence_invested: influenceInvested,
-    },
+  return invokeEdgeFunction('submit-endeavour', {
+    game_id: gameId,
+    controversy_key: controversyKey,
+    influence_invested: influenceInvested,
   });
-  if (error) throw error;
-  return data;
 }
 
 // --- Clash ---

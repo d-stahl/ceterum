@@ -1,8 +1,8 @@
 import { AxisKey } from './axes.ts';
 import { EndeavourConfig } from './controversies.ts';
 
-export { VP_TO_INFLUENCE_RATE } from './constants.ts';
 import { VP_TO_INFLUENCE_RATE } from './constants.ts';
+export { VP_TO_INFLUENCE_RATE };
 
 export interface EndeavourSubmission {
   playerId: string;
