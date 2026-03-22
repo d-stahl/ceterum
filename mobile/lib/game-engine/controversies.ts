@@ -152,7 +152,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Punitive Expedition',
         description: 'Send the legions north to crush the raiders and push them back beyond the mountains.',
         axisEffects: { militarism: 1, expansion: 1 },
-        factionPowerEffects: { legiones: 1, agricolae: 1, servi: -1 },
+        factionPowerEffects: { legiones: 1, fabri: -1, servi: -1 },
       },
       {
         key: 'defensive_fortifications',
@@ -192,7 +192,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Demand Submission',
         description: "Accept only if Pontus acknowledges Roman supremacy. Allies must know their place.",
         axisEffects: { centralization: 1, expansion: 1 },
-        factionPowerEffects: { optimates: 1, legiones: 1 },
+        factionPowerEffects: { optimates: 1, legiones: 1, fabri: -1 },
       },
       {
         key: 'reject_alliance',
@@ -251,7 +251,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Land Redistribution',
         description: 'Seize excess public land and divide it among landless citizens.',
         axisEffects: { commerce: -1 },
-        factionPowerEffects: { plebeii: 1, agricolae: 1, optimates: -1 },
+        factionPowerEffects: { fabri: -1, agricolae: 1, optimates: -1 },
       },
       {
         key: 'regulated_ownership',
@@ -364,7 +364,7 @@ export const CONTROVERSIES: Controversy[] = [
         description:
           'Debts are sacred obligations. Relief destroys credit, commerce, and the rule of law.',
         axisEffects: { patrician: 1, tradition: 1, commerce: 1 },
-        factionPowerEffects: { optimates: 1, mercatores: 1, plebeii: -1 },
+        factionPowerEffects: { optimates: 1, fabri: -1, plebeii: -1 },
       },
     ],
   },
@@ -564,7 +564,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Expanded Consular Authority',
         description: 'Allow the consuls to act without Senate approval for the duration of the crisis.',
         axisEffects: { centralization: 1 },
-        factionPowerEffects: { milites: 1, legiones: 1 },
+        factionPowerEffects: { milites: 1, legiones: 1, fabri: -1 },
       },
       {
         key: 'senate_consensus',
