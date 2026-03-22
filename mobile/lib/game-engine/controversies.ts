@@ -185,7 +185,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Accept Alliance',
         description: 'Join forces on equal terms and expand Roman influence eastward.',
         axisEffects: { expansion: 1, militarism: -1 },
-        factionPowerEffects: { mercatores: 1, nautae: 1 },
+        factionPowerEffects: { milites: 1, nautae: 1 },
       },
       {
         key: 'demand_submission',
@@ -258,7 +258,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Regulated Ownership',
         description: 'Cap individual land holdings but compensate current occupants fairly.',
         axisEffects: { tradition: -1 },
-        factionPowerEffects: { fabri: 1, mercatores: 1 },
+        factionPowerEffects: { fabri: 1, milites: 1 },
       },
       {
         key: 'protect_property_rights',
@@ -283,7 +283,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Military Suppression',
         description: 'Crush the revolt with overwhelming force. Make an example that will not be forgotten.',
         axisEffects: { militarism: 1, patrician: 1 },
-        factionPowerEffects: { legiones: 1, optimates: 1, servi: -1 },
+        factionPowerEffects: { legiones: 1, milites: 1, servi: -1 },
       },
       {
         key: 'conditional_reform',
@@ -356,7 +356,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Interest Caps',
         description: 'Limit interest rates and regulate lending practices going forward.',
         axisEffects: { tradition: -1 },
-        factionPowerEffects: { milites: 1, mercatores: 1, plebeii: 1 },
+        factionPowerEffects: { milites: 1, servi: 1, plebeii: 1 },
       },
       {
         key: 'enforce_contracts',
@@ -392,7 +392,7 @@ export const CONTROVERSIES: Controversy[] = [
         description:
           'Build state grain stockpiles to stabilize prices in crises only. Not a permanent dole.',
         axisEffects: { centralization: 1 },
-        factionPowerEffects: { agricolae: 1, mercatores: 1 },
+        factionPowerEffects: { agricolae: 1, milites: 1 },
       },
       {
         key: 'market_prices',
@@ -539,7 +539,7 @@ export const CONTROVERSIES: Controversy[] = [
         description:
           'Restructure the voting assemblies to reduce deadlock and better reflect the population.',
         axisEffects: { tradition: -1, patrician: -1 },
-        factionPowerEffects: { fabri: 1, mercatores: 1, optimates: -1 },
+        factionPowerEffects: { fabri: 1, milites: 1, optimates: -1 },
       },
     ],
   },
@@ -564,7 +564,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Expanded Consular Authority',
         description: 'Allow the consuls to act without Senate approval for the duration of the crisis.',
         axisEffects: { centralization: 1 },
-        factionPowerEffects: { optimates: 1, legiones: 1 },
+        factionPowerEffects: { milites: 1, legiones: 1 },
       },
       {
         key: 'senate_consensus',
@@ -605,7 +605,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Accept Reality',
         description: 'Bribery is the oil that makes the machine run. Virtue-signaling solves nothing.',
         axisEffects: { patrician: 1, tradition: 1 },
-        factionPowerEffects: { optimates: 1, mercatores: 1, plebeii: -1 },
+        factionPowerEffects: { servi: 1, mercatores: 1, plebeii: -1 },
       },
     ],
   },
@@ -631,7 +631,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Senate Discipline',
         description: 'Let the Senate handle it internally. Public spectacles only embolden enemies.',
         axisEffects: { patrician: 1, tradition: 1 },
-        factionPowerEffects: { optimates: 1, legiones: 1 },
+        factionPowerEffects: { milites: 1, legiones: 1 },
       },
       {
         key: 'pardon_and_reform',
@@ -639,7 +639,7 @@ export const CONTROVERSIES: Controversy[] = [
         description:
           'Pardon him for past service but institute new accountability for future governors.',
         axisEffects: { tradition: -1 },
-        factionPowerEffects: { provinciales: 1, mercatores: 1, optimates: -1 },
+        factionPowerEffects: { provinciales: 1, servi: 1, optimates: -1 },
       },
     ],
   },
@@ -666,7 +666,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Regulated Tolerance',
         description: 'Allow foreign worship in designated areas under civic oversight.',
         axisEffects: { tradition: -1, centralization: -1 },
-        factionPowerEffects: { provinciales: 1, mercatores: 1 },
+        factionPowerEffects: { provinciales: 1 },
       },
       {
         key: 'open_syncretism',
@@ -725,7 +725,7 @@ export const CONTROVERSIES: Controversy[] = [
         description:
           'Enforce moral laws, expel compromised senators, and restore the discipline of the ancestors.',
         axisEffects: { tradition: 1, patrician: 1 },
-        factionPowerEffects: { pontifices: 1, optimates: 1, plebeii: -1, mercatores: -1 },
+        factionPowerEffects: { pontifices: 1, milites: 1, plebeii: -1, mercatores: -1 },
       },
       {
         key: 'selective_reform',
@@ -739,7 +739,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Dismiss the Report',
         description: 'The censors are political actors pursuing vendettas. Disregard their findings entirely.',
         axisEffects: { tradition: -1, expansion: -1 },
-        factionPowerEffects: { plebeii: 1, mercatores: 1, pontifices: -1 },
+        factionPowerEffects: { plebeii: 1, servi: 1, pontifices: -1 },
       },
     ],
   },
@@ -757,7 +757,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Fulfill the Oracle',
         description: 'The Sibylline Books have never been wrong. Spend what must be spent.',
         axisEffects: { tradition: 1, centralization: 1 },
-        factionPowerEffects: { pontifices: 2, optimates: 1, fabri: 1 },
+        factionPowerEffects: { pontifices: 2, servi: 1, fabri: 1 },
       },
       {
         key: 'reinterpret_oracle',
