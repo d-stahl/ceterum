@@ -937,7 +937,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { militarism: 1, centralization: -1 },
         factionPowerEffects: { legiones: 1, milites: 1, agricolae: -1 },
-        victoryPoints: 2,
+        victoryPoints: 2.5,
       },
       failureOutcome: {
         axisEffects: { commerce: -1, expansion: -1 },
@@ -974,7 +974,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       personalEffects: {
         commitSuccess: { affinityBonus: 1 },
         commitFailure: { influenceLoss: 8, affinityPenalty: -2 },
-        withdrawSuccess: { affinityPenalty: -1 },
+        withdrawSuccess: { affinityPenalty: -2 },
       },
     },
   },
