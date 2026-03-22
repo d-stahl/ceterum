@@ -209,16 +209,9 @@ export async function launchGame(gameId: string): Promise<void> {
 
   // Stratified shuffle: ensures one controversy of each category per group of 5 drawn
   const categories = ['military', 'social', 'economic', 'political', 'religious'] as const;
-  // TESTING HACK: force pirate_menace into position 1 so it always appears in round 1
-  const FORCE_FIRST_KEY = 'pirate_menace'; // set to '' to disable
-  const byCategory = categories.map((cat) => {
-    const keys = CONTROVERSIES.filter((c) => c.category === cat).map((c) => c.key).sort(() => Math.random() - 0.5);
-    if (FORCE_FIRST_KEY) {
-      const idx = keys.indexOf(FORCE_FIRST_KEY);
-      if (idx > 0) { keys.splice(idx, 1); keys.unshift(FORCE_FIRST_KEY); }
-    }
-    return keys;
-  });
+  const byCategory = categories.map((cat) =>
+    CONTROVERSIES.filter((c) => c.category === cat).map((c) => c.key).sort(() => Math.random() - 0.5)
+  );
   const maxPerCat = Math.max(...byCategory.map((keys) => keys.length));
   const deckOrder: string[] = [];
   for (let i = 0; i < maxPerCat; i++) {
