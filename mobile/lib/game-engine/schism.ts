@@ -77,12 +77,17 @@ export function resolveSchism(
       rewards.push(convertToReward(pid, raw));
     }
   } else if (supporters.length > 0) {
-    // Mixed → saboteurs get betrayVP, supporters get 0
+    // Mixed → saboteurs get betrayVP, supporters get betrayedVP (default 0)
     for (const pid of saboteurs) {
       const raw = declaredSide.betrayVP;
       rewards.push(convertToReward(pid, raw));
     }
-    // Supporters get nothing — omitted from rewards
+    const betrayedPenalty = declaredSide.betrayedVP ?? 0;
+    if (betrayedPenalty !== 0) {
+      for (const pid of supporters) {
+        rewards.push(convertToReward(pid, betrayedPenalty));
+      }
+    }
   } else {
     // All sabotage → everyone gets allBetrayVP
     for (const pid of saboteurs) {

@@ -144,6 +144,52 @@ describe('resolveSchism — PD payoffs', () => {
     ]);
   });
 
+  it('mixed with betrayedVP: supporters lose VP', () => {
+    const configWithPenalty: SchismConfig = {
+      sides: [
+        {
+          key: 'high_a',
+          title: 'High A',
+          description: 'High stakes side A',
+          axisEffects: { commerce: 1 },
+          factionPowerEffects: { nautae: 1 },
+          supportVP: 2.5,
+          betrayVP: 1.5,
+          allBetrayVP: 0.5,
+          betrayedVP: -1,
+        },
+        {
+          key: 'high_b',
+          title: 'High B',
+          description: 'High stakes side B',
+          axisEffects: { militarism: 1 },
+          factionPowerEffects: { milites: 1 },
+          supportVP: 2.5,
+          betrayVP: 1.5,
+          allBetrayVP: 0.5,
+          betrayedVP: -1,
+        },
+      ],
+    };
+
+    const result = resolveSchism(
+      [
+        { playerId: 'alice', supports: true },
+        { playerId: 'bob', supports: false },
+      ],
+      configWithPenalty,
+      'high_a',
+      ['alice', 'bob'],
+    );
+
+    expect(result.wasSabotaged).toBe(true);
+    // bob (saboteur) gets 1.5 VP, alice (betrayed) loses 1 VP
+    expect(result.rewards).toEqual([
+      { playerId: 'bob', vpAwarded: 1, influenceAwarded: 10 },
+      { playerId: 'alice', vpAwarded: -1, influenceAwarded: 0 },
+    ]);
+  });
+
   it('preserves team member ids and supporter/saboteur lists', () => {
     const result = resolveSchism(
       [

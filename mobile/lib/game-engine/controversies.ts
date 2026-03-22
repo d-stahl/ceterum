@@ -58,6 +58,8 @@ export interface SchismSide {
   betrayVP: number;
   /** VP each saboteur gets if ALL sabotage */
   allBetrayVP: number;
+  /** VP each supporter loses if betrayed (0 = no penalty, negative = loss) */
+  betrayedVP?: number;
   followUpKey?: string;
 }
 
@@ -830,8 +832,8 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Stand by the Senate\'s promise. The settlements stay. Rome\'s word must mean something.',
           axisEffects: { tradition: -1 },
           factionPowerEffects: { agricolae: -1, nautae: -1 },
-          supportVP: 2,
-          betrayVP: 1,
+          supportVP: 1.5,
+          betrayVP: 0.5,
           allBetrayVP: 0.5,
         },
         {
@@ -840,8 +842,8 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Drive the pirates from the land. They are murderers, not settlers, and Rome owes them nothing.',
           axisEffects: { militarism: 1 },
           factionPowerEffects: { legiones: 1, agricolae: 1 },
-          supportVP: 2,
-          betrayVP: 1,
+          supportVP: 1.5,
+          betrayVP: 0.5,
           allBetrayVP: 0.5,
         },
       ],
@@ -885,9 +887,10 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Confine new citizens to four overflow tribes. They have citizenship — but not equal power.',
           axisEffects: { centralization: -1, patrician: 1 },
           factionPowerEffects: { optimates: 1, plebeii: 1, provinciales: -2 },
-          supportVP: 2,
-          betrayVP: 1,
+          supportVP: 2.5,
+          betrayVP: 1.5,
           allBetrayVP: 0.5,
+          betrayedVP: -1,
         },
         {
           key: 'equal_distribution',
@@ -895,9 +898,10 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Distribute new citizens equally across all thirty-five tribes. A citizen is a citizen.',
           axisEffects: { centralization: -2, expansion: 1 },
           factionPowerEffects: { provinciales: 1, plebeii: -2, optimates: -1 },
-          supportVP: 2,
-          betrayVP: 1,
+          supportVP: 2.5,
+          betrayVP: 1.5,
           allBetrayVP: 0.5,
+          betrayedVP: -1,
         },
       ],
     },
@@ -1021,7 +1025,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       "The crisis the Senate spent months debating has worsened into catastrophe. Frontier towns burn, refugees flood south, and the legions that should have marched weeks ago are still waiting for authorization. Now everyone must contribute to an emergency response — civilian engineers, merchant ships, temple treasuries — but it may already be too late. The question is not whether Rome can win, but whether enough can be salvaged to call it survival.",
     endeavourConfig: {
       difficultyPercent: 0.60,
-      firstPlaceReward: 2.5,
+      firstPlaceReward: 3.5,
       successOutcome: {
         axisEffects: { militarism: -1 },
         factionPowerEffects: { fabri: 1, plebeii: 1, legiones: -1 },
