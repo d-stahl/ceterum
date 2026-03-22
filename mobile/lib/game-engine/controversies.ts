@@ -561,6 +561,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Grant one man absolute but constitutionally limited temporary power.',
         axisEffects: { centralization: 2, tradition: 1 },
         factionPowerEffects: { legiones: 1, optimates: 1, plebeii: -1 },
+        followUpKey: 'dictators_reckoning',
       },
       {
         key: 'expanded_consular_authority',
@@ -568,6 +569,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Allow the consuls to act without Senate approval for the duration of the crisis.',
         axisEffects: { centralization: 1 },
         factionPowerEffects: { milites: 1, legiones: 1, fabri: -1 },
+        followUpKey: 'consular_crisis',
       },
       {
         key: 'senate_consensus',
@@ -576,6 +578,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Govern through deliberation despite the slowness. The Republic was not built in a day.',
         axisEffects: { expansion: -1 },
         factionPowerEffects: { optimates: 1, pontifices: 1, legiones: -1, milites: -1 },
+        followUpKey: 'delayed_response',
       },
     ],
   },
@@ -944,6 +947,88 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
         commitSuccess: { affinityBonus: 1 },
         commitFailure: { influenceLoss: 10, affinityPenalty: -2 },
         withdrawSuccess: { affinityPenalty: -2 },
+      },
+    },
+  },
+  // --- Emergency Powers follow-ups ---
+  {
+    key: 'dictators_reckoning',
+    title: "The Dictator's Reckoning",
+    type: 'clash',
+    category: 'political',
+    illustration: 'dictator_defiant',
+    flavor:
+      "The dictator has served his purpose — but his veterans crowd the forum and his edicts keep coming. He shows no sign of laying down power. The Senate must rally enough support to force him out, or the Republic dies in committee. This is not a battle of legions but of legitimacy: can Rome's institutions outlast one man's ambition?",
+    clashConfig: {
+      thresholdPercent: 0.60,
+      factionAmplifiers: { optimates: 2, plebeii: 2 },
+      successOutcome: {
+        axisEffects: { centralization: -2 },
+        factionPowerEffects: { optimates: 1, legiones: -1, plebeii: -1 },
+        victoryPoints: 2,
+      },
+      failureOutcome: {
+        axisEffects: { militarism: 1, commerce: -1 },
+        factionPowerEffects: { legiones: 1, pontifices: -1, plebeii: -2 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 8, affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -1 },
+      },
+    },
+  },
+  {
+    key: 'consular_crisis',
+    title: 'The Consular Crisis',
+    type: 'schism',
+    category: 'political',
+    illustration: 'dueling_consuls',
+    flavor:
+      "The two consuls, drunk on unchecked power, now disagree on everything. Rome has two would-be tyrants pulling the state in opposite directions. Veterans loyal to each consul brawl in the streets. Markets close as merchants flee the uncertainty. The Senate must choose: strip their powers and face the legions' anger, or let them compete and hope the Republic survives their rivalry.",
+    schismConfig: {
+      sides: [
+        {
+          key: 'strip_powers',
+          title: 'Strip Their Powers',
+          description: 'Revoke emergency authority. Return command to the Senate where it belongs.',
+          axisEffects: { centralization: -1, militarism: -1 },
+          factionPowerEffects: { pontifices: 1, legiones: -1, milites: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+        {
+          key: 'let_them_compete',
+          title: 'Let Them Compete',
+          description: 'The consuls will check each other. Rome has survived worse than two ambitious men.',
+          axisEffects: { commerce: -1 },
+          factionPowerEffects: { mercatores: 1, pontifices: -1, plebeii: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+      ],
+    },
+  },
+  {
+    key: 'delayed_response',
+    title: 'The Delayed Response',
+    type: 'endeavour',
+    category: 'military',
+    illustration: 'burning_frontier_town',
+    flavor:
+      "The crisis the Senate spent months debating has worsened into catastrophe. Frontier towns burn, refugees flood south, and the legions that should have marched weeks ago are still waiting for authorization. Now everyone must contribute to an emergency response — civilian engineers, merchant ships, temple treasuries — but it may already be too late. The question is not whether Rome can win, but whether enough can be salvaged to call it survival.",
+    endeavourConfig: {
+      difficultyPercent: 0.60,
+      firstPlaceReward: 2.5,
+      successOutcome: {
+        axisEffects: { militarism: -1 },
+        factionPowerEffects: { fabri: 1, plebeii: 1, legiones: -1 },
+      },
+      failureOutcome: {
+        axisEffects: { centralization: -1, commerce: -1 },
+        factionPowerEffects: { nautae: -1, pontifices: -1, milites: -1 },
       },
     },
   },
