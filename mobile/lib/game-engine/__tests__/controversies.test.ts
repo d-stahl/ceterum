@@ -52,7 +52,7 @@ describe('Controversy definitions', () => {
   });
 
   it('CONTROVERSY_MAP maps all keys', () => {
-    expect(Object.keys(CONTROVERSY_MAP)).toHaveLength(23);
+    expect(Object.keys(CONTROVERSY_MAP)).toHaveLength(38);
     for (const c of CONTROVERSIES) {
       expect(CONTROVERSY_MAP[c.key]).toBe(c);
     }

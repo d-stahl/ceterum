@@ -254,6 +254,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Seize excess public land and divide it among landless citizens.',
         axisEffects: { commerce: -1 },
         factionPowerEffects: { fabri: -1, agricolae: 1, optimates: -1 },
+        followUpKey: 'veteran_colonies',
       },
       {
         key: 'regulated_ownership',
@@ -261,6 +262,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Cap individual land holdings but compensate current occupants fairly.',
         axisEffects: {},
         factionPowerEffects: { fabri: 1, milites: 1 },
+        followUpKey: 'land_surveyors',
       },
       {
         key: 'protect_property_rights',
@@ -268,6 +270,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Existing occupation reflects legitimate investment. Focus on other solutions.',
         axisEffects: { patrician: 1, tradition: 1 },
         factionPowerEffects: { optimates: 1, agricolae: -1 },
+        followUpKey: 'tenant_revolt',
       },
     ],
   },
@@ -354,14 +357,14 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Debt Cancellation',
         description: 'Wipe out existing debts and forbid debt bondage henceforth.',
         axisEffects: { patrician: -1, tradition: -1 },
-        factionPowerEffects: { plebeii: 2, servi: 1, mercatores: -1, optimates: -1 },
+        factionPowerEffects: { plebeii: 1, servi: 1, mercatores: -1, optimates: -1 },
       },
       {
         key: 'interest_caps',
         title: 'Interest Caps',
         description: 'Limit interest rates and regulate lending practices going forward.',
         axisEffects: {},
-        factionPowerEffects: { milites: 1, servi: 1, plebeii: 1 },
+        factionPowerEffects: { milites: 1, servi: 1 },
       },
       {
         key: 'enforce_contracts',
@@ -390,6 +393,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Establish regular free or heavily subsidized grain for all citizens.',
         axisEffects: { centralization: 1 },
         factionPowerEffects: { plebeii: 2, fabri: 1, agricolae: -1 },
+        followUpKey: 'grain_fleet',
       },
       {
         key: 'emergency_reserves',
@@ -398,6 +402,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Build state grain stockpiles to stabilize prices in crises only. Not a permanent dole.',
         axisEffects: { centralization: 1 },
         factionPowerEffects: { agricolae: 1, milites: 1 },
+        followUpKey: 'stockpile_scandal',
       },
       {
         key: 'market_prices',
@@ -405,6 +410,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'State interference destroys incentive. Let the market find its own level.',
         axisEffects: { commerce: 1 },
         factionPowerEffects: { mercatores: 1, agricolae: 1, plebeii: -1 },
+        followUpKey: 'bread_war',
       },
     ],
   },
@@ -459,6 +465,7 @@ export const CONTROVERSIES: Controversy[] = [
           "End the contract system. Rome's officials collect taxes directly and are accountable to Rome.",
         axisEffects: { centralization: 1 },
         factionPowerEffects: { provinciales: 1, plebeii: 1, mercatores: -1 },
+        followUpKey: 'provincial_audit',
       },
       {
         key: 'regulated_contracts',
@@ -467,6 +474,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Keep the publicani but create oversight boards and provincial appeals processes.',
         axisEffects: { centralization: -1 },
         factionPowerEffects: { mercatores: 1, provinciales: 1 },
+        followUpKey: 'oversight_tribunal',
       },
       {
         key: 'free_market_contracts',
@@ -474,6 +482,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Competition between contractors keeps prices honest. Regulation only stifles enterprise.',
         axisEffects: { commerce: 1, patrician: 1 },
         factionPowerEffects: { mercatores: 1, optimates: 1, provinciales: -1 },
+        followUpKey: 'tax_census',
       },
     ],
   },
@@ -492,7 +501,7 @@ export const CONTROVERSIES: Controversy[] = [
         description:
           'Legally limit spending on banquets, dress, and luxury goods. Rome must show discipline.',
         axisEffects: { centralization: 1 },
-        factionPowerEffects: { pontifices: 1, plebeii: 1, optimates: -1, mercatores: -1, servi: -1 },
+        factionPowerEffects: { pontifices: 1, optimates: -1, mercatores: -1, servi: -1 },
       },
       {
         key: 'luxury_tax',
@@ -528,7 +537,7 @@ export const CONTROVERSIES: Controversy[] = [
         description:
           'Limit tribunician veto to cases directly and demonstrably affecting citizen welfare.',
         axisEffects: { centralization: 1, patrician: 1 },
-        factionPowerEffects: { optimates: 1, pontifices: 1, plebeii: -1 },
+        factionPowerEffects: { optimates: 1, pontifices: 1 },
       },
       {
         key: 'defend_veto',
@@ -562,7 +571,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Appoint a Dictator',
         description: 'Grant one man absolute but constitutionally limited temporary power.',
         axisEffects: { centralization: 2, tradition: 1 },
-        factionPowerEffects: { legiones: 1, optimates: 1, plebeii: -1 },
+        factionPowerEffects: { legiones: 1, optimates: 1 },
         followUpKey: 'dictators_reckoning',
       },
       {
@@ -605,8 +614,8 @@ export const CONTROVERSIES: Controversy[] = [
         key: 'electoral_redistribution',
         title: 'Electoral Redistribution',
         description: 'Change the assembly structure to weight votes more equally across classes.',
-        axisEffects: { patrician: -2, tradition: -1 },
-        factionPowerEffects: { plebeii: 2, optimates: -1, mercatores: -1 },
+        axisEffects: { patrician: -1, tradition: -1 },
+        factionPowerEffects: { plebeii: 1, optimates: -1, mercatores: -1 },
       },
       {
         key: 'accept_reality',
@@ -779,7 +788,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Reject the Oracle',
         description: 'Rome was not built on omens. This is priestcraft and politics, nothing more.',
         axisEffects: { militarism: 1 },
-        factionPowerEffects: { pontifices: -1, legiones: 1, plebeii: 1 },
+        factionPowerEffects: { pontifices: -1, legiones: 1 },
       },
     ],
   },
@@ -896,8 +905,8 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           key: 'equal_distribution',
           title: 'Equal Tribal Distribution',
           description: 'Distribute new citizens equally across all thirty-five tribes. A citizen is a citizen.',
-          axisEffects: { centralization: -2, expansion: 1 },
-          factionPowerEffects: { provinciales: 1, plebeii: -2, optimates: -1 },
+          axisEffects: { centralization: -1, expansion: 1 },
+          factionPowerEffects: { provinciales: 1, plebeii: -1, optimates: -1 },
           supportVP: 2.5,
           betrayVP: 1.5,
           allBetrayVP: 0.5,
@@ -1034,6 +1043,267 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
         axisEffects: { centralization: -1, commerce: -1 },
         factionPowerEffects: { nautae: -1, pontifices: -1, milites: -1 },
       },
+    },
+  },
+  // --- Grain Dole follow-ups ---
+  {
+    key: 'grain_fleet',
+    title: 'The Grain Fleet',
+    type: 'endeavour',
+    category: 'economic',
+    illustration: 'grain_ships_at_ostia',
+    flavor:
+      "The Senate's promise of subsidized grain means nothing without the ships to carry it. Egypt's harvests rot on the docks of Alexandria while Rome's poor riot for bread. Organizing a fleet of this scale — buying hulls, hiring crews, negotiating with Egyptian officials — requires an unprecedented civilian mobilization. Every faction wants a piece of the contract.",
+    endeavourConfig: {
+      difficultyPercent: 0.55,
+      firstPlaceReward: 3,
+      successOutcome: {
+        axisEffects: { expansion: 1 },
+        factionPowerEffects: { agricolae: 1, nautae: 1, fabri: -1 },
+      },
+      failureOutcome: {
+        axisEffects: { centralization: -1, militarism: -1 },
+        factionPowerEffects: { plebeii: -1, mercatores: -1, milites: -1 },
+      },
+    },
+  },
+  {
+    key: 'stockpile_scandal',
+    title: 'The Stockpile Scandal',
+    type: 'vote',
+    category: 'economic',
+    illustration: 'empty_granary',
+    flavor:
+      "The emergency grain reserves that were supposed to protect Rome through winter are nearly empty. An audit reveals the stockpiles were sold on the black market — the paperwork shows quantities that don't exist. Senators, merchants, and military quartermasters all point fingers at each other. Someone must be held accountable, but the method of justice will reshape who controls Rome's food supply.",
+    resolutions: [
+      {
+        key: 'public_investigation',
+        title: 'Public Investigation',
+        description: 'Appoint tribunes to investigate openly. Let the people see who profited from their hunger.',
+        axisEffects: { centralization: -1 },
+        factionPowerEffects: { plebeii: 1, optimates: -1, mercatores: -1 },
+      },
+      {
+        key: 'military_seizure',
+        title: 'Military Seizure',
+        description: 'Send soldiers to seize remaining stockpiles and arrest the quartermasters responsible.',
+        axisEffects: { militarism: -1 },
+        factionPowerEffects: { legiones: -1, agricolae: 1, fabri: -1 },
+      },
+      {
+        key: 'emergency_purchase',
+        title: 'Emergency Purchase',
+        description: 'Buy replacement grain at whatever cost. The people cannot wait for justice.',
+        axisEffects: { commerce: -1 },
+        factionPowerEffects: { mercatores: 1, plebeii: -1, agricolae: -1 },
+      },
+    ],
+  },
+  {
+    key: 'bread_war',
+    title: 'The Bread War',
+    type: 'clash',
+    category: 'economic',
+    illustration: 'market_riot',
+    flavor:
+      "Merchant cartels have cornered the grain market, hoarding supply to drive prices beyond what ordinary Romans can pay. When a baker is beaten to death for refusing to raise prices, the urban poor organize into armed bands. They march on the granaries, demanding the Senate enforce fair prices or they will do it themselves. The merchants hire thugs of their own. Blood runs in the Forum.",
+    clashConfig: {
+      thresholdPercent: 0.55,
+      factionAmplifiers: { plebeii: 2, agricolae: 2 },
+      successOutcome: {
+        axisEffects: { centralization: -1 },
+        factionPowerEffects: { agricolae: 1, plebeii: 1, mercatores: -1 },
+        victoryPoints: 2,
+      },
+      failureOutcome: {
+        axisEffects: { militarism: -1 },
+        factionPowerEffects: { mercatores: 1, fabri: -1, plebeii: -1 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 8, affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -2 },
+      },
+    },
+  },
+  // --- Tax Contracts follow-ups ---
+  {
+    key: 'provincial_audit',
+    title: 'The Provincial Audit',
+    type: 'schism',
+    category: 'economic',
+    illustration: 'auditors_in_province',
+    flavor:
+      "Rome's new state tax collectors have uncovered an uncomfortable truth: the provinces are far wealthier than anyone in the Senate realized. Entire estates, mines, and harbors went untaxed for decades under the old system. The audit team faces a choice — report every denarius and watch provincial elites revolt, or negotiate quiet settlements that keep the peace but leave fortunes hidden. Both paths reshape who holds power in Rome's expanding world.",
+    schismConfig: {
+      sides: [
+        {
+          key: 'full_disclosure',
+          title: 'Full Disclosure',
+          description: 'Report every denarius. Rome deserves to know the true wealth of her provinces.',
+          axisEffects: { commerce: 1 },
+          factionPowerEffects: { provinciales: -1, pontifices: -1, mercatores: 1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+        {
+          key: 'quiet_settlement',
+          title: 'Quiet Settlement',
+          description: 'Negotiate privately. Provincial goodwill is worth more than a few extra talents of silver.',
+          axisEffects: { expansion: 1 },
+          factionPowerEffects: { mercatores: -2, provinciales: 1, pontifices: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+      ],
+    },
+  },
+  {
+    key: 'oversight_tribunal',
+    title: 'The Oversight Tribunal',
+    type: 'vote',
+    category: 'economic',
+    illustration: 'tribunal_chamber',
+    flavor:
+      "The new regulatory boards meant to oversee the publicani need judges — but who watches the watchmen? Senators want their own kind in charge, provincial delegates demand representation, and the priesthood argues that sacred law should govern disputes over wealth taken from temple lands. The composition of these tribunals will determine whether regulation means accountability or merely a new form of patronage.",
+    resolutions: [
+      {
+        key: 'senatorial_panel',
+        title: 'Senatorial Panel',
+        description: 'Staff the boards with senators. Only Rome\'s best can judge Rome\'s interests.',
+        axisEffects: { expansion: -1, commerce: 1 },
+        factionPowerEffects: { pontifices: 1, provinciales: -1, optimates: 1 },
+      },
+      {
+        key: 'provincial_delegates',
+        title: 'Provincial Delegates',
+        description: 'Give the provinces a seat at the table. They bear the burden — they deserve a voice.',
+        axisEffects: { expansion: 1 },
+        factionPowerEffects: { provinciales: 1, mercatores: -1, pontifices: -1 },
+      },
+      {
+        key: 'temple_arbitration',
+        title: 'Temple Arbitration',
+        description: 'Sacred law transcends politics. Let the priests adjudicate disputes over wealth and fairness.',
+        axisEffects: { commerce: -1 },
+        factionPowerEffects: { pontifices: 1, mercatores: -1, provinciales: -1 },
+      },
+    ],
+  },
+  {
+    key: 'tax_census',
+    title: 'The Tax Census',
+    type: 'endeavour',
+    category: 'economic',
+    illustration: 'census_expedition',
+    flavor:
+      "Without regulation, Rome does not even know what the provinces are worth. Grain fields, silver mines, timber forests, fishing fleets — all taxed by guesswork and bribery. A massive census expedition is proposed: surveyors, scribes, and engineers fanning out across every province to catalog Rome's true wealth. The publicani will fight it, the provinces will hide what they can, and the whole enterprise may collapse under its own ambition. But if it succeeds, Rome will finally understand what she rules.",
+    endeavourConfig: {
+      difficultyPercent: 0.55,
+      firstPlaceReward: 3,
+      successOutcome: {
+        axisEffects: { expansion: 1, commerce: 1 },
+        factionPowerEffects: { provinciales: -1, pontifices: -1, fabri: 1 },
+      },
+      failureOutcome: {
+        axisEffects: { expansion: -1, commerce: -1 },
+        factionPowerEffects: { mercatores: 1, provinciales: 1, pontifices: 1 },
+      },
+    },
+  },
+  // --- Agrarian Question follow-ups ---
+  {
+    key: 'veteran_colonies',
+    title: 'The Veteran Colonies',
+    type: 'vote',
+    category: 'social',
+    illustration: 'veteran_settlement',
+    flavor:
+      "The land has been redistributed — on paper. But thousands of military veterans now demand their promised plots, and there is not enough good land to go around. Coastal estates, frontier wilderness, or cramped urban lots — each option creates winners and losers. The veterans who fought for Rome's glory now threaten to tear it apart over where they'll plant their olive trees.",
+    resolutions: [
+      {
+        key: 'coastal_settlements',
+        title: 'Coastal Settlements',
+        description: 'Settle veterans along the coast, reviving ancestral farming and fishing communities.',
+        axisEffects: { tradition: 1, patrician: -1 },
+        factionPowerEffects: { nautae: -1, agricolae: 1, servi: -1 },
+      },
+      {
+        key: 'frontier_garrisons',
+        title: 'Frontier Garrisons',
+        description: 'Plant military colonies on the borders. Farmers by day, soldiers by need.',
+        axisEffects: { militarism: 1 },
+        factionPowerEffects: { agricolae: 1, servi: -1, nautae: -1 },
+      },
+      {
+        key: 'urban_integration',
+        title: 'Urban Integration',
+        description: 'Settle veterans in the cities with trade apprenticeships. Rome needs craftsmen, not more farmers.',
+        axisEffects: { tradition: -1, militarism: -1 },
+        factionPowerEffects: { servi: 1, nautae: 1, agricolae: -1 },
+      },
+    ],
+  },
+  {
+    key: 'land_surveyors',
+    title: 'The Land Surveyors',
+    type: 'clash',
+    category: 'social',
+    illustration: 'surveyor_ambush',
+    flavor:
+      "Implementing the new ownership caps requires surveying every estate in Italy — measuring boundaries, verifying titles, cataloguing holdings that powerful families have claimed for generations. The surveyors set out with their groma instruments and wax tablets, only to find roads blocked, boundary stones mysteriously moved, and hired thugs waiting at estate gates. The landowners will not surrender their excess quietly.",
+    clashConfig: {
+      thresholdPercent: 0.55,
+      factionAmplifiers: { agricolae: 2, servi: 2 },
+      successOutcome: {
+        axisEffects: { militarism: 1 },
+        factionPowerEffects: { agricolae: 1, servi: -1, nautae: 1 },
+        victoryPoints: 2.5,
+      },
+      failureOutcome: {
+        axisEffects: { tradition: 1 },
+        factionPowerEffects: { agricolae: -1, servi: 1, nautae: -1 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 8, affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -2 },
+      },
+    },
+  },
+  {
+    key: 'tenant_revolt',
+    title: 'The Tenant Revolt',
+    type: 'schism',
+    category: 'social',
+    illustration: 'tenant_barricade',
+    flavor:
+      "With property rights firmly protected, the great estates grow ever larger — and their tenant farmers grow ever more desperate. Rents rise, evictions multiply, and finally the tenants organize. They barricade granaries, refuse to harvest, and demand the Senate hear their grievances. The landowners call for troops. The Senate Leader's team is caught between justice and order, and not everyone on the team agrees which matters more.",
+    schismConfig: {
+      sides: [
+        {
+          key: 'support_tenants',
+          title: 'Support Tenants',
+          description: 'Stand with the farmers. Their cause is just, even if their methods are desperate.',
+          axisEffects: { patrician: -1, militarism: -1 },
+          factionPowerEffects: { agricolae: 1, servi: 1, nautae: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+        {
+          key: 'support_landowners',
+          title: 'Support Landowners',
+          description: 'Property rights are the foundation of the Republic. Without order, there is nothing.',
+          axisEffects: { tradition: 1, patrician: 1 },
+          factionPowerEffects: { servi: -1, nautae: 1, agricolae: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+      ],
     },
   },
 ];
