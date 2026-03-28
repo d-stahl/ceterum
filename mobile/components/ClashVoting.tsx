@@ -282,6 +282,9 @@ export default function ClashVoting({
                 const fNames = eff.wonFactions.map((fk: string) => factionInfoMap?.[fk]?.displayName ?? fk).join(', ');
                 parts.push(`Affinity ${sign}${eff.affinityDelta} with ${fNames}`);
               }
+              if (eff.globalAffinityDelta && eff.globalAffinityDelta !== 0) {
+                parts.push(`Affinity ${eff.globalAffinityDelta} with all factions`);
+              }
               return (
                 <View key={p.player_id} style={styles.personalEffectRow}>
                   <View style={styles.personalEffectHeader}>

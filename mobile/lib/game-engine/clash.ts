@@ -17,8 +17,9 @@ export interface FactionAssignment {
 export interface PlayerPersonalEffect {
   vpAwarded: number;
   influenceLoss: number;
-  affinityDelta: number;        // bonus or penalty applied to won factions
-  wonFactions: string[];        // faction keys this player won
+  affinityDelta: number;              // bonus or penalty applied to won factions
+  globalAffinityDelta: number;        // penalty applied to ALL factions (withdraw+success cowardice)
+  wonFactions: string[];              // faction keys this player won
   committed: boolean;
 }
 
@@ -173,6 +174,7 @@ export function resolveClash(
       vpAwarded: 0,
       influenceLoss: 0,
       affinityDelta: 0,
+      globalAffinityDelta: 0,
       wonFactions: wonFactions[sub.playerId] ?? [],
       committed: sub.commits,
     };
@@ -185,6 +187,7 @@ export function resolveClash(
         effect.affinityDelta = pe.commitFailure.affinityPenalty;
       } else if (!sub.commits && succeeded) {
         effect.affinityDelta = pe.withdrawSuccess.affinityPenalty;
+        effect.globalAffinityDelta = pe.withdrawSuccess.globalAffinityPenalty ?? 0;
       }
       // !commits && !succeeded → no personal effect
     } else {

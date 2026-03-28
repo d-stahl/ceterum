@@ -220,33 +220,64 @@ Deno.serve(async (req) => {
 
     // Apply personal affinity effects scoped to won factions
     for (const [playerId, pe] of Object.entries(result.personalEffects)) {
-      if (pe.affinityDelta === 0 || pe.wonFactions.length === 0) continue;
-      for (const factionKey of pe.wonFactions) {
-        // Track in affinityEffects for outcome display
-        if (!affinityEffects[playerId]) affinityEffects[playerId] = {};
-        affinityEffects[playerId][factionKey] = (affinityEffects[playerId][factionKey] ?? 0) + pe.affinityDelta;
-        // Track before if not already captured
-        if (!affinityBefore[playerId]) affinityBefore[playerId] = {};
+      if (pe.affinityDelta !== 0 && pe.wonFactions.length > 0) {
+        for (const factionKey of pe.wonFactions) {
+          // Track in affinityEffects for outcome display
+          if (!affinityEffects[playerId]) affinityEffects[playerId] = {};
+          affinityEffects[playerId][factionKey] = (affinityEffects[playerId][factionKey] ?? 0) + pe.affinityDelta;
+          // Track before if not already captured
+          if (!affinityBefore[playerId]) affinityBefore[playerId] = {};
 
-        // Fetch current affinity and apply
-        const { data: currentAff } = await adminClient
-          .from('game_player_faction_affinity')
-          .select('faction_id, affinity')
-          .eq('game_id', game_id)
-          .eq('player_id', playerId)
-          .eq('faction_id', (factions.find((f: any) => f.faction_key === factionKey) as any)?.id)
-          .single();
-        if (currentAff) {
-          if (affinityBefore[playerId][factionKey] == null) {
-            affinityBefore[playerId][factionKey] = currentAff.affinity;
-          }
-          const newAff = Math.max(-5, Math.min(5, currentAff.affinity + pe.affinityDelta));
-          await adminClient
+          // Fetch current affinity and apply
+          const { data: currentAff } = await adminClient
             .from('game_player_faction_affinity')
-            .update({ affinity: newAff })
+            .select('faction_id, affinity')
             .eq('game_id', game_id)
             .eq('player_id', playerId)
-            .eq('faction_id', currentAff.faction_id);
+            .eq('faction_id', (factions.find((f: any) => f.faction_key === factionKey) as any)?.id)
+            .single();
+          if (currentAff) {
+            if (affinityBefore[playerId][factionKey] == null) {
+              affinityBefore[playerId][factionKey] = currentAff.affinity;
+            }
+            const newAff = Math.max(-5, Math.min(5, currentAff.affinity + pe.affinityDelta));
+            await adminClient
+              .from('game_player_faction_affinity')
+              .update({ affinity: newAff })
+              .eq('game_id', game_id)
+              .eq('player_id', playerId)
+              .eq('faction_id', currentAff.faction_id);
+          }
+        }
+      }
+
+      // Apply global affinity penalty (cowardice) to ALL factions
+      if (pe.globalAffinityDelta !== 0) {
+        if (!affinityEffects[playerId]) affinityEffects[playerId] = {};
+        if (!affinityBefore[playerId]) affinityBefore[playerId] = {};
+        for (const faction of factions) {
+          const factionKey = (faction as any).faction_key;
+          const factionId = (faction as any).id;
+          const { data: currentAff } = await adminClient
+            .from('game_player_faction_affinity')
+            .select('faction_id, affinity')
+            .eq('game_id', game_id)
+            .eq('player_id', playerId)
+            .eq('faction_id', factionId)
+            .single();
+          if (currentAff) {
+            if (affinityBefore[playerId][factionKey] == null) {
+              affinityBefore[playerId][factionKey] = currentAff.affinity;
+            }
+            affinityEffects[playerId][factionKey] = (affinityEffects[playerId][factionKey] ?? 0) + pe.globalAffinityDelta;
+            const newAff = Math.max(-5, Math.min(5, currentAff.affinity + pe.globalAffinityDelta));
+            await adminClient
+              .from('game_player_faction_affinity')
+              .update({ affinity: newAff })
+              .eq('game_id', game_id)
+              .eq('player_id', playerId)
+              .eq('faction_id', factionId);
+          }
         }
       }
     }

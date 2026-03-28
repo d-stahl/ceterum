@@ -27,7 +27,10 @@ export interface ControversyOutcome {
 export interface ClashPersonalEffects {
   commitSuccess: { affinityBonus: number };      // affinity bonus with won factions
   commitFailure: { influenceLoss: number; affinityPenalty: number }; // influence lost + affinity penalty with won factions
-  withdrawSuccess: { affinityPenalty: number };   // affinity penalty with won factions ("you held us back")
+  withdrawSuccess: {
+    affinityPenalty: number;          // affinity penalty with won factions ("you held us back")
+    globalAffinityPenalty?: number;   // affinity penalty with ALL factions ("coward!")
+  };
   // withdrawFailure: no effect (stayed home, no blame)
 }
 
@@ -121,6 +124,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Dispatch legions and fleet to strike Carthage before she grows stronger.',
         axisEffects: { expansion: 1, militarism: 1 },
         factionPowerEffects: { legiones: 1, nautae: 1, mercatores: 1, provinciales: -1, servi: -1 },
+        followUpKey: 'hannibals_crossing',
       },
       {
         key: 'economic_pressure',
@@ -129,6 +133,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Impose trade sanctions and strengthen coastal defenses. Let commerce do what swords need not.',
         axisEffects: { commerce: 1, expansion: -1 },
         factionPowerEffects: { mercatores: 1, nautae: 1 },
+        followUpKey: 'blockade_lines',
       },
       {
         key: 'diplomatic_accord',
@@ -137,6 +142,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Negotiate a treaty that recognizes spheres of influence. Peace is profitable.',
         axisEffects: { militarism: -1 },
         factionPowerEffects: { mercatores: 1, nautae: 1, legiones: -1, milites: -1 },
+        followUpKey: 'peace_of_carthage',
       },
     ],
   },
@@ -155,6 +161,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Send the legions north to crush the raiders and push them back beyond the mountains.',
         axisEffects: { militarism: 1, expansion: 1 },
         factionPowerEffects: { legiones: 1, fabri: -1, servi: -1 },
+        followUpKey: 'alpine_campaign',
       },
       {
         key: 'defensive_fortifications',
@@ -162,6 +169,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Build walls and strengthen the northern frontier. Let them raid emptiness.',
         axisEffects: { expansion: -1 },
         factionPowerEffects: { fabri: 1, legiones: 1 },
+        followUpKey: 'garrison_mutiny',
       },
       {
         key: 'tribal_settlement',
@@ -170,6 +178,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Offer the Gauls land in sparsely populated regions in exchange for peace and service.',
         axisEffects: { expansion: -1, militarism: -1 },
         factionPowerEffects: { provinciales: 1, agricolae: -1, legiones: -1, milites: -1 },
+        followUpKey: 'settled_tribes',
       },
     ],
   },
@@ -188,6 +197,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Join forces on equal terms and expand Roman influence eastward.',
         axisEffects: { expansion: 1, militarism: -1 },
         factionPowerEffects: { milites: 1, nautae: 1 },
+        followUpKey: 'eastern_garrison',
       },
       {
         key: 'demand_submission',
@@ -195,6 +205,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: "Accept only if Pontus acknowledges Roman supremacy. Allies must know their place.",
         axisEffects: { centralization: 1, expansion: 1 },
         factionPowerEffects: { optimates: 1, legiones: 1, fabri: -1 },
+        followUpKey: 'pontic_defiance',
       },
       {
         key: 'reject_alliance',
@@ -202,38 +213,42 @@ export const CONTROVERSIES: Controversy[] = [
         description: "Rome needs no eastern entanglements. The Republic's strength lies in its focus.",
         axisEffects: { expansion: -1 },
         factionPowerEffects: { optimates: 1, pontifices: 1, mercatores: -1, milites: -1 },
+        followUpKey: 'eastern_outposts',
       },
     ],
   },
   {
-    key: 'greek_colonies',
-    title: 'The Greek Colonies',
+    key: 'egyptian_question',
+    title: 'The Egyptian Question',
     type: 'vote',
-    category: 'military',
+    category: 'economic',
     illustration: 'greek_city',
     flavor:
-      'The Greek cities of southern Italy seek Roman protection against Samnite and Lucanian raiders. Accepting means war; refusing means losing influence over the most prosperous coast in Italy.',
+      "Egypt has fallen into Rome's sphere — its pharaoh a puppet, its granaries overflowing, its ports the gateway to the riches of India and Arabia. The Senate must decide what to do with the most valuable territory on earth. Every option makes someone fabulously wealthy and someone else furious.",
     resolutions: [
       {
-        key: 'full_annexation',
-        title: 'Full Annexation',
-        description: "Bring them into the Republic as Roman territory. Their wealth becomes Rome's wealth.",
-        axisEffects: { centralization: 1, expansion: 1 },
-        factionPowerEffects: { optimates: 1, mercatores: 1 },
+        key: 'royal_province',
+        title: 'Royal Province',
+        description: 'Annex Egypt outright. Its grain, its ports, and its taxes belong to the Roman people.',
+        axisEffects: { expansion: 1, commerce: 1 },
+        factionPowerEffects: { nautae: 1, mercatores: 1, optimates: -1 },
+        followUpKey: 'red_sea_expedition',
       },
       {
-        key: 'protected_alliance',
-        title: 'Protected Alliance',
-        description: 'Defend them militarily while respecting their autonomy and customs.',
-        axisEffects: { militarism: -1, centralization: -1 },
-        factionPowerEffects: { nautae: 1, mercatores: 1, provinciales: 1 },
+        key: 'client_kingdom',
+        title: 'Client Kingdom',
+        description: 'Install a friendly king who rules in name while Rome rules in fact. Cheaper than a province, and someone else handles the revolts.',
+        axisEffects: { tradition: -1, militarism: -1 },
+        factionPowerEffects: { provinciales: 1, pontifices: -1, legiones: -1 },
+        followUpKey: 'monsoon_fleet',
       },
       {
-        key: 'withdraw_support',
-        title: 'Withdraw Support',
-        description: "Rome cannot be everyone's protector. Let the south settle its own affairs.",
-        axisEffects: { expansion: -1 },
-        factionPowerEffects: { agricolae: 1, provinciales: -1, legiones: -1 },
+        key: 'free_trade_port',
+        title: 'Free Trade Port',
+        description: 'Declare Alexandria an open port. Let every merchant in the Mediterranean compete for the eastern trade.',
+        axisEffects: { patrician: -1, commerce: 1 },
+        factionPowerEffects: { mercatores: 1, nautae: 1, agricolae: -1 },
+        followUpKey: 'merchant_princes',
       },
     ],
   },
@@ -289,6 +304,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Crush the revolt with overwhelming force. Make an example that will not be forgotten.',
         axisEffects: { militarism: 1, patrician: 1 },
         factionPowerEffects: { legiones: 1, milites: 1, servi: -1 },
+        followUpKey: 'plantation_siege',
       },
       {
         key: 'conditional_reform',
@@ -297,6 +313,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Suppress the revolt, but promise improved conditions and legal paths to manumission.',
         axisEffects: { patrician: -1 },
         factionPowerEffects: { servi: 1, fabri: 1, optimates: -1 },
+        followUpKey: 'manumission_registry',
       },
       {
         key: 'negotiated_surrender',
@@ -304,6 +321,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Offer freedom to rebels who lay down arms and surrender their leaders.',
         axisEffects: { patrician: -2 },
         factionPowerEffects: { servi: 2, plebeii: 1, legiones: -1, optimates: -1 },
+        followUpKey: 'freedman_question',
       },
     ],
   },
@@ -358,6 +376,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Wipe out existing debts and forbid debt bondage henceforth.',
         axisEffects: { patrician: -1, tradition: -1 },
         factionPowerEffects: { plebeii: 1, servi: 1, mercatores: -1, optimates: -1 },
+        followUpKey: 'creditors_revolt',
       },
       {
         key: 'interest_caps',
@@ -365,6 +384,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Limit interest rates and regulate lending practices going forward.',
         axisEffects: {},
         factionPowerEffects: { milites: 1, servi: 1 },
+        followUpKey: 'debt_courts',
       },
       {
         key: 'enforce_contracts',
@@ -373,6 +393,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Debts are sacred obligations. Relief destroys credit, commerce, and the rule of law.',
         axisEffects: { patrician: 1, tradition: 1, commerce: 1 },
         factionPowerEffects: { optimates: 1, fabri: -1, plebeii: -1 },
+        followUpKey: 'debtors_march',
       },
     ],
   },
@@ -502,6 +523,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Legally limit spending on banquets, dress, and luxury goods. Rome must show discipline.',
         axisEffects: { centralization: 1 },
         factionPowerEffects: { pontifices: 1, optimates: -1, mercatores: -1, servi: -1 },
+        followUpKey: 'fashion_wars',
       },
       {
         key: 'luxury_tax',
@@ -509,6 +531,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Tax luxury imports and redistribute proceeds to public works and grain.',
         axisEffects: { commerce: -1 },
         factionPowerEffects: { fabri: 1, plebeii: 1, mercatores: -1 },
+        followUpKey: 'smugglers_war',
       },
       {
         key: 'no_restriction',
@@ -517,6 +540,7 @@ export const CONTROVERSIES: Controversy[] = [
           "A man's right to enjoy his wealth is sacred. The Republic was built on property rights.",
         axisEffects: { patrician: 1, commerce: 1 },
         factionPowerEffects: { optimates: 1, mercatores: 1, plebeii: -1 },
+        followUpKey: 'luxury_fleet',
       },
     ],
   },
@@ -538,6 +562,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Limit tribunician veto to cases directly and demonstrably affecting citizen welfare.',
         axisEffects: { centralization: 1, patrician: 1 },
         factionPowerEffects: { optimates: 1, pontifices: 1 },
+        followUpKey: 'forum_standoff',
       },
       {
         key: 'defend_veto',
@@ -546,6 +571,7 @@ export const CONTROVERSIES: Controversy[] = [
           "The tribune's power is sacrosanct. Any restriction sets a precedent that will be exploited.",
         axisEffects: { centralization: -1 },
         factionPowerEffects: { plebeii: 1, milites: 1, servi: 1 },
+        followUpKey: 'tribunes_coalition',
       },
       {
         key: 'reform_assembly',
@@ -554,6 +580,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Restructure the voting assemblies to reduce deadlock and better reflect the population.',
         axisEffects: { tradition: -1, patrician: -1 },
         factionPowerEffects: { fabri: 1, milites: 1, optimates: -1 },
+        followUpKey: 'assembly_reform',
       },
     ],
   },
@@ -609,6 +636,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Introduce strict bribery penalties and independent oversight of elections.',
         axisEffects: { tradition: -1, patrician: -1 },
         factionPowerEffects: { plebeii: 1, fabri: 1, optimates: -1 },
+        followUpKey: 'election_inspectors',
       },
       {
         key: 'electoral_redistribution',
@@ -616,6 +644,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Change the assembly structure to weight votes more equally across classes.',
         axisEffects: { patrician: -1, tradition: -1 },
         factionPowerEffects: { plebeii: 1, optimates: -1, mercatores: -1 },
+        followUpKey: 'voting_riots',
       },
       {
         key: 'accept_reality',
@@ -623,6 +652,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Bribery is the oil that makes the machine run. Virtue-signaling solves nothing.',
         axisEffects: { patrician: 1, tradition: 1 },
         factionPowerEffects: { servi: 1, mercatores: 1, plebeii: -1 },
+        followUpKey: 'patronage_networks',
       },
     ],
   },
@@ -642,6 +672,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Bring him to justice. No man is above the law, regardless of his victories.',
         axisEffects: { centralization: 1 },
         factionPowerEffects: { provinciales: 1, plebeii: 1, legiones: -1, optimates: -1 },
+        followUpKey: 'governors_trial',
       },
       {
         key: 'senate_discipline',
@@ -649,6 +680,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Let the Senate handle it internally. Public spectacles only embolden enemies.',
         axisEffects: { patrician: 1, tradition: 1 },
         factionPowerEffects: { milites: 1, legiones: 1 },
+        followUpKey: 'provincial_reform',
       },
       {
         key: 'pardon_and_reform',
@@ -657,6 +689,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Pardon him for past service but institute new accountability for future governors.',
         axisEffects: {},
         factionPowerEffects: { provinciales: 1, servi: 1, optimates: -1 },
+        followUpKey: 'returning_legions',
       },
     ],
   },
@@ -677,6 +710,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Ban foreign religious practices. Rome needs Roman gods.',
         axisEffects: { tradition: 1, centralization: 1 },
         factionPowerEffects: { pontifices: 1, optimates: 1, provinciales: -1 },
+        followUpKey: 'temple_purge',
       },
       {
         key: 'regulated_tolerance',
@@ -684,6 +718,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Allow foreign worship in designated areas under civic oversight.',
         axisEffects: { tradition: -1, centralization: -1 },
         factionPowerEffects: { provinciales: 1 },
+        followUpKey: 'licensing_board',
       },
       {
         key: 'open_syncretism',
@@ -691,6 +726,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Formally incorporate the foreign gods into the Roman pantheon.',
         axisEffects: { tradition: -2 },
         factionPowerEffects: { provinciales: 1, plebeii: 1, pontifices: -1 },
+        followUpKey: 'sacred_calendar',
       },
     ],
   },
@@ -709,6 +745,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Let the citizen assemblies vote for the chief priest. The gods belong to all Rome.',
         axisEffects: { patrician: -1, tradition: -1 },
         factionPowerEffects: { plebeii: 1, pontifices: -1, optimates: -1 },
+        followUpKey: 'sacred_games',
       },
       {
         key: 'senate_appointment',
@@ -716,6 +753,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Maintain the traditional aristocratic selection of the highest priest.',
         axisEffects: { patrician: 1, tradition: 1 },
         factionPowerEffects: { optimates: 1, pontifices: 1 },
+        followUpKey: 'augurs_authority',
       },
       {
         key: 'merit_based_selection',
@@ -724,6 +762,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Reform the selection to choose the most learned and pious candidate, regardless of birth.',
         axisEffects: { tradition: -1 },
         factionPowerEffects: { pontifices: 1 },
+        followUpKey: 'temple_restoration',
       },
     ],
   },
@@ -743,6 +782,7 @@ export const CONTROVERSIES: Controversy[] = [
           'Enforce moral laws, expel compromised senators, and restore the discipline of the ancestors.',
         axisEffects: { tradition: 1, patrician: 1 },
         factionPowerEffects: { pontifices: 1, milites: 1, plebeii: -1, mercatores: -1, servi: -1 },
+        followUpKey: 'moral_courts',
       },
       {
         key: 'selective_reform',
@@ -750,6 +790,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Update Roman moral standards to reflect the modern, cosmopolitan Republic.',
         axisEffects: { tradition: -1 },
         factionPowerEffects: { provinciales: 1, mercatores: 1 },
+        followUpKey: 'cultural_commission',
       },
       {
         key: 'dismiss_report',
@@ -757,6 +798,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'The censors are political actors pursuing vendettas. Disregard their findings entirely.',
         axisEffects: { expansion: -1 },
         factionPowerEffects: { plebeii: 1, servi: 1, pontifices: -1 },
+        followUpKey: 'censors_revenge',
       },
     ],
   },
@@ -775,6 +817,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'The Sibylline Books have never been wrong. Spend what must be spent.',
         axisEffects: { tradition: 1, centralization: 1 },
         factionPowerEffects: { pontifices: 2, servi: 1, fabri: 1 },
+        followUpKey: 'sacred_festival',
       },
       {
         key: 'reinterpret_oracle',
@@ -782,6 +825,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'The Books speak in symbols. A simpler, cheaper ceremony satisfies their spirit.',
         axisEffects: {},
         factionPowerEffects: { pontifices: -1, fabri: 1 },
+        followUpKey: 'priestly_schism',
       },
       {
         key: 'reject_oracle',
@@ -789,6 +833,7 @@ export const CONTROVERSIES: Controversy[] = [
         description: 'Rome was not built on omens. This is priestcraft and politics, nothing more.',
         axisEffects: { militarism: 1 },
         factionPowerEffects: { pontifices: -1, legiones: 1 },
+        followUpKey: 'oracles_curse',
       },
     ],
   },
@@ -821,7 +866,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       personalEffects: {
         commitSuccess: { affinityBonus: 1 },
         commitFailure: { influenceLoss: 10, affinityPenalty: -2 },
-        withdrawSuccess: { affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -1, globalAffinityPenalty: -2 },
       },
     },
   },
@@ -959,7 +1004,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       personalEffects: {
         commitSuccess: { affinityBonus: 1 },
         commitFailure: { influenceLoss: 10, affinityPenalty: -2 },
-        withdrawSuccess: { affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -2, globalAffinityPenalty: -1 },
       },
     },
   },
@@ -987,7 +1032,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       personalEffects: {
         commitSuccess: { affinityBonus: 1 },
         commitFailure: { influenceLoss: 8, affinityPenalty: -2 },
-        withdrawSuccess: { affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -1, globalAffinityPenalty: -2 },
       },
     },
   },
@@ -1124,7 +1169,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       personalEffects: {
         commitSuccess: { affinityBonus: 1 },
         commitFailure: { influenceLoss: 8, affinityPenalty: -2 },
-        withdrawSuccess: { affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -1, globalAffinityPenalty: -1 },
       },
     },
   },
@@ -1271,7 +1316,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       personalEffects: {
         commitSuccess: { affinityBonus: 1 },
         commitFailure: { influenceLoss: 8, affinityPenalty: -2 },
-        withdrawSuccess: { affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -1, globalAffinityPenalty: -1 },
       },
     },
   },
@@ -1308,6 +1353,1198 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           betrayedVP: -0.5,
         },
       ],
+    },
+  },
+  // --- Gallic Incursion follow-ups ---
+  {
+    key: 'alpine_campaign',
+    title: 'The Alpine Campaign',
+    type: 'clash',
+    category: 'military',
+    illustration: 'alpine_campaign',
+    flavor:
+      "The punitive expedition has been authorized, but the Alps are no place for a casual march. Snow-choked passes, hostile terrain, and Gallic warriors who know every ridge and ravine await the legions. Success means crushing the raiders in their own homeland. Failure means a frozen disaster that will echo through the Senate for a generation.",
+    clashConfig: {
+      thresholdPercent: 0.65,
+      factionAmplifiers: { milites: 2, legiones: 2 },
+      successOutcome: {
+        axisEffects: { expansion: 1 },
+        factionPowerEffects: { milites: 1, legiones: -1, fabri: -1 },
+        victoryPoints: 2.5,
+      },
+      failureOutcome: {
+        axisEffects: { tradition: 1 },
+        factionPowerEffects: { agricolae: 1, milites: -1, provinciales: -1 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 10, affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -1, globalAffinityPenalty: -1 },
+      },
+    },
+  },
+  {
+    key: 'garrison_mutiny',
+    title: 'The Garrison Mutiny',
+    type: 'schism',
+    category: 'military',
+    illustration: 'garrison_mutiny',
+    flavor:
+      "The northern fortifications are built, but the garrisons are restless. Months of cold, bad food, and no glory have taken their toll. Half the officers want to consolidate into fewer, stronger forts. The other half insist every watchtower must be held or the entire line is worthless. The Senate Leader's team is split — and the Gauls are watching.",
+    schismConfig: {
+      sides: [
+        {
+          key: 'consolidate_forts',
+          title: 'Consolidate Forts',
+          description: 'Pull back to fewer, stronger positions. The overextended line is bleeding us dry.',
+          axisEffects: { commerce: 1 },
+          factionPowerEffects: { fabri: 1, milites: -1, mercatores: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+        {
+          key: 'hold_every_fort',
+          title: 'Hold Every Fort',
+          description: 'Abandoning any position invites attack. Hold the line, no matter the cost.',
+          axisEffects: { militarism: 1 },
+          factionPowerEffects: { legiones: 1, servi: -1, fabri: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+      ],
+    },
+  },
+  {
+    key: 'settled_tribes',
+    title: 'The Settled Tribes',
+    type: 'vote',
+    category: 'social',
+    illustration: 'settled_tribes',
+    flavor:
+      "The Gallic settlers have been on Roman land for a season now. Some are learning Latin and trading at local markets. Others keep to themselves, armed and sullen. The Senate must decide the terms of their permanent status — and every answer creates new problems.",
+    resolutions: [
+      {
+        key: 'full_integration',
+        title: 'Full Integration',
+        description: 'Grant them citizenship and distribute them among existing communities. Make them Roman.',
+        axisEffects: { patrician: -1 },
+        factionPowerEffects: { provinciales: 1, nautae: -1, milites: -1 },
+      },
+      {
+        key: 'labor_conscription',
+        title: 'Labor Conscription',
+        description: 'Put them to work on roads, aqueducts, and mines. They owe Rome for the land they stand on.',
+        axisEffects: { expansion: -1 },
+        factionPowerEffects: { agricolae: -1, servi: 1, fabri: -1 },
+      },
+      {
+        key: 'buffer_settlements',
+        title: 'Buffer Settlements',
+        description: 'Settle them along the frontier as a living shield. Let barbarians fight barbarians.',
+        axisEffects: { tradition: -1 },
+        factionPowerEffects: { agricolae: -1, nautae: 1, plebeii: -1 },
+      },
+    ],
+  },
+  // --- Slave Uprising follow-ups ---
+  {
+    key: 'plantation_siege',
+    title: 'The Plantation Siege',
+    type: 'clash',
+    category: 'social',
+    illustration: 'plantation_siege',
+    flavor:
+      "The rebel slaves have fortified themselves inside the great southern plantations — the very estates that worked them half to death. They've turned farming tools into weapons and granaries into strongholds. The legions are assembling, but every senator knows: storming a fortified position costs blood, and these rebels have nothing left to lose.",
+    clashConfig: {
+      thresholdPercent: 0.60,
+      factionAmplifiers: { milites: 2, legiones: 2 },
+      successOutcome: {
+        axisEffects: { militarism: 1 },
+        factionPowerEffects: { servi: -1, milites: 1, legiones: -1 },
+        victoryPoints: 2.5,
+      },
+      failureOutcome: {
+        axisEffects: { tradition: -1 },
+        factionPowerEffects: { servi: 1, fabri: -1, legiones: -1 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 10, affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -1, globalAffinityPenalty: -1 },
+      },
+    },
+  },
+  {
+    key: 'manumission_registry',
+    title: 'The Manumission Registry',
+    type: 'endeavour',
+    category: 'social',
+    illustration: 'manumission_registry',
+    flavor:
+      "The conditional reforms have been decreed, but someone must actually build the bureaucracy of freedom. Every manumission needs witnesses, records, and legal standing. The old slave markets resist. The freedmen's associations demand speed. And the treasury wonders who is paying for all these clerks.",
+    endeavourConfig: {
+      difficultyPercent: 0.50,
+      firstPlaceReward: 2.5,
+      successOutcome: {
+        axisEffects: { commerce: 1 },
+        factionPowerEffects: { servi: 1, fabri: 1, mercatores: -1 },
+      },
+      failureOutcome: {
+        axisEffects: { expansion: -1 },
+        factionPowerEffects: { servi: -1, agricolae: -1, provinciales: -1 },
+      },
+    },
+  },
+  {
+    key: 'freedman_question',
+    title: 'The Freedman Question',
+    type: 'vote',
+    category: 'political',
+    illustration: 'freedman_question',
+    flavor:
+      "The surrendered rebels have laid down their arms as promised. Now comes the harder question: what are they? Free men without rights? Citizens without property? The Senate must define the status of thousands of former slaves — and every definition has consequences for the Republic's social order.",
+    resolutions: [
+      {
+        key: 'full_citizenship',
+        title: 'Full Citizenship',
+        description: 'They fought, they surrendered, they earned it. Grant full civic rights to all freedmen.',
+        axisEffects: { patrician: -1 },
+        factionPowerEffects: { servi: 1, milites: -1, optimates: -1 },
+      },
+      {
+        key: 'limited_rights',
+        title: 'Limited Rights',
+        description: 'Freedom, yes. Voting and office? Not yet. Let them prove themselves over a generation.',
+        axisEffects: { tradition: 1, patrician: 1 },
+        factionPowerEffects: { agricolae: -1, servi: -1, fabri: -1 },
+      },
+      {
+        key: 'labor_colonies',
+        title: 'Labor Colonies',
+        description: 'Settle them in distant colonies where their labor serves the Republic. Freedom with a purpose.',
+        axisEffects: { commerce: -1 },
+        factionPowerEffects: { milites: -1, servi: -1, nautae: -1 },
+      },
+    ],
+  },
+  // --- Foreign Cults follow-ups ---
+  {
+    key: 'temple_purge',
+    title: 'The Temple Purge',
+    type: 'schism',
+    category: 'religious',
+    illustration: 'temple_purge',
+    flavor:
+      "The ban on foreign cults has been decreed, but enforcement is another matter. Hundreds of shrines, temples, and sacred groves must be dealt with — and they are not empty. The Senate Leader's team must decide: seize the considerable wealth these temples have accumulated, or simply seal them and let the gods sort it out. Not everyone on the team agrees.",
+    schismConfig: {
+      sides: [
+        {
+          key: 'confiscate_wealth',
+          title: 'Confiscate Wealth',
+          description: 'The treasury needs every denarius. Strip the temples bare.',
+          axisEffects: { commerce: -1 },
+          factionPowerEffects: { pontifices: -1, milites: 1, fabri: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+        {
+          key: 'seal_and_forget',
+          title: 'Seal and Forget',
+          description: 'Board them up. The gods — any gods — are not to be robbed. Let the shrines rot in peace.',
+          axisEffects: { tradition: 1 },
+          factionPowerEffects: { agricolae: 1, plebeii: -1, milites: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+      ],
+    },
+  },
+  {
+    key: 'licensing_board',
+    title: 'The Licensing Board',
+    type: 'endeavour',
+    category: 'religious',
+    illustration: 'licensing_board',
+    flavor:
+      "Regulated tolerance sounds reasonable in a Senate speech. In practice, it means creating a bureaucracy to decide which gods are acceptable and which are not. The priests want veto power. The merchants want their eastern business contacts left alone. And the foreign communities want to know: who licenses the licensers?",
+    endeavourConfig: {
+      difficultyPercent: 0.60,
+      firstPlaceReward: 3.5,
+      successOutcome: {
+        axisEffects: { tradition: -1 },
+        factionPowerEffects: { fabri: 1, servi: -1, provinciales: -1 },
+      },
+      failureOutcome: {
+        axisEffects: { patrician: 1 },
+        factionPowerEffects: { agricolae: -1, pontifices: -1, plebeii: 1 },
+      },
+    },
+  },
+  {
+    key: 'sacred_calendar',
+    title: 'The Sacred Calendar',
+    type: 'vote',
+    category: 'religious',
+    illustration: 'sacred_calendar',
+    flavor:
+      "Open syncretism has been embraced in principle, but the calendar is finite. Every new festival means a day when courts close, markets shut, and soldiers feast instead of drill. The priests are drowning in scheduling conflicts. The practical question of which gods get which days has become the most contentious debate in Rome.",
+    resolutions: [
+      {
+        key: 'merge_calendars',
+        title: 'Merge Calendars',
+        description: 'Combine Roman and foreign festivals where the gods overlap. Isis-Ceres, Mithras-Sol — close enough.',
+        axisEffects: { expansion: 1 },
+        factionPowerEffects: { provinciales: 1, servi: -1, pontifices: -1 },
+      },
+      {
+        key: 'separate_calendars',
+        title: 'Separate Calendars',
+        description: 'Let each community keep its own calendar. Rome need not impose a single sacred rhythm.',
+        axisEffects: { militarism: -1 },
+        factionPowerEffects: { milites: -1, fabri: -1, nautae: 1 },
+      },
+      {
+        key: 'adopt_select_festivals',
+        title: 'Adopt Select Festivals',
+        description: 'Cherry-pick the most popular foreign holidays. The people want Saturnalia twice, not a theological debate.',
+        axisEffects: { tradition: -1 },
+        factionPowerEffects: { agricolae: -1, provinciales: -1, servi: 1 },
+      },
+    ],
+  },
+  // --- Governor's Excesses follow-ups ---
+  {
+    key: 'governors_trial',
+    title: "The Governor's Trial",
+    type: 'schism',
+    category: 'political',
+    illustration: 'governors_trial',
+    flavor:
+      "The governor has been dragged before a tribunal, but the Senate Leader's team cannot agree on the sentence. His crimes are clear — but so is his military record. Half the team wants to make an example that will terrify every future governor. The other half argues that public reparations to the province will do more good than a Roman spectacle of punishment.",
+    schismConfig: {
+      sides: [
+        {
+          key: 'harsh_sentence',
+          title: 'Harsh Sentence',
+          description: 'Exile, confiscation, and public disgrace. Let every governor know the price of corruption.',
+          axisEffects: { expansion: -1 },
+          factionPowerEffects: { legiones: -1, provinciales: -1, milites: 1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+        {
+          key: 'public_reparations',
+          title: 'Public Reparations',
+          description: 'Force him to fund the rebuilding of what he destroyed. Let the province heal, not just Rome.',
+          axisEffects: { commerce: 1 },
+          factionPowerEffects: { mercatores: -1, agricolae: 1, provinciales: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+      ],
+    },
+  },
+  {
+    key: 'provincial_reform',
+    title: 'The Provincial Reform',
+    type: 'endeavour',
+    category: 'political',
+    illustration: 'provincial_reform',
+    flavor:
+      "The Senate has decided to handle the governor's case internally — but now demands structural reform to prevent a repeat. Someone must draft new oversight rules, create provincial inspectorates, and convince the provinces that Rome is serious this time. The optimates resist any limit on senatorial prerogative. The provinces have heard promises before.",
+    endeavourConfig: {
+      difficultyPercent: 0.55,
+      firstPlaceReward: 3,
+      successOutcome: {
+        axisEffects: { tradition: -1 },
+        factionPowerEffects: { fabri: -1, provinciales: 1, milites: -1 },
+      },
+      failureOutcome: {
+        axisEffects: { patrician: 1 },
+        factionPowerEffects: { servi: -1, nautae: -1, plebeii: -1 },
+      },
+    },
+  },
+  {
+    key: 'returning_legions',
+    title: 'The Returning Legions',
+    type: 'clash',
+    category: 'political',
+    illustration: 'returning_legions',
+    flavor:
+      "The pardoned governor has been sent home, but his legions are another matter. Twenty thousand veterans march toward Rome, loyal to their commander and expecting rewards. The Senate must either satisfy them or face them. Disbanding an army that doesn't want to disband requires commitment from every faction — and nerve.",
+    clashConfig: {
+      thresholdPercent: 0.60,
+      factionAmplifiers: { legiones: 2, milites: 2 },
+      successOutcome: {
+        axisEffects: { patrician: -1 },
+        factionPowerEffects: { legiones: -1, milites: -1, provinciales: -1 },
+        victoryPoints: 2.5,
+      },
+      failureOutcome: {
+        axisEffects: { commerce: -1 },
+        factionPowerEffects: { agricolae: -1, legiones: -1, plebeii: 1 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 10, affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -2, globalAffinityPenalty: -1 },
+      },
+    },
+  },
+  // --- Pontificate Election follow-ups ---
+  {
+    key: 'sacred_games',
+    title: 'The Sacred Games',
+    type: 'clash',
+    category: 'religious',
+    illustration: 'sacred_games',
+    flavor:
+      "The people's pontifex has been elected — and he intends to prove the gods favor the common man. He has proclaimed the most lavish sacred games in a generation: chariot races, athletic contests, theatrical performances, and animal hunts. But sacred games on this scale require every faction to contribute resources, athletes, and funds. If Rome commits fully, the games will be magnificent — a sign of divine approval. If support falters, the new pontifex will be humiliated and the gods, perhaps, offended.",
+    clashConfig: {
+      thresholdPercent: 0.60,
+      factionAmplifiers: { pontifices: 2, legiones: 2 },
+      successOutcome: {
+        axisEffects: { militarism: 1 },
+        factionPowerEffects: { pontifices: 1, legiones: 1, fabri: -1 },
+        victoryPoints: 2.5,
+      },
+      failureOutcome: {
+        axisEffects: { centralization: -1 },
+        factionPowerEffects: { pontifices: -1, legiones: -1, plebeii: 1 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 10, affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -1, globalAffinityPenalty: -1 },
+      },
+    },
+  },
+  {
+    key: 'temple_restoration',
+    title: 'The Temple Restoration',
+    type: 'endeavour',
+    category: 'religious',
+    illustration: 'temple_restoration',
+    flavor:
+      "The new pontifex, chosen for merit rather than birth, has surveyed Rome's temples and found half of them crumbling. He proposes a vast restoration program — not just repairs, but a statement that the Republic still honors its gods. The project requires architects, laborers, and enormous quantities of marble. If it succeeds, the restored temples will stand for centuries. If it fails, Rome will have half-finished scaffolding and a pontifex who promised more than he could deliver.",
+    endeavourConfig: {
+      difficultyPercent: 0.55,
+      firstPlaceReward: 3,
+      successOutcome: {
+        axisEffects: { centralization: 1 },
+        factionPowerEffects: { fabri: 1, pontifices: 1, servi: -1 },
+      },
+      failureOutcome: {
+        axisEffects: { expansion: -1 },
+        factionPowerEffects: { fabri: -1, pontifices: -1, legiones: 1 },
+      },
+    },
+  },
+  {
+    key: 'augurs_authority',
+    title: "The Augurs' Authority",
+    type: 'schism',
+    category: 'religious',
+    illustration: 'augurs_authority',
+    flavor:
+      "The Senate-appointed pontifex has consolidated his position — and now turns to a question that has simmered for decades: who controls the auguries before military campaigns? The generals say the auspices are theirs to take in the field. The priests say the gods speak through proper channels, not sword-wielding amateurs. The Senate Leader's team is split between those who would give the augurs veto power over military action and those who see that as a recipe for paralysis.",
+    schismConfig: {
+      sides: [
+        {
+          key: 'military_auguries',
+          title: 'Military Auguries',
+          description: 'Generals take their own auspices. The gods speak to men of action, not men of ritual.',
+          axisEffects: { militarism: 1 },
+          factionPowerEffects: { legiones: 1, pontifices: -1, fabri: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+        {
+          key: 'civic_authority',
+          title: 'Civic Authority',
+          description: 'The augurs must approve all major undertakings. The gods will not be rushed or ignored.',
+          axisEffects: { centralization: 1 },
+          factionPowerEffects: { optimates: 1, pontifices: 1, plebeii: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+      ],
+    },
+  },
+  // --- Carthaginian Menace follow-ups ---
+  {
+    key: 'hannibals_crossing',
+    title: "Hannibal's Crossing",
+    type: 'clash',
+    category: 'military',
+    illustration: 'hannibals_crossing',
+    flavor:
+      "Rome struck first — but Carthage has answered. A Carthaginian army has crossed the Alps with war elephants and is ravaging the Po Valley. Italian allies waver. The legions sent to intercept have been outmaneuvered twice. This is no border skirmish — it is an existential threat on Roman soil. Every faction must commit everything to stop the advance, or the next battle will be fought within sight of Rome's walls.",
+    clashConfig: {
+      thresholdPercent: 0.75,
+      factionAmplifiers: { legiones: 2, fabri: 2 },
+      successOutcome: {
+        axisEffects: { expansion: 1 },
+        factionPowerEffects: { legiones: 1, fabri: 1, milites: -1 },
+        victoryPoints: 3,
+      },
+      failureOutcome: {
+        axisEffects: { militarism: -1, expansion: -1 },
+        factionPowerEffects: { legiones: -1, optimates: 1, pontifices: -1 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 20, affinityPenalty: -3 },
+        withdrawSuccess: { affinityPenalty: -2, globalAffinityPenalty: -2 },
+      },
+    },
+  },
+  {
+    key: 'blockade_lines',
+    title: 'The Blockade Lines',
+    type: 'endeavour',
+    category: 'military',
+    illustration: 'blockade_lines',
+    flavor:
+      "Economic pressure requires infrastructure — and Rome's is lacking. The Senate has authorized a chain of fortified watchtowers along the African coast, supply depots on Sicily, and patrol fleets to intercept Carthaginian shipping. It is the largest engineering project outside Italy in Roman history. The craftsmen and legionaries must work together in hostile territory, racing to complete the network before Carthage finds a way around it.",
+    endeavourConfig: {
+      difficultyPercent: 0.60,
+      firstPlaceReward: 3,
+      successOutcome: {
+        axisEffects: { expansion: 1 },
+        factionPowerEffects: { fabri: 1, legiones: 1, servi: -1 },
+      },
+      failureOutcome: {
+        axisEffects: { centralization: -1 },
+        factionPowerEffects: { fabri: -1, legiones: -1, optimates: 1 },
+      },
+    },
+  },
+  {
+    key: 'peace_of_carthage',
+    title: 'The Peace of Carthage',
+    type: 'schism',
+    category: 'military',
+    illustration: 'peace_of_carthage',
+    flavor:
+      "The diplomatic accord has been signed, but its terms are deliberately vague — and the Senate Leader's team must now decide what Rome actually demands. Half the team wants to impose crushing terms that will prevent Carthage from ever threatening Rome again: disarmament, indemnities, territorial concessions. The other half argues that a humiliated Carthage is a desperate Carthage, and generous terms will make a more reliable neighbor.",
+    schismConfig: {
+      sides: [
+        {
+          key: 'harsh_terms',
+          title: 'Harsh Terms',
+          description: 'Disarm them, tax them, take their colonies. They started this — Rome finishes it.',
+          axisEffects: { militarism: 1 },
+          factionPowerEffects: { legiones: 1, pontifices: 1, optimates: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+        {
+          key: 'generous_peace',
+          title: 'Generous Peace',
+          description: 'A fair peace lasts longer than a forced one. Leave them their dignity and their walls.',
+          axisEffects: { centralization: -1 },
+          factionPowerEffects: { pontifices: 1, fabri: 1, legiones: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+      ],
+    },
+  },
+  // --- Egyptian Question follow-ups ---
+  {
+    key: 'red_sea_expedition',
+    title: 'The Red Sea Expedition',
+    type: 'clash',
+    category: 'military',
+    illustration: 'red_sea_expedition',
+    flavor:
+      "Egypt is Rome's, and with it the Red Sea ports — on paper. In practice, the coastal tribes and desert raiders who have controlled these harbors for centuries see no reason to stop. Every ship bound for India must run a gauntlet of piracy and extortion. The Senate has authorized a military expedition to secure the route, but the Red Sea is not the Mediterranean. The heat kills as surely as the enemy.",
+    clashConfig: {
+      thresholdPercent: 0.65,
+      factionAmplifiers: { nautae: 2, milites: 2 },
+      successOutcome: {
+        axisEffects: { expansion: 1 },
+        factionPowerEffects: { nautae: 1, milites: -1, provinciales: -1 },
+        victoryPoints: 2.5,
+      },
+      failureOutcome: {
+        axisEffects: { commerce: -1 },
+        factionPowerEffects: { mercatores: -1, nautae: -1, legiones: 1 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 10, affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -1, globalAffinityPenalty: -1 },
+      },
+    },
+  },
+  {
+    key: 'monsoon_fleet',
+    title: 'The Monsoon Fleet',
+    type: 'endeavour',
+    category: 'economic',
+    illustration: 'monsoon_fleet',
+    flavor:
+      "The client king's Egyptian sailors know a secret: the winds of the Indian Ocean reverse with the seasons. Catch the monsoon right and a fleet can reach India in weeks. Miss it and you wait six months or die trying. The Senate has authorized the construction of a trade fleet — but the ships must be built, crews trained, and the whole venture launched before the winds turn. Fortunes will be made or drowned.",
+    endeavourConfig: {
+      difficultyPercent: 0.55,
+      firstPlaceReward: 3,
+      successOutcome: {
+        axisEffects: { commerce: 1 },
+        factionPowerEffects: { mercatores: 1, nautae: 1, fabri: -1 },
+      },
+      failureOutcome: {
+        axisEffects: { expansion: -1 },
+        factionPowerEffects: { nautae: -1, servi: -1, agricolae: 1 },
+      },
+    },
+  },
+  {
+    key: 'merchant_princes',
+    title: 'The Merchant Princes',
+    type: 'schism',
+    category: 'economic',
+    illustration: 'merchant_princes',
+    flavor:
+      "The eastern trade has made certain merchants richer than senators — richer, some whisper, than the treasury itself. They build palaces, fund private fleets, and buy influence openly. The old aristocracy is appalled. The plebs are envious. The Senate Leader's team is divided: tax this obscene wealth before it corrupts the Republic, or let the merchants reinvest and grow the pie for everyone?",
+    schismConfig: {
+      sides: [
+        {
+          key: 'tax_the_wealth',
+          title: 'Tax the Wealth',
+          description: 'No citizen should rival the state. Tax the eastern profits before they buy the Republic.',
+          axisEffects: { patrician: -1 },
+          factionPowerEffects: { mercatores: -1, plebeii: 1, fabri: 1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+        {
+          key: 'let_them_invest',
+          title: 'Let Them Invest',
+          description: 'Their wealth flows through the whole economy. Tax them and you tax everyone.',
+          axisEffects: { commerce: 1 },
+          factionPowerEffects: { mercatores: 1, agricolae: -1, servi: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+      ],
+    },
+  },
+
+  // ── Pontic Alliance follow-ups ──
+
+  {
+    key: 'eastern_garrison',
+    title: 'The Eastern Garrison',
+    type: 'vote',
+    category: 'military',
+    illustration: 'eastern_garrison',
+    flavor:
+      'The alliance is struck, but who commands the joint garrison? Roman officers demand sole authority; Pontic generals insist on shared command. The troops on the ground just want clear orders before the enemy arrives.',
+    resolutions: [
+      {
+        key: 'shared_command',
+        title: 'Shared Command',
+        description: 'Split command between Roman and Pontic officers. Equality builds trust.',
+        axisEffects: { centralization: 1 },
+        factionPowerEffects: { milites: 1, agricolae: 1, optimates: -1 },
+      },
+      {
+        key: 'roman_officers_only',
+        title: 'Roman Officers Only',
+        description: 'Roman legions answer to Roman commanders. There is no negotiation on this point.',
+        axisEffects: { patrician: 1 },
+        factionPowerEffects: { servi: 1, fabri: 1, nautae: -1 },
+      },
+      {
+        key: 'seasonal_rotation',
+        title: 'Seasonal Rotation',
+        description: 'Alternate command each season. Neither side dominates, neither side trusts fully.',
+        axisEffects: { militarism: -1 },
+        factionPowerEffects: { agricolae: 1, pontifices: 1, plebeii: -1 },
+      },
+    ],
+  },
+  {
+    key: 'pontic_defiance',
+    title: 'The Pontic Defiance',
+    type: 'clash',
+    category: 'military',
+    illustration: 'pontic_defiance',
+    flavor:
+      "Rome demanded submission and the King of Pontus responded with defiance — massing troops on the border and sending envoys to Rome's enemies. The legions must march east, but the campaign will stretch supply lines to breaking point.",
+    clashConfig: {
+      thresholdPercent: 0.60,
+      factionAmplifiers: { milites: 1.5, legiones: 1.5 },
+      successOutcome: {
+        axisEffects: { expansion: 1 },
+        factionPowerEffects: { milites: 1, mercatores: -1, nautae: -1 },
+        victoryPoints: 2.5,
+      },
+      failureOutcome: {
+        axisEffects: { centralization: -1 },
+        factionPowerEffects: { servi: 1, optimates: 1, fabri: -1 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 10, affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -1, globalAffinityPenalty: -1 },
+      },
+    },
+  },
+  {
+    key: 'eastern_outposts',
+    title: 'The Eastern Outposts',
+    type: 'endeavour',
+    category: 'military',
+    illustration: 'eastern_outposts',
+    flavor:
+      'With the alliance rejected, Rome must secure its eastern frontier alone. A chain of fortified trading posts could anchor Roman presence — but building them in hostile territory will cost dearly in gold and lives.',
+    endeavourConfig: {
+      difficultyPercent: 0.55,
+      firstPlaceReward: 3,
+      successOutcome: {
+        axisEffects: { commerce: -1 },
+        factionPowerEffects: { agricolae: 1, mercatores: 1, provinciales: -1 },
+      },
+      failureOutcome: {
+        axisEffects: { tradition: 1 },
+        factionPowerEffects: { plebeii: -1, provinciales: 1, pontifices: -1 },
+      },
+    },
+  },
+
+  // ── Debt Crisis follow-ups ──
+
+  {
+    key: 'creditors_revolt',
+    title: "The Creditors' Revolt",
+    type: 'vote',
+    category: 'social',
+    illustration: 'creditors_revolt',
+    flavor:
+      'The debt cancellation has thrown the credit markets into chaos. Lenders refuse to extend new loans, wealthy families hide assets abroad, and the banking houses of the Forum threaten to close their doors permanently. Someone must pay the price of mercy.',
+    resolutions: [
+      {
+        key: 'seize_assets',
+        title: 'Seize Assets',
+        description: 'Confiscate hidden wealth and redistribute it. The creditors had their chance.',
+        axisEffects: { centralization: 1 },
+        factionPowerEffects: { servi: 1, optimates: -1, plebeii: -1 },
+      },
+      {
+        key: 'partial_compensation',
+        title: 'Partial Compensation',
+        description: 'Offer state bonds to creditors for a portion of their losses. Expensive, but stabilizing.',
+        axisEffects: { commerce: -1 },
+        factionPowerEffects: { milites: 1, optimates: 1, mercatores: -1 },
+      },
+      {
+        key: 'public_arbitration',
+        title: 'Public Arbitration',
+        description: 'Establish courts where creditors and debtors negotiate case by case. Slow but fair.',
+        axisEffects: { patrician: 1 },
+        factionPowerEffects: { servi: 1, fabri: -1, mercatores: 1 },
+      },
+    ],
+  },
+  {
+    key: 'debt_courts',
+    title: 'The Debt Courts',
+    type: 'endeavour',
+    category: 'social',
+    illustration: 'debt_courts',
+    flavor:
+      'The interest caps have created a patchwork of enforcement. Provincial courts interpret the rules differently, lenders find creative loopholes, and debtors still suffer. A unified debt court system could bring order — if anyone can agree on the rules.',
+    endeavourConfig: {
+      difficultyPercent: 0.50,
+      firstPlaceReward: 2.5,
+      successOutcome: {
+        axisEffects: { tradition: 1 },
+        factionPowerEffects: { servi: 1, pontifices: 1, nautae: -1 },
+      },
+      failureOutcome: {
+        axisEffects: { commerce: 1 },
+        factionPowerEffects: { optimates: 1, pontifices: -1, agricolae: -1 },
+      },
+    },
+  },
+  {
+    key: 'debtors_march',
+    title: "The Debtors' March",
+    type: 'schism',
+    category: 'social',
+    illustration: 'debtors_march',
+    flavor:
+      "Despite the Senate's decision to enforce contracts, thousands of debtors have organized a march on the Forum. They demand relief. The Senate Leader's team must decide: join the march to channel its energy, or stand with the courts and risk being swept aside.",
+    schismConfig: {
+      sides: [
+        {
+          key: 'march_on_forum',
+          title: 'March on the Forum',
+          description: 'Join the debtors. Their cause is just, and their numbers are a political weapon.',
+          axisEffects: { tradition: -1 },
+          factionPowerEffects: { milites: 1, plebeii: 1, nautae: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+        {
+          key: 'respect_the_courts',
+          title: 'Respect the Courts',
+          description: 'The law must hold. If mobs can override the courts, no contract is safe.',
+          axisEffects: { expansion: 1 },
+          factionPowerEffects: { agricolae: 1, servi: -1, milites: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+      ],
+    },
+  },
+
+  // ── Sumptuary Question follow-ups ──
+
+  {
+    key: 'fashion_wars',
+    title: 'The Fashion Wars',
+    type: 'vote',
+    category: 'economic',
+    illustration: 'fashion_wars',
+    flavor:
+      'The sumptuary laws have been passed — and immediately become the most broken laws in Rome. Wealthy matrons hide silk under wool cloaks, merchants relabel eastern spices as "medicinal herbs," and the censors cannot tell genuine austerity from elaborate deception. Enforcement has become a farce.',
+    resolutions: [
+      {
+        key: 'enforce_strictly',
+        title: 'Enforce Strictly',
+        description: 'Hire inspectors, impose fines, make examples. The law means nothing if it is not enforced.',
+        axisEffects: { centralization: 1 },
+        factionPowerEffects: { servi: 1, mercatores: -1, optimates: -1 },
+      },
+      {
+        key: 'exempt_veterans',
+        title: 'Exempt Veterans',
+        description: 'Those who served Rome deserve to enjoy its fruits. Exempt military veterans from all restrictions.',
+        axisEffects: { militarism: -1 },
+        factionPowerEffects: { milites: 1, fabri: 1, nautae: 1 },
+      },
+      {
+        key: 'public_shaming_lists',
+        title: 'Public Shaming Lists',
+        description: 'Post the names of violators in the Forum. Let social pressure do what law cannot.',
+        axisEffects: { tradition: 1 },
+        factionPowerEffects: { pontifices: 1, agricolae: 1, plebeii: -1 },
+      },
+    ],
+  },
+  {
+    key: 'luxury_fleet',
+    title: 'The Luxury Fleet',
+    type: 'schism',
+    category: 'economic',
+    illustration: 'luxury_fleet',
+    flavor:
+      "With no restrictions on luxury, the demand for eastern goods has exploded. Merchant fleets race to supply Rome's appetite, but the imports are draining silver from the treasury. The Senate Leader's team is split: should Rome tax the imports to slow the bleeding, or embrace the open market and let trade flow freely?",
+    schismConfig: {
+      sides: [
+        {
+          key: 'tax_imports',
+          title: 'Tax Imports',
+          description: 'A modest tariff protects Roman craftsmen and fills the treasury. The merchants will adapt.',
+          axisEffects: { commerce: -1 },
+          factionPowerEffects: { nautae: -1, provinciales: 1, fabri: 1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+        {
+          key: 'open_markets',
+          title: 'Open Markets',
+          description: 'Tariffs breed corruption and smuggling. Let the market decide what Rome needs.',
+          axisEffects: { expansion: 1 },
+          factionPowerEffects: { mercatores: 1, provinciales: -1, plebeii: 1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+      ],
+    },
+  },
+  {
+    key: 'smugglers_war',
+    title: "The Smugglers' War",
+    type: 'clash',
+    category: 'economic',
+    illustration: 'smugglers_war',
+    flavor:
+      'The luxury tax has created a thriving black market. Smuggling rings operate openly in the ports, bribing officials and undercutting legitimate merchants. A naval crackdown could restore order — but the smugglers are well-armed, well-connected, and willing to fight.',
+    clashConfig: {
+      thresholdPercent: 0.60,
+      factionAmplifiers: { nautae: 1.5, mercatores: 1.5 },
+      successOutcome: {
+        axisEffects: { patrician: 1 },
+        factionPowerEffects: { milites: 1, servi: 1, pontifices: -1 },
+        victoryPoints: 2.5,
+      },
+      failureOutcome: {
+        axisEffects: { expansion: -1 },
+        factionPowerEffects: { nautae: 1, agricolae: 1, milites: -1 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 10, affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -1, globalAffinityPenalty: -1 },
+      },
+    },
+  },
+
+  // ── Tribune's Veto follow-ups ──
+
+  {
+    key: 'forum_standoff',
+    title: 'The Forum Standoff',
+    type: 'clash',
+    category: 'political',
+    illustration: 'forum_standoff',
+    flavor:
+      'The restricted tribunes have rallied their supporters for a mass demonstration in the Forum. Armed partisans on both sides turn a political protest into a powder keg. The Senate must either back down or send in the urban cohorts — and risk the first political bloodshed in a generation.',
+    clashConfig: {
+      thresholdPercent: 0.60,
+      factionAmplifiers: { plebeii: 1.5, optimates: 1.5 },
+      successOutcome: {
+        axisEffects: { centralization: 1 },
+        factionPowerEffects: { milites: 1, agricolae: -1, plebeii: -1 },
+        victoryPoints: 2.5,
+      },
+      failureOutcome: {
+        axisEffects: { militarism: -1 },
+        factionPowerEffects: { servi: -1, nautae: 1, provinciales: 1 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 10, affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -1, globalAffinityPenalty: -1 },
+      },
+    },
+  },
+  {
+    key: 'assembly_reform',
+    title: 'The Assembly Reform',
+    type: 'endeavour',
+    category: 'political',
+    illustration: 'assembly_reform',
+    flavor:
+      'The reformed assemblies exist on paper, but implementing them requires new voting procedures, redrawn tribal boundaries, and a massive administrative effort. Traditional interests resist every change while reformers demand faster progress. Building democracy is harder than declaring it.',
+    endeavourConfig: {
+      difficultyPercent: 0.60,
+      firstPlaceReward: 3,
+      successOutcome: {
+        axisEffects: { patrician: -1 },
+        factionPowerEffects: { optimates: 1, pontifices: 1, milites: -1 },
+      },
+      failureOutcome: {
+        axisEffects: { expansion: -1 },
+        factionPowerEffects: { servi: -1, fabri: -1, mercatores: 1 },
+      },
+    },
+  },
+  {
+    key: 'tribunes_coalition',
+    title: "The Tribune's Coalition",
+    type: 'schism',
+    category: 'political',
+    illustration: 'tribunes_coalition',
+    flavor:
+      "The veto stands, and the tribune has become the most powerful man in Rome. Now other tribunes want in on the action. A coalition of tribunes could reshape the Republic — but should they expand their collective power, or hold the line and keep the veto a defensive weapon? The Senate Leader's team is divided.",
+    schismConfig: {
+      sides: [
+        {
+          key: 'expand_powers',
+          title: 'Expand Powers',
+          description: 'A united tribunate can initiate legislation, not just block it. True reform requires offense.',
+          axisEffects: { centralization: -1 },
+          factionPowerEffects: { agricolae: -1, pontifices: -1, milites: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+        {
+          key: 'hold_the_line',
+          title: 'Hold the Line',
+          description: 'The veto is a shield, not a sword. Expanding power invites the same abuse we fought against.',
+          axisEffects: { militarism: 1 },
+          factionPowerEffects: { optimates: -1, mercatores: -1, provinciales: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+      ],
+    },
+  },
+
+  // ── Electoral Corruption follow-ups ──
+
+  {
+    key: 'election_inspectors',
+    title: 'The Election Inspectors',
+    type: 'endeavour',
+    category: 'political',
+    illustration: 'election_inspectors',
+    flavor:
+      'The anti-corruption laws exist on paper, but enforcing them requires an independent inspectorate — recruitment, training, jurisdiction. Every powerful family in Rome has reason to see it fail.',
+    endeavourConfig: {
+      difficultyPercent: 0.55,
+      firstPlaceReward: 3,
+      successOutcome: {
+        axisEffects: { centralization: 1 },
+        factionPowerEffects: { provinciales: 1, optimates: -1, agricolae: 1 },
+      },
+      failureOutcome: {
+        axisEffects: { expansion: -1 },
+        factionPowerEffects: { nautae: 1, legiones: -1, provinciales: -1 },
+      },
+    },
+  },
+  {
+    key: 'voting_riots',
+    title: 'The Voting Riots',
+    type: 'clash',
+    category: 'political',
+    illustration: 'voting_riots',
+    flavor:
+      'The redistribution of voting power has provoked violent resistance. The old tribal structures are threatened, and those who profit from them are willing to bleed for it. The Senate must enforce its own law — or watch it die in the streets.',
+    clashConfig: {
+      thresholdPercent: 0.60,
+      factionAmplifiers: { plebeii: 1.5, optimates: 1.5 },
+      successOutcome: {
+        axisEffects: { expansion: -1 },
+        factionPowerEffects: { legiones: -1, nautae: 1, fabri: 1 },
+        victoryPoints: 2.5,
+      },
+      failureOutcome: {
+        axisEffects: { centralization: -1 },
+        factionPowerEffects: { optimates: 1, provinciales: 1, nautae: -1, legiones: -1 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 10, affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -1, globalAffinityPenalty: -1 },
+      },
+    },
+  },
+  {
+    key: 'patronage_networks',
+    title: 'The Patronage Networks',
+    type: 'schism',
+    category: 'political',
+    illustration: 'patronage_networks',
+    flavor:
+      "With corruption accepted as the price of governance, patronage networks have crystallized into a shadow government. The Senate Leader's team is split: entrench them as institutions that can at least be regulated, or drag them into the light and let them wither.",
+    schismConfig: {
+      sides: [
+        {
+          key: 'entrench_networks',
+          title: 'Entrench the Networks',
+          description: 'Patronage is how Rome works. Formalize it, regulate it, and at least make it predictable.',
+          axisEffects: { tradition: 1 },
+          factionPowerEffects: { agricolae: -1, optimates: -1, provinciales: 1, nautae: 1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+        {
+          key: 'expose_networks',
+          title: 'Expose the Networks',
+          description: 'Publish the patron lists. Let every citizen see who owns whom. Sunlight is the best disinfectant.',
+          axisEffects: { tradition: -1 },
+          factionPowerEffects: { legiones: 1, nautae: -1, provinciales: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+      ],
+    },
+  },
+
+  // ── Censors' Report follow-ups ──
+
+  {
+    key: 'moral_courts',
+    title: 'The Moral Courts',
+    type: 'clash',
+    category: 'religious',
+    illustration: 'moral_courts',
+    flavor:
+      "The censors' moral purge has spawned special courts with sweeping powers. Senators face expulsion, merchants face ruin, and the accused are organizing resistance. The question is whether Rome has the stomach to judge itself.",
+    clashConfig: {
+      thresholdPercent: 0.60,
+      factionAmplifiers: { pontifices: 1.5, milites: 1.5 },
+      successOutcome: {
+        axisEffects: { patrician: 1 },
+        factionPowerEffects: { agricolae: 1, nautae: -1, pontifices: 1 },
+        victoryPoints: 2.5,
+      },
+      failureOutcome: {
+        axisEffects: { patrician: -1 },
+        factionPowerEffects: { provinciales: 1, plebeii: 1, legiones: -1 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 10, affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -1, globalAffinityPenalty: -1 },
+      },
+    },
+  },
+  {
+    key: 'cultural_commission',
+    title: 'The Cultural Commission',
+    type: 'endeavour',
+    category: 'religious',
+    illustration: 'cultural_commission',
+    flavor:
+      'A commission tasked with updating Roman moral standards for a cosmopolitan age. They must navigate between preserving Roman identity and embracing what the empire has become — without satisfying anyone completely.',
+    endeavourConfig: {
+      difficultyPercent: 0.50,
+      firstPlaceReward: 2.5,
+      successOutcome: {
+        axisEffects: { commerce: -1 },
+        factionPowerEffects: { legiones: 1, provinciales: -1, servi: 1 },
+      },
+      failureOutcome: {
+        axisEffects: { militarism: 1 },
+        factionPowerEffects: { optimates: 1, milites: 1, servi: -1 },
+      },
+    },
+  },
+  {
+    key: 'censors_revenge',
+    title: "The Censors' Revenge",
+    type: 'schism',
+    category: 'religious',
+    illustration: 'censors_revenge',
+    flavor:
+      "Humiliated by the Senate's dismissal, the censors have leaked their findings to the public. Scandals erupt across Rome. The Senate Leader's team must choose: exploit the chaos for political gain, or rally around the institution they just weakened.",
+    schismConfig: {
+      sides: [
+        {
+          key: 'weaponize_leaks',
+          title: 'Weaponize the Leaks',
+          description: 'Use the scandals to destroy political enemies. The censors handed us a weapon — it would be foolish not to swing it.',
+          axisEffects: { militarism: -1 },
+          factionPowerEffects: { legiones: -1, nautae: -1, provinciales: 1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+        {
+          key: 'defend_senate',
+          title: 'Defend the Senate',
+          description: 'The Senate is flawed, but it is ours. Rally around the institution before the mob tears it apart.',
+          axisEffects: { tradition: 1 },
+          factionPowerEffects: { plebeii: -1, mercatores: -1, pontifices: 1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+      ],
+    },
+  },
+
+  // ── Sibylline Oracle follow-ups ──
+
+  {
+    key: 'sacred_festival',
+    title: 'The Sacred Festival',
+    type: 'endeavour',
+    category: 'religious',
+    illustration: 'sacred_festival',
+    flavor:
+      "The Sibylline prescription demands the greatest sacred festival in living memory: sacrifices at every gate, games in the Circus, and — most controversially — the importation of a foreign goddess. The logistics are staggering, the expense ruinous, and the priests are fighting over every detail.",
+    endeavourConfig: {
+      difficultyPercent: 0.55,
+      firstPlaceReward: 3,
+      successOutcome: {
+        axisEffects: { tradition: -1 },
+        factionPowerEffects: { legiones: -1, agricolae: -1, nautae: 1 },
+      },
+      failureOutcome: {
+        axisEffects: { centralization: 1 },
+        factionPowerEffects: { nautae: -1, provinciales: -1, agricolae: 1 },
+      },
+    },
+  },
+  {
+    key: 'priestly_schism',
+    title: 'The Priestly Schism',
+    type: 'schism',
+    category: 'religious',
+    illustration: 'priestly_schism',
+    flavor:
+      "The reinterpretation has split the priesthood. Literalists insist the Books mean what they say; reformers see symbols to be decoded. The theological dispute barely conceals a power struggle over who controls Rome's relationship with the divine.",
+    schismConfig: {
+      sides: [
+        {
+          key: 'literal_reading',
+          title: 'Literal Reading',
+          description: 'The Books are sacred text, not poetry. Their words are commands, and commands must be obeyed to the letter.',
+          axisEffects: { patrician: -1 },
+          factionPowerEffects: { legiones: 1, fabri: 1, pontifices: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+        {
+          key: 'symbolic_reform',
+          title: 'Symbolic Reform',
+          description: 'The gods speak in metaphor. A flexible interpretation serves Rome better than rigid obedience to ancient riddles.',
+          axisEffects: { centralization: -1 },
+          factionPowerEffects: { milites: -1, servi: 1, optimates: -1 },
+          supportVP: 2,
+          betrayVP: 1,
+          allBetrayVP: 0.5,
+        },
+      ],
+    },
+  },
+  {
+    key: 'oracles_curse',
+    title: "The Oracle's Curse",
+    type: 'clash',
+    category: 'religious',
+    illustration: 'oracles_curse',
+    flavor:
+      'After rejecting the oracle, a cascade of disasters — a bridge collapse, plague in the camps, a freak storm that sinks three grain ships — has terrified the populace. Coincidence, say the rationalists. Divine punishment, say the priests. The mob just wants someone to do something.',
+    clashConfig: {
+      thresholdPercent: 0.65,
+      factionAmplifiers: { pontifices: 1.5, legiones: 1.5 },
+      successOutcome: {
+        axisEffects: { commerce: 1 },
+        factionPowerEffects: { mercatores: 1, provinciales: -1, legiones: -1 },
+        victoryPoints: 2.5,
+      },
+      failureOutcome: {
+        axisEffects: { commerce: -1 },
+        factionPowerEffects: { servi: -1, fabri: -1, pontifices: -1 },
+      },
+      personalEffects: {
+        commitSuccess: { affinityBonus: 1 },
+        commitFailure: { influenceLoss: 10, affinityPenalty: -2 },
+        withdrawSuccess: { affinityPenalty: -1, globalAffinityPenalty: -1 },
+      },
     },
   },
 ];
