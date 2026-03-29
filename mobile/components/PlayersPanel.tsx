@@ -103,8 +103,14 @@ export default function PlayersPanel({
     const td = oc.type_data;
     if (!td) continue;
     if (oc.controversy_type === 'clash' && td.succeeded && td.victoryPoints) {
-      for (const ps of playerStates) {
-        resolutionVPs[ps.player_id] = (resolutionVPs[ps.player_id] ?? 0) + td.victoryPoints;
+      if (td.personalEffects) {
+        for (const [pid, pe] of Object.entries(td.personalEffects) as [string, any][]) {
+          if (pe.vpAwarded > 0) resolutionVPs[pid] = (resolutionVPs[pid] ?? 0) + pe.vpAwarded;
+        }
+      } else {
+        for (const ps of playerStates) {
+          resolutionVPs[ps.player_id] = (resolutionVPs[ps.player_id] ?? 0) + td.victoryPoints;
+        }
       }
     } else if (oc.controversy_type === 'schism' && td.rewards) {
       for (const r of td.rewards) {
@@ -280,8 +286,14 @@ export default function PlayersPanel({
                       const td = oc.type_data;
                       const perPlayer: { pid: string; vp: number }[] = [];
                       if (oc.controversy_type === 'clash') {
-                        for (const ps of playerStates) {
-                          perPlayer.push({ pid: ps.player_id, vp: td.victoryPoints });
+                        if (td.personalEffects) {
+                          for (const [pid, pe] of Object.entries(td.personalEffects) as [string, any][]) {
+                            if (pe.vpAwarded > 0) perPlayer.push({ pid, vp: pe.vpAwarded });
+                          }
+                        } else {
+                          for (const ps of playerStates) {
+                            perPlayer.push({ pid: ps.player_id, vp: td.victoryPoints });
+                          }
                         }
                       } else if (oc.controversy_type === 'schism') {
                         for (const r of (td.rewards ?? [])) {

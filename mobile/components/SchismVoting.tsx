@@ -382,6 +382,7 @@ export default function SchismVoting({
                 axis={axis}
                 change={axisEffects[axis]}
                 currentValue={outcomeAxisValues[axis]}
+                playerAgendas={playerAgendas}
               />
             ))}
           </View>
@@ -533,7 +534,8 @@ export default function SchismVoting({
             axisValues={axisValues} label="If supported" playerAgendas={playerAgendas} />
           <SideCard side={otherSide} isSelected={false} onPress={() => {}}
             activeFactionKeys={activeFactionKeys} factionInfoMap={factionInfoMap}
-            axisValues={axisValues} label="If sabotaged" playerAgendas={playerAgendas} />
+            axisValues={axisValues} label="If sabotaged" playerAgendas={playerAgendas}
+            declaredSideVPs={{ supportVP: declaredSide.supportVP, betrayVP: declaredSide.betrayVP, allBetrayVP: declaredSide.allBetrayVP }} />
         </View>
 
         {error && <Text style={styles.errorText}>{error}</Text>}
@@ -609,6 +611,7 @@ export default function SchismVoting({
           axisValues={axisValues}
           label="If sabotaged"
           playerAgendas={playerAgendas}
+          declaredSideVPs={{ supportVP: declaredSide.supportVP, betrayVP: declaredSide.betrayVP, allBetrayVP: declaredSide.allBetrayVP }}
         />
       </View>
 
@@ -644,7 +647,7 @@ export default function SchismVoting({
 
 // --- Side Card subcomponent ---
 
-function SideCard({ side, isSelected, onPress, activeFactionKeys, factionInfoMap, axisValues, label, playerAgendas }: {
+function SideCard({ side, isSelected, onPress, activeFactionKeys, factionInfoMap, axisValues, label, playerAgendas, declaredSideVPs }: {
   side: SchismSide;
   isSelected: boolean;
   onPress: () => void;
@@ -653,6 +656,8 @@ function SideCard({ side, isSelected, onPress, activeFactionKeys, factionInfoMap
   axisValues?: Record<string, number>;
   label?: string;
   playerAgendas?: PlayerAgendaInfo[];
+  /** Pass the declared side's VP values so "If sabotaged" can show betrayal payoffs */
+  declaredSideVPs?: { supportVP: number; betrayVP: number; allBetrayVP: number };
 }) {
   const axisKeys = Object.keys(side.axisEffects);
   const factionKeys = Object.keys(side.factionPowerEffects).filter((k) => activeFactionKeys.includes(k));
@@ -665,11 +670,24 @@ function SideCard({ side, isSelected, onPress, activeFactionKeys, factionInfoMap
       {label && <Text style={styles.sideCardLabel}>{label}</Text>}
       <Text style={styles.sideCardTitle}>{side.title}</Text>
       <Text style={styles.sideCardDesc}>{side.description}</Text>
-      <View style={styles.vpSummary}>
-        <Text style={styles.vpRow}>All support: {formatReward(side.supportVP)} each</Text>
-        <Text style={styles.vpRow}>Betrayers get: {formatReward(side.betrayVP)}</Text>
-        <Text style={styles.vpRow}>All betray: {formatReward(side.allBetrayVP)} each</Text>
-      </View>
+      {label === 'If supported' && (
+        <View style={styles.vpSummary}>
+          <Text style={styles.vpRowGood}>Team members: +{formatReward(side.supportVP)} each</Text>
+        </View>
+      )}
+      {label === 'If sabotaged' && declaredSideVPs && (
+        <View style={styles.vpSummary}>
+          <Text style={styles.vpRowGood}>If some betray — Betrayers: +{formatReward(declaredSideVPs.betrayVP)}</Text>
+          <Text style={styles.vpRowGood}>If all betray — Betrayers: +{formatReward(declaredSideVPs.allBetrayVP)} each</Text>
+        </View>
+      )}
+      {!label && (
+        <View style={styles.vpSummary}>
+          <Text style={styles.vpRow}>All support: {formatReward(side.supportVP)} each</Text>
+          <Text style={styles.vpRow}>Betrayers get: {formatReward(side.betrayVP)}</Text>
+          <Text style={styles.vpRow}>All betray: {formatReward(side.allBetrayVP)} each</Text>
+        </View>
+      )}
       {axisKeys.length > 0 && (
         <View style={styles.sideEffects}>
           {axisKeys.map((axis) => (
@@ -770,6 +788,11 @@ const styles = StyleSheet.create({
     color: C.gold,
     fontSize: 11,
     opacity: 0.75,
+  },
+  vpRowGood: {
+    color: '#4CAF50',
+    fontSize: 11,
+    fontWeight: '600',
   },
   // Team picker
   teamPickRow: {

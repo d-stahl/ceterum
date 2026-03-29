@@ -687,7 +687,7 @@ export const CONTROVERSIES: Controversy[] = [
         title: 'Pardon and Reform',
         description:
           'Pardon him for past service but institute new accountability for future governors.',
-        axisEffects: {},
+        axisEffects: { centralization: -1 },
         factionPowerEffects: { provinciales: 1, servi: 1, optimates: -1 },
         followUpKey: 'returning_legions',
       },

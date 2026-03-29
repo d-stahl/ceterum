@@ -203,6 +203,7 @@ export default function EndeavourVoting({
                 axis={axis}
                 change={axisEffects[axis]}
                 currentValue={outcomeAxisValues[axis]}
+                playerAgendas={playerAgendas}
               />
             ))}
           </View>

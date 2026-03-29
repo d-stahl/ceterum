@@ -42,6 +42,7 @@ export type FactionPlacement = {
   subRound: number;
   isPreliminary?: boolean;
   isLocked?: boolean;
+  lockTurnsLeft?: number;
 };
 
 type PlayerAffinityInfo = {
@@ -499,9 +500,9 @@ function TappableWorkerIcon({
           <>
             <View style={[styles.stableRing, { width: iconSize + 4, height: iconSize + 4, borderRadius: (iconSize + 4) / 2, borderColor: getColorHex(placement.playerColor) }]} />
             <WorkerIcon workerType={placement.workerType} playerColor={placement.playerColor} size={iconSize} />
-            {placement.isLocked && (
+            {placement.lockTurnsLeft != null && placement.lockTurnsLeft > 0 && (
               <View style={styles.lockedBadge}>
-                <Text style={styles.lockedBadgeText}>L</Text>
+                <Text style={styles.lockedBadgeText}>{placement.lockTurnsLeft}</Text>
               </View>
             )}
           </>

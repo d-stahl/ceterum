@@ -8,7 +8,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../../lib/supabase';
-import { submitPlacement, advanceRound, fetchPreviewEffects, PreliminaryPlacementRequest } from '../../../lib/game-actions';
+import { submitPlacement, proceedFromOverview, advanceRound, fetchPreviewEffects, PreliminaryPlacementRequest } from '../../../lib/game-actions';
 import { getColorHex } from '../../../lib/player-colors';
 import { getSenatorIcon, getSaboteurIcon, getPromoterIcon } from '../../../lib/worker-icons';
 import { WorkerType, OratorRole } from '../../../lib/game-engine/workers';
@@ -66,6 +66,7 @@ type Round = {
   initial_faction_powers: Record<string, number> | null;
   initial_influence: Record<string, number> | null;
   end_of_round_influence: Record<string, number> | null;
+  overview_ready: string[];
 };
 
 type PlayerInfo = {
@@ -147,6 +148,7 @@ function GameScreenInner() {
   const [submitting, setSubmitting] = useState(false);
   const [hasSubmittedThisSubRound, setHasSubmittedThisSubRound] = useState(false);
   const [resolving, setResolving] = useState(false);
+  const [hasProceededOverview, setHasProceededOverview] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [resultInfluence, setResultInfluence] = useState<Record<string, number>>({});
   const [gameStatus, setGameStatus] = useState('in_progress');
@@ -333,13 +335,14 @@ function GameScreenInner() {
 
       if (subRoundAdvanced || roundAdvanced) {
         setHasSubmittedThisSubRound(false);
+        setHasProceededOverview(false);
         drag.clearPreliminary();
         setTooltipData(null);
         workerEffectsRef.current = []; // wipe stale tooltip cache
       }
 
       // Demagogery just resolved → show demagogery results before ruling phase
-      if (prev.phase === 'demagogery' && round.phase !== 'demagogery') {
+      if (prev.phase === 'demagogery_overview' && round.phase !== 'demagogery_overview' && round.phase !== 'demagogery') {
         setTooltipData(null);
         handleShowResolutionResults();
       }
@@ -498,7 +501,7 @@ function GameScreenInner() {
   async function loadRound() {
     const { data } = await supabase
       .from('game_rounds')
-      .select('id, round_number, phase, sub_round, senate_leader_id, controversy_pool, controversies_resolved, upcoming_pool, initial_faction_powers, initial_influence, end_of_round_influence')
+      .select('id, round_number, phase, sub_round, senate_leader_id, controversy_pool, controversies_resolved, upcoming_pool, initial_faction_powers, initial_influence, end_of_round_influence, overview_ready')
       .eq('game_id', gameId)
       .order('round_number', { ascending: false })
       .limit(1)
@@ -825,6 +828,7 @@ function GameScreenInner() {
           factionKey: faction?.faction_key ?? '',
           subRound: p.sub_round,
           isLocked: p.is_locked,
+          lockTurnsLeft: p.is_locked ? 1 : (p.orator_role === 'demagog' ? 2 : undefined),
         };
       });
 
@@ -880,6 +884,7 @@ function GameScreenInner() {
       workerType: p.worker_type as any,
       oratorRole: p.orator_role as any,
       isLocked: p.is_locked,
+      lockTurnsLeft: p.is_locked ? 1 : (p.orator_role === 'demagog' ? 2 : undefined),
     }));
 
   // Block orator slots at factions where the player already has an orator
@@ -1545,12 +1550,18 @@ function GameScreenInner() {
   }
 
   // --- Demagogery view (default) ---
+  const isOverview = phase === 'demagogery_overview';
+  const overviewReadyCount = round?.overview_ready?.length ?? 0;
+  const overviewWaitingCount = players.length - overviewReadyCount;
+
   return (
     <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
       <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: 0 }]}>
         <RoundHeader
           phaseTitle="DEMAGOGERY"
-          roundInfo={`Round ${round?.round_number ?? '?'} / Demagogery Step ${round?.sub_round ?? '?'}`}
+          roundInfo={isOverview
+            ? `Round ${round?.round_number ?? '?'} / Overview`
+            : `Round ${round?.round_number ?? '?'} / Demagogery Step ${round?.sub_round ?? '?'}`}
           influence={myInfluence}
           onHome={() => router.replace('/(app)/home')}
           helpNode={
@@ -1562,7 +1573,20 @@ function GameScreenInner() {
           }
         />
 
-        {/* Status bar */}
+        {/* Status bar — overview phase */}
+        {isOverview && (
+          <View style={styles.statusBar}>
+            <Text style={styles.statusText}>
+              {hasProceededOverview
+                ? overviewWaitingCount > 0
+                  ? `Ready. Waiting for ${overviewWaitingCount} player${overviewWaitingCount === 1 ? '' : 's'}...`
+                  : 'All ready!'
+                : 'All placements revealed. Tap workers to see effects.'}
+            </Text>
+          </View>
+        )}
+
+        {/* Status bar — active placement */}
         {(hasSubmittedThisSubRound || isSittingOut) && phase === 'demagogery' && (
           <View style={styles.statusBar}>
             <Text style={styles.statusText}>
@@ -1611,13 +1635,37 @@ function GameScreenInner() {
               allPlayerAffinities={getAllPlayerAffinities(faction.id)}
               factionPreferences={getFactionPreferences(faction)}
               playerAgendas={playerAgendas}
-              onDragStart={handleDragStart}
-              onDragMove={handleDragMove}
-              onDragEnd={handleDragEnd}
+              onDragStart={isOverview ? undefined : handleDragStart}
+              onDragMove={isOverview ? undefined : handleDragMove}
+              onDragEnd={isOverview ? undefined : handleDragEnd}
               onWorkerTap={handleWorkerTap}
             />
           )}
         />
+
+        {/* Proceed button — overview phase */}
+        {isOverview && !hasProceededOverview && (
+          <Pressable
+            style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+            onPress={async () => {
+              if (submitting) return;
+              setSubmitting(true);
+              try {
+                await proceedFromOverview(gameId);
+                setHasProceededOverview(true);
+              } catch (e: any) {
+                console.error('[overview] proceed error:', e);
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+            disabled={submitting}
+          >
+            <Text style={styles.submitButtonText}>
+              {submitting ? 'Proceeding...' : 'Proceed'}
+            </Text>
+          </Pressable>
+        )}
 
         {/* Submit Move button */}
         {hasPreliminary && !hasSubmittedThisSubRound && !isSittingOut && phase === 'demagogery' && (

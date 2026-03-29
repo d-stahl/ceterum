@@ -34,6 +34,11 @@ Deno.serve(async (req) => {
     console.log('[submit-placement] submit_placement result:', JSON.stringify(submitResult), 'error:', JSON.stringify(submitError));
     if (submitError) return errorResponse(submitError.message, 422);
 
+    // Overview phase — just return status, resolution happens via proceed-overview
+    if (submitResult?.status === 'overview') {
+      return jsonResponse({ status: 'overview' });
+    }
+
     // All 3 sub-rounds complete — resolve immediately, server-side
     if (submitResult?.status === 'ready_for_resolution') {
       console.log('[submit-placement] Ready for resolution, fetching round...');

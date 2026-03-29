@@ -52,7 +52,7 @@ export default function WorkerSelector({
 
   // Derive committed slots directly from usedWorkers — eliminates race conditions
   // where the component mounts before loadPlacements() resolves.
-  const { committed: committedSlots, locked: lockedSlots } = useMemo(() => assignCommittedSlots(usedWorkers), [usedWorkers]);
+  const { committed: committedSlots, lockTurns } = useMemo(() => assignCommittedSlots(usedWorkers), [usedWorkers]);
 
   const [prelimSlotKey, setPrelimSlotKey] = useState<string | null>(null);
   const [activeSlotKey, setActiveSlotKey] = useState<string | null>(null);
@@ -76,7 +76,7 @@ export default function WorkerSelector({
       <View style={styles.row}>
         {WORKER_SLOTS.map((slot) => {
           const isCommitted = committedSlots.has(slot.key);
-          const isLocked = lockedSlots.has(slot.key);
+          const turnsLeft = lockTurns[slot.key];
           const isPrelim = slot.key === prelimSlotKey;
           const isActive = slot.key === activeSlotKey;
           const showEmpty = isCommitted || isPrelim || isActive;
@@ -108,7 +108,7 @@ export default function WorkerSelector({
                 }}
               />
               <Text style={[styles.slotLabel, showEmpty && styles.slotLabelUsed]}>
-                {isLocked ? 'Locked' : slot.label}
+                {turnsLeft != null ? `Locked (${turnsLeft})` : slot.label}
               </Text>
             </WorkerSlotView>
           );
@@ -171,17 +171,17 @@ function WorkerSlotView({
 
 /** Assign committed placements to specific slot keys (in order) */
 function assignCommittedSlots(
-  usedWorkers: { workerType: WorkerType; oratorRole?: OratorRole; isLocked?: boolean }[]
-): { committed: Set<string>; locked: Set<string> } {
+  usedWorkers: { workerType: WorkerType; oratorRole?: OratorRole; isLocked?: boolean; lockTurnsLeft?: number }[]
+): { committed: Set<string>; lockTurns: Record<string, number> } {
   const committed = new Set<string>();
-  const locked = new Set<string>();
+  const lockTurns: Record<string, number> = {};
   let oratorIdx = 0;
   for (const w of usedWorkers) {
     if (w.workerType === 'orator') {
       if (oratorIdx < 3) {
         const key = WORKER_SLOTS[oratorIdx].key;
         committed.add(key);
-        if (w.isLocked) locked.add(key);
+        if (w.lockTurnsLeft != null && w.lockTurnsLeft > 0) lockTurns[key] = w.lockTurnsLeft;
         oratorIdx++;
       }
     } else if (w.workerType === 'promoter') {
@@ -190,7 +190,7 @@ function assignCommittedSlots(
       committed.add('saboteur');
     }
   }
-  return { committed, locked };
+  return { committed, lockTurns };
 }
 
 const styles = StyleSheet.create({

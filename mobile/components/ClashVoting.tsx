@@ -7,6 +7,7 @@ import type { ClashControversy } from '../lib/game-engine/controversies';
 import { bidStrength } from '../lib/game-engine/clash';
 import { AxisEffectSlider, PowerEffectRow } from './ControversyCard';
 import ControversyHeader from './ControversyHeader';
+import type { PlayerAgendaInfo } from './AgendaDots';
 import { getColorHex } from '../lib/player-colors';
 import { C, goldBg, whiteBg, navyBg, CONTROVERSY_TYPE_COLORS } from '../lib/theme';
 
@@ -34,6 +35,7 @@ type Props = {
   activeFactionKeys: string[];
   factionInfoMap: Record<string, FactionInfo>;
   axisValues?: Record<string, number>;
+  playerAgendas?: PlayerAgendaInfo[];
   playerAffinities?: Record<string, number>; // current user's affinities: factionKey -> affinity
   onContinue: () => void;
 };
@@ -53,6 +55,7 @@ export default function ClashVoting({
   activeFactionKeys,
   factionInfoMap,
   axisValues,
+  playerAgendas,
   playerAffinities,
   onContinue,
 }: Props) {
@@ -247,6 +250,7 @@ export default function ClashVoting({
                 axis={axis}
                 change={axisEffects[axis]}
                 currentValue={outcomeAxisValues[axis]}
+                playerAgendas={playerAgendas}
               />
             ))}
           </View>
@@ -511,6 +515,9 @@ export default function ClashVoting({
                 <Text style={styles.quadrantEffectBad}>No VP</Text>
                 {pe.withdrawSuccess.affinityPenalty !== 0 && (
                   <Text style={styles.quadrantEffectBad}>Affinity {pe.withdrawSuccess.affinityPenalty} with your factions</Text>
+                )}
+                {pe.withdrawSuccess.globalAffinityPenalty != null && pe.withdrawSuccess.globalAffinityPenalty !== 0 && (
+                  <Text style={styles.quadrantEffectBad}>Affinity {pe.withdrawSuccess.globalAffinityPenalty} with all factions</Text>
                 )}
                 <View style={styles.quadrantDivider} />
                 <Text style={styles.quadrantSubhead}>On Failure</Text>

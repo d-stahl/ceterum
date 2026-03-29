@@ -198,6 +198,14 @@ export async function passSchismBet(
   return data;
 }
 
+export async function proceedFromOverview(gameId: string): Promise<any> {
+  const { data, error } = await supabase.functions.invoke('proceed-overview', {
+    body: { game_id: gameId },
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function advanceRound(gameId: string): Promise<any> {
   const { data, error } = await supabase.functions.invoke('advance-round', {
     body: { game_id: gameId },
