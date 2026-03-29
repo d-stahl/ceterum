@@ -13,6 +13,7 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('[preview-effects] Request received');
     const body = await req.json();
     const { game_id, preliminary_placement } = body;
     if (!game_id) return errorResponse('Missing game_id', 400);
@@ -21,27 +22,35 @@ Deno.serve(async (req) => {
 
     await verifyMembership(anonClient, game_id, user.id);
 
-    // Load current round for round_id and sub_round
+    // Load current round for round_id, sub_round, and phase
     const { data: round, error: roundError } = await adminClient
       .from('game_rounds')
-      .select('id, sub_round')
+      .select('id, sub_round, phase')
       .eq('game_id', game_id)
       .order('round_number', { ascending: false })
       .limit(1)
       .single();
     if (roundError) return errorResponse('Round not found', 404);
 
+    // During overview/resolved, all placements are revealed — no visibility filter
+    const allRevealed = round.phase === 'demagogery_overview' || round.phase === 'demagogery_resolved';
+
     // Fetch placements, factions, affinities in parallel
+    let placementsQuery = adminClient
+      .from('game_placements')
+      .select('player_id, worker_type, orator_role, sub_round, game_factions!inner(faction_key)')
+      .eq('round_id', round.id);
+
+    if (!allRevealed) {
+      // Only include placements that are visible to the caller:
+      // - previous sub-rounds (already revealed to all players), or
+      // - locked placements (carried-forward demagogs, always visible), or
+      // - the caller's own placements (they know what they submitted)
+      placementsQuery = placementsQuery.or(`sub_round.lt.${round.sub_round},is_locked.eq.true,player_id.eq.${user.id}`);
+    }
+
     const [placementsRes, factionsRes, affinitiesRes] = await Promise.all([
-      adminClient
-        .from('game_placements')
-        .select('player_id, worker_type, orator_role, sub_round, game_factions!inner(faction_key)')
-        .eq('round_id', round.id)
-        // Only include placements that are visible to the caller:
-        // - previous sub-rounds (already revealed to all players), or
-        // - locked placements (carried-forward demagogs, always visible), or
-        // - the caller's own placements (they know what they submitted)
-        .or(`sub_round.lt.${round.sub_round},is_locked.eq.true,player_id.eq.${user.id}`),
+      placementsQuery,
       adminClient
         .from('game_factions')
         .select('faction_key, display_name, power_level, pref_centralization, pref_expansion, pref_commerce, pref_patrician, pref_tradition, pref_militarism')
@@ -83,13 +92,16 @@ Deno.serve(async (req) => {
     }
     const playerAffinities = buildPlayerAffinitiesFromDb(affinitiesRes.data ?? []);
 
+    console.log(`[preview-effects] Resolving: ${enginePlacements.length} placements, ${engineFactions.length} factions, phase=${round.phase}`);
     const { workerEffects } = resolveDemagogeryDetailed(enginePlacements, engineFactions, playerAffinities);
 
+    console.log(`[preview-effects] Success: ${workerEffects.length} effects`);
     return jsonResponse({ workerEffects });
 
   } catch (err) {
     if (err instanceof Response) return err;
     const message = err instanceof Error ? err.message : 'Internal server error';
+    console.error('[preview-effects] Error:', message, err instanceof Error ? err.stack : '');
     return errorResponse(message);
   }
 });

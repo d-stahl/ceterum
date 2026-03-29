@@ -478,34 +478,89 @@ export default function ControversyCard({
             </View>
           )}
 
-          {expanded && controversy.type === 'clash' && (
-            <View style={styles.resolutionsSection}>
-              <View style={styles.resolution}>
-                <Text style={styles.resolutionTitle}>Faction Commitment</Text>
-                <Text style={styles.resolutionDesc}>
-                  Players bid influence on factions, then commit or withdraw.
-                  Threshold: {Math.round(controversy.clashConfig.thresholdPercent * 100)}% of total faction power.
-                </Text>
-                {Object.entries(controversy.clashConfig.factionAmplifiers).filter(([, v]) => v && v > 1).map(([fkey, amp]) => (
-                  <Text key={fkey} style={styles.resolutionDesc}>
-                    {factionInfoMap?.[fkey]?.displayName ?? fkey}: {amp}x amplifier
+          {expanded && controversy.type === 'clash' && (() => {
+            const sc = controversy.clashConfig.successOutcome;
+            const fc = controversy.clashConfig.failureOutcome;
+            const sAxisKeys = Object.keys(sc.axisEffects).filter((k) => sc.axisEffects[k as keyof typeof sc.axisEffects] !== 0);
+            const fAxisKeys = Object.keys(fc.axisEffects).filter((k) => fc.axisEffects[k as keyof typeof fc.axisEffects] !== 0);
+            return (
+              <View style={styles.resolutionsSection}>
+                <View style={styles.resolution}>
+                  <Text style={styles.resolutionTitle}>Faction Commitment</Text>
+                  <Text style={styles.resolutionDesc}>
+                    Players bid influence on factions, then commit or withdraw.
+                    Threshold: {Math.round(controversy.clashConfig.thresholdPercent * 100)}% of total faction power.
                   </Text>
-                ))}
+                  {Object.entries(controversy.clashConfig.factionAmplifiers).filter(([, v]) => v && v > 1).map(([fkey, amp]) => (
+                    <Text key={fkey} style={styles.resolutionDesc}>
+                      {factionInfoMap?.[fkey]?.displayName ?? fkey}: {amp}x amplifier
+                    </Text>
+                  ))}
+                </View>
+                <View style={styles.resolution}>
+                  <Text style={styles.resolutionTitle}>On Success</Text>
+                  {sAxisKeys.length > 0 && (
+                    <View style={styles.effectsSection}>
+                      <Text style={styles.effectsSectionLabel}>Policy Effects</Text>
+                      {sAxisKeys.map((axis) => (
+                        <AxisEffectSlider key={axis} axis={axis} change={sc.axisEffects[axis as keyof typeof sc.axisEffects] ?? 0} currentValue={axisValues?.[axis] ?? 0} playerAgendas={playerAgendas} />
+                      ))}
+                    </View>
+                  )}
+                </View>
+                <View style={styles.resolution}>
+                  <Text style={styles.resolutionTitle}>On Failure</Text>
+                  {fAxisKeys.length > 0 && (
+                    <View style={styles.effectsSection}>
+                      <Text style={styles.effectsSectionLabel}>Policy Effects</Text>
+                      {fAxisKeys.map((axis) => (
+                        <AxisEffectSlider key={axis} axis={axis} change={fc.axisEffects[axis as keyof typeof fc.axisEffects] ?? 0} currentValue={axisValues?.[axis] ?? 0} playerAgendas={playerAgendas} />
+                      ))}
+                    </View>
+                  )}
+                </View>
               </View>
-            </View>
-          )}
+            );
+          })()}
 
-          {expanded && controversy.type === 'endeavour' && (
-            <View style={styles.resolutionsSection}>
-              <View style={styles.resolution}>
-                <Text style={styles.resolutionTitle}>Collective Investment</Text>
-                <Text style={styles.resolutionDesc}>
-                  All players secretly invest influence. Difficulty: {Math.round(controversy.endeavourConfig.difficultyPercent * 100)}%.
-                  Top investor earns up to {controversy.endeavourConfig.firstPlaceReward} VP.
-                </Text>
+          {expanded && controversy.type === 'endeavour' && (() => {
+            const ec = controversy.endeavourConfig;
+            const sAxisKeys = Object.keys(ec.successOutcome.axisEffects).filter((k) => ec.successOutcome.axisEffects[k as keyof typeof ec.successOutcome.axisEffects] !== 0);
+            const fAxisKeys = Object.keys(ec.failureOutcome.axisEffects).filter((k) => ec.failureOutcome.axisEffects[k as keyof typeof ec.failureOutcome.axisEffects] !== 0);
+            return (
+              <View style={styles.resolutionsSection}>
+                <View style={styles.resolution}>
+                  <Text style={styles.resolutionTitle}>Collective Investment</Text>
+                  <Text style={styles.resolutionDesc}>
+                    All players secretly invest influence. Difficulty: {Math.round(ec.difficultyPercent * 100)}%.
+                    Top investor earns up to {ec.firstPlaceReward} VP.
+                  </Text>
+                </View>
+                {sAxisKeys.length > 0 && (
+                  <View style={styles.resolution}>
+                    <Text style={styles.resolutionTitle}>On Success</Text>
+                    <View style={styles.effectsSection}>
+                      <Text style={styles.effectsSectionLabel}>Policy Effects</Text>
+                      {sAxisKeys.map((axis) => (
+                        <AxisEffectSlider key={axis} axis={axis} change={ec.successOutcome.axisEffects[axis as keyof typeof ec.successOutcome.axisEffects] ?? 0} currentValue={axisValues?.[axis] ?? 0} playerAgendas={playerAgendas} />
+                      ))}
+                    </View>
+                  </View>
+                )}
+                {fAxisKeys.length > 0 && (
+                  <View style={styles.resolution}>
+                    <Text style={styles.resolutionTitle}>On Failure</Text>
+                    <View style={styles.effectsSection}>
+                      <Text style={styles.effectsSectionLabel}>Policy Effects</Text>
+                      {fAxisKeys.map((axis) => (
+                        <AxisEffectSlider key={axis} axis={axis} change={ec.failureOutcome.axisEffects[axis as keyof typeof ec.failureOutcome.axisEffects] ?? 0} currentValue={axisValues?.[axis] ?? 0} playerAgendas={playerAgendas} />
+                      ))}
+                    </View>
+                  </View>
+                )}
               </View>
-            </View>
-          )}
+            );
+          })()}
 
           {expanded && controversy.type === 'schism' && (
             <View style={styles.resolutionsSection}>

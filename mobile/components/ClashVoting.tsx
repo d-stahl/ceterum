@@ -5,6 +5,7 @@ import { declareControversyOpen, submitClashAction } from '../lib/game-actions';
 import { CONTROVERSY_MAP } from '../lib/game-engine/controversies';
 import type { ClashControversy } from '../lib/game-engine/controversies';
 import { bidStrength } from '../lib/game-engine/clash';
+import { VP_TO_INFLUENCE_RATE } from '../lib/game-engine/constants';
 import { AxisEffectSlider, PowerEffectRow } from './ControversyCard';
 import ControversyHeader from './ControversyHeader';
 import type { PlayerAgendaInfo } from './AgendaDots';
@@ -42,7 +43,17 @@ type Props = {
 
 type ControversyStateRow = {
   status: string;
+  static_data: { clashThreshold?: number; totalAmplifiedPower?: number } | null;
 };
+
+function formatReward(rawVP: number): string {
+  const vp = Math.floor(rawVP);
+  const inf = Math.round((rawVP - vp) * VP_TO_INFLUENCE_RATE);
+  if (vp > 0 && inf > 0) return `${vp} VP + ${inf} Inf`;
+  if (vp > 0) return `${vp} VP`;
+  if (inf > 0) return `${inf} Inf`;
+  return '0';
+}
 
 export default function ClashVoting({
   gameId,
@@ -75,7 +86,7 @@ export default function ClashVoting({
   const fetchState = useCallback(async () => {
     const { data } = await supabase
       .from('game_controversy_state')
-      .select('status')
+      .select('status, static_data')
       .eq('round_id', roundId)
       .eq('controversy_key', controversyKey)
       .single();
@@ -126,6 +137,12 @@ export default function ClashVoting({
     amplifier: config.factionAmplifiers[fkey] ?? 1,
     amplifiedPower: (factionInfoMap?.[fkey]?.power ?? 3) * (config.factionAmplifiers[fkey] ?? 1),
   }));
+  // Use stored threshold from when the clash was opened (immune to post-resolution power changes)
+  const liveTotalPower = amplifiedFactions.reduce((s, f) => s + f.amplifiedPower, 0);
+  const storedThreshold = csState?.static_data?.clashThreshold;
+  const storedTotalPower = csState?.static_data?.totalAmplifiedPower;
+  const displayThreshold = storedThreshold ?? Math.round(liveTotalPower * config.thresholdPercent);
+  const displayTotalPower = storedTotalPower ?? liveTotalPower;
 
   // Parse bids
   const parsedBids: Record<string, number> = {};
@@ -155,8 +172,7 @@ export default function ClashVoting({
     setSubmitting(true);
     setError(null);
     try {
-      // SL is forced to commit
-      await submitClashAction(gameId, controversyKey, parsedBids, isSL ? true : commits);
+      await submitClashAction(gameId, controversyKey, parsedBids, commits);
       setSubmitted(true);
     } catch (e: any) {
       setError(e.message ?? 'Submission failed');
@@ -378,12 +394,39 @@ export default function ClashVoting({
       {/* Threshold info */}
       <View style={styles.thresholdBanner}>
         <Text style={styles.thresholdLabel}>
-          Threshold: {Math.round(amplifiedFactions.reduce((s, f) => s + f.amplifiedPower, 0) * config.thresholdPercent)} power
+          Threshold: {displayThreshold} power
         </Text>
         <Text style={styles.thresholdNote}>
-          {Math.round(config.thresholdPercent * 100)}% of {amplifiedFactions.reduce((s, f) => s + f.amplifiedPower, 0)} total faction power
+          {Math.round(config.thresholdPercent * 100)}% of {displayTotalPower} total faction power
         </Text>
       </View>
+
+      {/* Policy axis effects preview */}
+      {(() => {
+        const sAxisKeys = Object.keys(config.successOutcome.axisEffects).filter((k) => config.successOutcome.axisEffects[k as keyof typeof config.successOutcome.axisEffects] !== 0);
+        const fAxisKeys = Object.keys(config.failureOutcome.axisEffects).filter((k) => config.failureOutcome.axisEffects[k as keyof typeof config.failureOutcome.axisEffects] !== 0);
+        if (sAxisKeys.length === 0 && fAxisKeys.length === 0) return null;
+        return (
+          <View style={styles.section}>
+            {sAxisKeys.length > 0 && (
+              <>
+                <Text style={styles.sectionLabel}>On Success — Policy Effects</Text>
+                {sAxisKeys.map((axis) => (
+                  <AxisEffectSlider key={axis} axis={axis} change={config.successOutcome.axisEffects[axis as keyof typeof config.successOutcome.axisEffects] ?? 0} currentValue={axisValues?.[axis] ?? 0} playerAgendas={playerAgendas} />
+                ))}
+              </>
+            )}
+            {fAxisKeys.length > 0 && (
+              <>
+                <Text style={[styles.sectionLabel, sAxisKeys.length > 0 && { marginTop: 12 }]}>On Failure — Policy Effects</Text>
+                {fAxisKeys.map((axis) => (
+                  <AxisEffectSlider key={axis} axis={axis} change={config.failureOutcome.axisEffects[axis as keyof typeof config.failureOutcome.axisEffects] ?? 0} currentValue={axisValues?.[axis] ?? 0} playerAgendas={playerAgendas} />
+                ))}
+              </>
+            )}
+          </View>
+        );
+      })()}
 
       {/* Faction bid cards */}
       <View style={styles.section}>
@@ -470,15 +513,14 @@ export default function ClashVoting({
           <Pressable
             style={[styles.quadrantBox, commits && styles.quadrantBoxCommitActive]}
             onPress={() => setCommits(true)}
-            disabled={isSL}
           >
             <Text style={[styles.quadrantTitle, commits && styles.quadrantTitleActive]}>
-              {isSL ? '■ COMMIT (Required)' : '■ COMMIT'}
+              ■ COMMIT
             </Text>
             {pe ? (
               <>
                 <Text style={styles.quadrantSubhead}>On Success</Text>
-                <Text style={styles.quadrantEffect}>+{config.successOutcome.victoryPoints} VP</Text>
+                <Text style={styles.quadrantEffect}>+{formatReward(config.successOutcome.victoryPoints)}</Text>
                 {pe.commitSuccess.affinityBonus !== 0 && (
                   <Text style={styles.quadrantEffect}>Affinity +{pe.commitSuccess.affinityBonus} with your factions</Text>
                 )}
@@ -494,7 +536,7 @@ export default function ClashVoting({
             ) : (
               <>
                 <Text style={styles.quadrantSubhead}>On Success</Text>
-                <Text style={styles.quadrantEffect}>+{config.successOutcome.victoryPoints} VP</Text>
+                <Text style={styles.quadrantEffect}>+{formatReward(config.successOutcome.victoryPoints)}</Text>
                 <View style={styles.quadrantDivider} />
                 <Text style={styles.quadrantSubhead}>On Failure</Text>
                 <Text style={styles.quadrantEffectNeutral}>No VP</Text>
@@ -502,11 +544,10 @@ export default function ClashVoting({
             )}
           </Pressable>
           <Pressable
-            style={[styles.quadrantBox, !commits && styles.quadrantBoxWithdrawActive, isSL && styles.quadrantBoxDisabled]}
+            style={[styles.quadrantBox, !commits && styles.quadrantBoxWithdrawActive]}
             onPress={() => setCommits(false)}
-            disabled={isSL}
           >
-            <Text style={[styles.quadrantTitle, !commits && styles.quadrantTitleActive, isSL && { opacity: 0.3 }]}>
+            <Text style={[styles.quadrantTitle, !commits && styles.quadrantTitleActive]}>
               WITHDRAW
             </Text>
             {pe ? (
@@ -532,7 +573,6 @@ export default function ClashVoting({
                 <Text style={styles.quadrantEffectNeutral}>No effect</Text>
               </>
             )}
-            {isSL && <Text style={styles.slDisabledNote}>Senate Leader must commit</Text>}
           </Pressable>
         </View>
       </View>
@@ -548,7 +588,7 @@ export default function ClashVoting({
           <ActivityIndicator color={C.darkText} size="small" />
         ) : (
           <Text style={styles.submitButtonText}>
-            {commits || isSL ? 'Commit & Submit' : 'Withdraw & Submit'}
+            {commits ? 'Commit & Submit' : 'Withdraw & Submit'}
           </Text>
         )}
       </Pressable>
@@ -709,9 +749,6 @@ const styles = StyleSheet.create({
     borderColor: C.negative + '50',
     borderWidth: 2,
   },
-  quadrantBoxDisabled: {
-    opacity: 0.35,
-  },
   quadrantTitle: {
     color: C.paleGold,
     fontSize: 13,
@@ -753,13 +790,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: goldBg(0.15),
     marginVertical: 4,
-  },
-  slDisabledNote: {
-    color: C.paleGold,
-    fontSize: 10,
-    opacity: 0.5,
-    fontStyle: 'italic',
-    marginTop: 4,
   },
   submitButton: {
     backgroundColor: C.gold,

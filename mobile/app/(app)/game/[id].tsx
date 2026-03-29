@@ -341,6 +341,11 @@ function GameScreenInner() {
         workerEffectsRef.current = []; // wipe stale tooltip cache
       }
 
+      // Entering overview → wipe stale partial cache so full effects are fetched
+      if (prev.phase === 'demagogery' && round.phase === 'demagogery_overview') {
+        workerEffectsRef.current = [];
+      }
+
       // Demagogery just resolved → show demagogery results before ruling phase
       if (prev.phase === 'demagogery_overview' && round.phase !== 'demagogery_overview' && round.phase !== 'demagogery') {
         setTooltipData(null);
@@ -354,6 +359,12 @@ function GameScreenInner() {
         // Only clear dismissed keys if we're not still showing round-end outcomes
         if (!showRoundEnd) setDismissedResolvedKeys(new Set());
         setOnTheHorizonVisible(true);
+      }
+    } else {
+      // Initial load (e.g. player rejoining) — show election results if they missed the transition
+      if (round.phase === 'ruling_pool' && round.senate_leader_id) {
+        showElectionResultsRef.current = true;
+        setShowElectionResults(true);
       }
     }
     prevRoundRef.current = {
@@ -432,7 +443,7 @@ function GameScreenInner() {
   // Debounced re-fetch of preview effects when preliminary placement changes
   useEffect(() => {
     const phase = round?.phase;
-    if (phase !== 'demagogery') return;
+    if (phase !== 'demagogery' && phase !== 'demagogery_overview') return;
 
     if (previewFetchDebounceRef.current) {
       clearTimeout(previewFetchDebounceRef.current);
@@ -440,7 +451,7 @@ function GameScreenInner() {
 
     const prelim = drag.preliminaryPlacement;
 
-    if (prelim) {
+    if (prelim && phase === 'demagogery') {
       previewFetchDebounceRef.current = setTimeout(() => {
         fetchAndCacheEffects({
           factionKey: prelim.factionKey,
@@ -449,6 +460,8 @@ function GameScreenInner() {
         });
       }, 300);
     } else {
+      // In overview: always fetch without preliminary (all placements revealed)
+      // In demagogery without preliminary: fetch baseline effects
       fetchAndCacheEffects();
     }
 
@@ -517,11 +530,13 @@ function GameScreenInner() {
       // Snapshot data so it survives if another player advances the round first.
       // Fetch controversy states fresh — React state may be stale due to race with Realtime.
       if ((!prev || prev.phase !== 'round_end') && data.phase === 'round_end') {
-        const { data: freshStates } = await supabase
-          .from('game_controversy_state')
-          .select('controversy_key, status')
-          .eq('round_id', data.id);
-        const snappedStates = (freshStates as ControversyStateRow[]) ?? controversyStates;
+        // Fetch fresh data — React state may be stale due to race with Realtime
+        const [freshStatesRes, freshAxesRes, freshFactionsRes] = await Promise.all([
+          supabase.from('game_controversy_state').select('controversy_key, status').eq('round_id', data.id),
+          supabase.from('game_axes').select('axis_key, current_value').eq('game_id', gameId),
+          supabase.from('game_factions').select('id, faction_key, display_name, power_level').eq('game_id', gameId),
+        ]);
+        const snappedStates = (freshStatesRes.data as ControversyStateRow[]) ?? controversyStates;
         setControversyStates(snappedStates);
         setRoundEndSnapshot({
           roundId: data.id,
@@ -530,8 +545,8 @@ function GameScreenInner() {
           initialFactionPowers: data.initial_faction_powers ?? {},
           endOfRoundInfluence: data.end_of_round_influence ?? null,
           playerStates: [...playerStates],
-          axes: [...axes],
-          factions: [...factions],
+          axes: (freshAxesRes.data as typeof axes) ?? axes,
+          factions: (freshFactionsRes.data as typeof factions) ?? factions,
         });
         setShowRoundEnd(true);
       }
@@ -916,7 +931,9 @@ function GameScreenInner() {
   // Sit-out logic: must be above early returns so hooks are always called.
   const phase = round?.phase ?? 'demagogery';
   const myTotalPlacements = placements.filter((p) => p.player_id === currentUserId).length;
-  const isSittingOut = myTotalPlacements >= 3 && phase === 'demagogery';
+  // Only treat as sitting out when placements belong to the current round
+  const placementsAreCurrentRound = !!round?.id && placementsRoundIdRef.current === round.id;
+  const isSittingOut = placementsAreCurrentRound && myTotalPlacements >= 3 && phase === 'demagogery';
 
   // Auto-submit sit-out when all slots are locked (e.g. all demagog carry-forwards).
   // This triggers the server-side done-count check so resolution can fire.
@@ -1646,7 +1663,7 @@ function GameScreenInner() {
         {/* Proceed button — overview phase */}
         {isOverview && !hasProceededOverview && (
           <Pressable
-            style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+            style={[styles.submitButton, { marginBottom: 8 + insets.bottom }, submitting && styles.submitButtonDisabled]}
             onPress={async () => {
               if (submitting) return;
               setSubmitting(true);
@@ -1670,7 +1687,7 @@ function GameScreenInner() {
         {/* Submit Move button */}
         {hasPreliminary && !hasSubmittedThisSubRound && !isSittingOut && phase === 'demagogery' && (
           <Pressable
-            style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+            style={[styles.submitButton, { marginBottom: 8 + insets.bottom }, submitting && styles.submitButtonDisabled]}
             onPress={handleSubmitMove}
             disabled={submitting}
           >

@@ -107,7 +107,6 @@ export function assignFactions(
  * 1. Assign factions to players based on bids (affinity × influence)
  * 2. Sum committed power (from committers' won factions, with amplifiers)
  * 3. Compare to threshold (% of total available amplified power)
- * 4. SL is forced to commit (validated in SQL RPC)
  */
 export function resolveClash(
   submissions: ClashSubmission[],
