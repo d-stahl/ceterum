@@ -1,4 +1,4 @@
-import { resolveEndeavour, computeRankRewards, VP_TO_INFLUENCE_RATE } from '../endeavour.ts';
+import { resolveEndeavour, computeRankRewards } from '../endeavour.ts';
 import type { EndeavourConfig, ControversyOutcome } from '../controversies.ts';
 
 const successOutcome: ControversyOutcome = {
@@ -13,7 +13,7 @@ const failureOutcome: ControversyOutcome = {
 
 const config: EndeavourConfig = {
   difficultyPercent: 0.50,
-  firstPlaceReward: 2.5,
+  firstPlaceReward: 25,
   successOutcome,
   failureOutcome,
 };
@@ -68,12 +68,14 @@ describe('resolveEndeavour', () => {
     );
 
     expect(result.succeeded).toBe(true);
-    // 3 players, step = 2.5 / 2 = 1.25
-    // rank 1: 2.5, rank 2: 1.25, rank 3: 0 (excluded)
+    // 3 players, step = 25 / 2 = 12.5
+    // rank 1: 25, rank 2: 12.5 → round to 13, rank 3: 0 (excluded)
     expect(result.rankings[0].playerId).toBe('a');
     expect(result.rankings[0].rank).toBe(1);
+    expect(result.rankings[0].vpAwarded).toBe(25);
     expect(result.rankings[1].playerId).toBe('b');
     expect(result.rankings[1].rank).toBe(2);
+    expect(result.rankings[1].vpAwarded).toBe(13);
     expect(result.rankings.length).toBe(2); // 3rd gets 0, excluded
   });
 
@@ -90,8 +92,6 @@ describe('resolveEndeavour', () => {
     );
 
     expect(result.succeeded).toBe(true);
-    // Only 2 investors, but totalPlayers=3, step = 2.5/2 = 1.25
-    // rank 1: 2.5, rank 2: 1.25
     expect(result.rankings.length).toBe(2);
     expect(result.rankings.find((r) => r.playerId === 'b')).toBeUndefined();
   });
@@ -114,64 +114,58 @@ describe('resolveEndeavour', () => {
     expect(rankA.rank).toBe(1);
     expect(rankB.rank).toBe(1);
     expect(rankA.vpAwarded).toBe(rankB.vpAwarded);
-    expect(rankA.influenceAwarded).toBe(rankB.influenceAwarded);
   });
 });
 
 describe('computeRankRewards', () => {
   it('distributes rewards with linear decay to zero', () => {
-    // 3 players, firstPlaceReward = 2.5
-    // step = 2.5 / (3-1) = 1.25
-    // rank 1: 2.5 → 2 VP + round(0.5 * 20) = 10 influence
-    // rank 2: 1.25 → 1 VP + round(0.25 * 20) = 5 influence
-    // rank 3: 0 → excluded
-    const rewards = computeRankRewards(['a', 'b', 'c'], [10, 8, 5], 2.5, 3);
+    // 3 players, firstPlaceReward = 25
+    // step = 25 / 2 = 12.5
+    // rank 1: 25 VP, rank 2: round(12.5) = 13 VP, rank 3: 0 (excluded)
+    const rewards = computeRankRewards(['a', 'b', 'c'], [10, 8, 5], 25, 3);
 
     expect(rewards.length).toBe(2);
-    expect(rewards[0].vpAwarded).toBe(2);
-    expect(rewards[0].influenceAwarded).toBe(10);
-    expect(rewards[1].vpAwarded).toBe(1);
-    expect(rewards[1].influenceAwarded).toBe(5);
+    expect(rewards[0].vpAwarded).toBe(25);
+    expect(rewards[1].vpAwarded).toBe(13);
   });
 
   it('returns empty array for no investors', () => {
-    expect(computeRankRewards([], [], 2.5, 3)).toEqual([]);
+    expect(computeRankRewards([], [], 25, 3)).toEqual([]);
   });
 
   it('handles single investor in 2-player game', () => {
-    // 2 players, step = 2.5 / 1 = 2.5
-    // rank 1: 2.5 → 2 VP + 10 influence
-    const rewards = computeRankRewards(['a'], [10], 2.5, 2);
+    // 2 players, step = 25 / 1 = 25
+    // rank 1: 25 VP
+    const rewards = computeRankRewards(['a'], [10], 25, 2);
     expect(rewards.length).toBe(1);
-    expect(rewards[0].vpAwarded).toBe(2);
-    expect(rewards[0].influenceAwarded).toBe(10);
+    expect(rewards[0].vpAwarded).toBe(25);
   });
 
   it('last place gets zero and is excluded', () => {
-    // 4 players, step = 2.5 / 3 ≈ 0.833
-    // rank 1: 2.5, rank 2: 1.667, rank 3: 0.833, rank 4: 0 (excluded)
+    // 4 players, step = 25 / 3 ≈ 8.33
+    // rank 1: 25, rank 2: round(16.67)=17, rank 3: round(8.33)=8, rank 4: 0 (excluded)
     const rewards = computeRankRewards(
       ['a', 'b', 'c', 'd'],
       [10, 9, 8, 7],
-      2.5,
+      25,
       4,
     );
     expect(rewards.length).toBe(3);
-    expect(rewards[2].vpAwarded).toBe(0);
-    expect(rewards[2].influenceAwarded).toBeGreaterThan(0);
+    expect(rewards[2].vpAwarded).toBe(8);
   });
 
   it('works with 5 players', () => {
-    // 5 players, step = 2.5 / 4 = 0.625
-    // rank 1: 2.5, rank 2: 1.875, rank 3: 1.25, rank 4: 0.625, rank 5: 0 (excluded)
+    // 5 players, step = 25 / 4 = 6.25
+    // rank 1: 25, rank 2: 18.75, rank 3: 12.5, rank 4: 6.25, rank 5: 0 (excluded)
     const rewards = computeRankRewards(
       ['a', 'b', 'c', 'd', 'e'],
       [10, 9, 8, 7, 6],
-      2.5,
+      25,
       5,
     );
     expect(rewards.length).toBe(4);
-    expect(rewards[0].rawReward).toBe(2.5);
-    expect(rewards[3].rawReward).toBe(0.625);
+    expect(rewards[0].rawReward).toBe(25);
+    expect(rewards[3].rawReward).toBe(6.25);
+    expect(rewards[3].vpAwarded).toBe(6);
   });
 });

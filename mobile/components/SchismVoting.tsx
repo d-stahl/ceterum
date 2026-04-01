@@ -5,7 +5,6 @@ import { declareSchismAction, submitSchismVote, submitSchismBet, passSchismBet }
 import { CONTROVERSY_MAP } from '../lib/game-engine/controversies';
 import type { SchismControversy, SchismSide } from '../lib/game-engine/controversies';
 import { schismTeamSize } from '../lib/game-engine/schism';
-import { VP_TO_INFLUENCE_RATE } from '../lib/game-engine/constants';
 import { AxisEffectSlider, PowerEffectRow } from './ControversyCard';
 import ControversyHeader from './ControversyHeader';
 import { getColorHex } from '../lib/player-colors';
@@ -46,15 +45,6 @@ type ControversyStateRow = {
   schism_team_members: string[] | null;
 };
 
-function formatReward(rawVP: number): string {
-  const vp = Math.floor(rawVP);
-  const inf = Math.round((rawVP - vp) * VP_TO_INFLUENCE_RATE);
-  if (vp > 0 && inf > 0) return `${vp} VP + ${inf} Inf`;
-  if (vp > 0) return `${vp} VP`;
-  if (inf > 0) return `${inf} Inf`;
-  return '0';
-}
-
 function OutsiderBetPanel({ gameId, controversyKey, maxInfluence, onBetPlaced, onError }: {
   gameId: string;
   controversyKey: string;
@@ -83,13 +73,11 @@ function OutsiderBetPanel({ gameId, controversyKey, maxInfluence, onBetPlaced, o
     }
   }
 
-  const potentialPayout = stake * 2;
-
   return (
     <View style={styles.betPanel}>
       <Text style={styles.sectionLabel}>Place a Bet (Optional)</Text>
       <Text style={styles.betHint}>
-        Wager influence on the outcome. Win = 2× stake as VP. Lose = lose your stake.
+        Wager influence on the outcome. Win = 1 VP per influence staked. Lose = lose your stake.
       </Text>
 
       <View style={styles.betPredictionRow}>
@@ -135,7 +123,7 @@ function OutsiderBetPanel({ gameId, controversyKey, maxInfluence, onBetPlaced, o
           </View>
           {stake > 0 && (
             <Text style={styles.betPreview}>
-              If correct: {formatReward(potentialPayout / VP_TO_INFLUENCE_RATE)}
+              If correct: +{stake} VP
             </Text>
           )}
           <Pressable
@@ -344,7 +332,7 @@ export default function SchismVoting({
                 <View key={r.playerId} style={styles.teamRevealRow}>
                   <View style={[styles.playerDot, { backgroundColor: getColorHex(player?.color ?? '') }]} />
                   <Text style={styles.teamPlayerName}>{player?.player_name ?? 'Unknown'}</Text>
-                  <Text style={styles.supportBadge}>{formatReward(r.vpAwarded + r.influenceAwarded / VP_TO_INFLUENCE_RATE)}</Text>
+                  <Text style={styles.supportBadge}>+{r.vpAwarded} VP</Text>
                 </View>
               );
             })}
@@ -362,7 +350,7 @@ export default function SchismVoting({
                   <View style={[styles.playerDot, { backgroundColor: getColorHex(player?.color ?? '') }]} />
                   <Text style={styles.teamPlayerName}>{player?.player_name ?? 'Unknown'}</Text>
                   {br.won ? (
-                    <Text style={styles.supportBadge}>Won {formatReward(br.vpAwarded + br.influenceAwarded / VP_TO_INFLUENCE_RATE)}</Text>
+                    <Text style={styles.supportBadge}>Won {br.vpAwarded} VP</Text>
                   ) : (
                     <Text style={styles.sabotageBadge}>Lost {br.stakeInfluence} Inf</Text>
                   )}
@@ -672,20 +660,20 @@ function SideCard({ side, isSelected, onPress, activeFactionKeys, factionInfoMap
       <Text style={styles.sideCardDesc}>{side.description}</Text>
       {label === 'If supported' && (
         <View style={styles.vpSummary}>
-          <Text style={styles.vpRowGood}>Team members: +{formatReward(side.supportVP)} each</Text>
+          <Text style={styles.vpRowGood}>Team members: +{side.supportVP} VP each</Text>
         </View>
       )}
       {label === 'If sabotaged' && declaredSideVPs && (
         <View style={styles.vpSummary}>
-          <Text style={styles.vpRowGood}>If some betray — Betrayers: +{formatReward(declaredSideVPs.betrayVP)}</Text>
-          <Text style={styles.vpRowGood}>If all betray — Betrayers: +{formatReward(declaredSideVPs.allBetrayVP)} each</Text>
+          <Text style={styles.vpRowGood}>If some betray — Betrayers: +{declaredSideVPs.betrayVP} VP</Text>
+          <Text style={styles.vpRowGood}>If all betray — Betrayers: +{declaredSideVPs.allBetrayVP} VP each</Text>
         </View>
       )}
       {!label && (
         <View style={styles.vpSummary}>
-          <Text style={styles.vpRow}>All support: {formatReward(side.supportVP)} each</Text>
-          <Text style={styles.vpRow}>Betrayers get: {formatReward(side.betrayVP)}</Text>
-          <Text style={styles.vpRow}>All betray: {formatReward(side.allBetrayVP)} each</Text>
+          <Text style={styles.vpRow}>All support: {side.supportVP} VP each</Text>
+          <Text style={styles.vpRow}>Betrayers get: {side.betrayVP} VP</Text>
+          <Text style={styles.vpRow}>All betray: {side.allBetrayVP} VP each</Text>
         </View>
       )}
       {axisKeys.length > 0 && (

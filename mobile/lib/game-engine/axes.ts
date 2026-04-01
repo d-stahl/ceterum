@@ -43,13 +43,13 @@ export function computeAxisScore(policyPosition: number, agendaPosition: number)
   if (dist > 1) return 0;
 
   if (dist === 0) {
-    // Exact match: base +2, plus +1 for each neighbor that falls outside agenda range
-    let score = 2;
-    if (agendaPosition - 1 < AXIS_MIN) score += 1;
-    if (agendaPosition + 1 > AXIS_MAX) score += 1;
+    // Exact match: base 20, plus 10 for each neighbor that falls outside agenda range
+    let score = 20;
+    if (agendaPosition - 1 < AXIS_MIN) score += 10;
+    if (agendaPosition + 1 > AXIS_MAX) score += 10;
     return score;
   }
 
-  // Adjacent: +1
-  return 1;
+  // Adjacent: 10
+  return 10;
 }

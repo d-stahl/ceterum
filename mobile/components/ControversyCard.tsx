@@ -491,11 +491,16 @@ export default function ControversyCard({
                     Players bid influence on factions, then commit or withdraw.
                     Threshold: {Math.round(controversy.clashConfig.thresholdPercent * 100)}% of total faction power.
                   </Text>
-                  {Object.entries(controversy.clashConfig.factionAmplifiers).filter(([, v]) => v && v > 1).map(([fkey, amp]) => (
-                    <Text key={fkey} style={styles.resolutionDesc}>
-                      {factionInfoMap?.[fkey]?.displayName ?? fkey}: {amp}x amplifier
-                    </Text>
-                  ))}
+                  {(() => {
+                    const amplified = Object.entries(controversy.clashConfig.factionAmplifiers)
+                      .filter(([, v]) => v && v > 1)
+                      .map(([fkey]) => factionInfoMap?.[fkey]?.displayName ?? FACTIONS.find(f => f.key === fkey)?.displayName ?? fkey);
+                    return amplified.length > 0 ? (
+                      <Text style={styles.resolutionDesc}>
+                        Amplified factions: {amplified.join(', ')}
+                      </Text>
+                    ) : null;
+                  })()}
                 </View>
                 <View style={styles.resolution}>
                   <Text style={styles.resolutionTitle}>On Success</Text>

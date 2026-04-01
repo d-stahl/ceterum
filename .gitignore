@@ -1,6 +1,7 @@
 .worktrees/
 DEPLOYMENT_NOTES.md
 docs/
+mobile/eas.json
 
 # Generated copy of mobile/lib/game-engine/ — kept in sync via scripts/sync-game-engine.sh
 supabase/functions/_shared/game-engine/

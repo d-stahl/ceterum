@@ -1,2 +1,1 @@
-/** Global conversion rate: 1 fractional VP = this many influence. */
-export const VP_TO_INFLUENCE_RATE = 20;
+// Constants file — VP_TO_INFLUENCE_RATE removed (VP is now granular, no fractional conversion)

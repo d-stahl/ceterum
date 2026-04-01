@@ -7,7 +7,7 @@ const config: ClashConfig = {
   successOutcome: {
     axisEffects: { expansion: 1, militarism: 1 },
     factionPowerEffects: { nautae: 1 },
-    victoryPoints: 3,
+    victoryPoints: 30,
   },
   failureOutcome: {
     axisEffects: { militarism: -1, commerce: -1 },
@@ -107,7 +107,7 @@ describe('resolveClash', () => {
     );
 
     expect(result.succeeded).toBe(true);
-    expect(result.victoryPoints).toBe(3);
+    expect(result.victoryPoints).toBe(30);
     expect(result.axisEffects).toEqual({ expansion: 1, militarism: 1 });
   });
 

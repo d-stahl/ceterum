@@ -44,7 +44,7 @@ export interface ClashConfig {
 
 export interface EndeavourConfig {
   difficultyPercent: number;  // threshold = sum(initial_influence) × this
-  firstPlaceReward: number;   // max reward in VP equivalent, e.g. 2.5
+  firstPlaceReward: number;   // max VP reward for 1st place
   successOutcome: ControversyOutcome;
   failureOutcome: ControversyOutcome;
 }
@@ -857,7 +857,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { expansion: 1, militarism: 1 },
         factionPowerEffects: { nautae: 1 },
-        victoryPoints: 3,
+        victoryPoints: 30,
       },
       failureOutcome: {
         axisEffects: { militarism: -1, commerce: -1 },
@@ -886,9 +886,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Stand by the Senate\'s promise. The settlements stay. Rome\'s word must mean something.',
           axisEffects: { tradition: -1 },
           factionPowerEffects: { agricolae: -1, nautae: -1 },
-          supportVP: 1.5,
-          betrayVP: 0.5,
-          allBetrayVP: 0.5,
+          supportVP: 15,
+          betrayVP: 5,
+          allBetrayVP: 5,
         },
         {
           key: 'break_promise',
@@ -896,9 +896,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Drive the pirates from the land. They are murderers, not settlers, and Rome owes them nothing.',
           axisEffects: { militarism: 1 },
           factionPowerEffects: { legiones: 1, agricolae: 1 },
-          supportVP: 1.5,
-          betrayVP: 0.5,
-          allBetrayVP: 0.5,
+          supportVP: 15,
+          betrayVP: 5,
+          allBetrayVP: 5,
         },
       ],
     },
@@ -913,7 +913,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       "The Senate authorized convoy escorts — on paper. Now someone has to actually build the ships, hire the crews, and chart the routes. The treasury is thin and the merchants are impatient. If the convoys sail undermanned, they'll be easy prey. If they never sail at all, Rome's trade collapses.",
     endeavourConfig: {
       difficultyPercent: 0.50,
-      firstPlaceReward: 2.5,
+      firstPlaceReward: 25,
       successOutcome: {
         axisEffects: { commerce: 1 },
         factionPowerEffects: { mercatores: 1, nautae: 1 },
@@ -941,10 +941,10 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Confine new citizens to four overflow tribes. They have citizenship — but not equal power.',
           axisEffects: { centralization: -1, patrician: 1 },
           factionPowerEffects: { optimates: 1, plebeii: 1, provinciales: -2 },
-          supportVP: 2.5,
-          betrayVP: 1.5,
-          allBetrayVP: 0.5,
-          betrayedVP: -1,
+          supportVP: 25,
+          betrayVP: 15,
+          allBetrayVP: 5,
+          betrayedVP: -10,
         },
         {
           key: 'equal_distribution',
@@ -952,10 +952,10 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Distribute new citizens equally across all thirty-five tribes. A citizen is a citizen.',
           axisEffects: { centralization: -1, expansion: 1 },
           factionPowerEffects: { provinciales: 1, plebeii: -1, optimates: -1 },
-          supportVP: 2.5,
-          betrayVP: 1.5,
-          allBetrayVP: 0.5,
-          betrayedVP: -1,
+          supportVP: 25,
+          betrayVP: 15,
+          allBetrayVP: 5,
+          betrayedVP: -10,
         },
       ],
     },
@@ -970,7 +970,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       "The Senate's promise is clear: citizenship through service. Allied communities across Italy are mustering their young men for joint campaigns on the frontier. But Rome has set the bar high — these are not token patrols. If the campaigns succeed, a generation of allies will have earned their place in the Republic with blood. If they fail, the whole integration program will be branded a mistake.",
     endeavourConfig: {
       difficultyPercent: 0.55,
-      firstPlaceReward: 3,
+      firstPlaceReward: 30,
       successOutcome: {
         axisEffects: { expansion: 1, militarism: 1 },
         factionPowerEffects: { milites: 1, legiones: 1, agricolae: -1 },
@@ -995,7 +995,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { militarism: 1, centralization: -1 },
         factionPowerEffects: { legiones: 1, milites: 1, agricolae: -1 },
-        victoryPoints: 2.5,
+        victoryPoints: 25,
       },
       failureOutcome: {
         axisEffects: { commerce: -1, expansion: -1 },
@@ -1023,7 +1023,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { centralization: -2 },
         factionPowerEffects: { optimates: 1, legiones: -1, plebeii: -1 },
-        victoryPoints: 2,
+        victoryPoints: 20,
       },
       failureOutcome: {
         axisEffects: { militarism: 1, commerce: -1 },
@@ -1052,10 +1052,10 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Revoke emergency authority. Return command to the Senate where it belongs.',
           axisEffects: { centralization: -1, militarism: -1 },
           factionPowerEffects: { pontifices: 1, legiones: -1, milites: -1 },
-          supportVP: 2.7,
-          betrayVP: 1.6,
-          allBetrayVP: 0.5,
-          betrayedVP: -1.5,
+          supportVP: 27,
+          betrayVP: 16,
+          allBetrayVP: 5,
+          betrayedVP: -15,
         },
         {
           key: 'let_them_compete',
@@ -1063,10 +1063,10 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'The consuls will check each other. Rome has survived worse than two ambitious men.',
           axisEffects: { commerce: -1 },
           factionPowerEffects: { mercatores: 1, pontifices: -1, plebeii: -1 },
-          supportVP: 2.7,
-          betrayVP: 1.6,
-          allBetrayVP: 0.5,
-          betrayedVP: -1.5,
+          supportVP: 27,
+          betrayVP: 16,
+          allBetrayVP: 5,
+          betrayedVP: -15,
         },
       ],
     },
@@ -1081,7 +1081,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       "The crisis the Senate spent months debating has worsened into catastrophe. Frontier towns burn, refugees flood south, and the legions that should have marched weeks ago are still waiting for authorization. Now everyone must contribute to an emergency response — civilian engineers, merchant ships, temple treasuries — but it may already be too late. The question is not whether Rome can win, but whether enough can be salvaged to call it survival.",
     endeavourConfig: {
       difficultyPercent: 0.60,
-      firstPlaceReward: 3.5,
+      firstPlaceReward: 35,
       successOutcome: {
         axisEffects: { militarism: -1 },
         factionPowerEffects: { fabri: 1, plebeii: 1, legiones: -1 },
@@ -1103,7 +1103,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       "The Senate's promise of subsidized grain means nothing without the ships to carry it. Egypt's harvests rot on the docks of Alexandria while Rome's poor riot for bread. Organizing a fleet of this scale — buying hulls, hiring crews, negotiating with Egyptian officials — requires an unprecedented civilian mobilization. Every faction wants a piece of the contract.",
     endeavourConfig: {
       difficultyPercent: 0.55,
-      firstPlaceReward: 3,
+      firstPlaceReward: 30,
       successOutcome: {
         axisEffects: { expansion: 1 },
         factionPowerEffects: { agricolae: 1, nautae: 1, fabri: -1 },
@@ -1160,7 +1160,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { centralization: -1 },
         factionPowerEffects: { agricolae: 1, plebeii: 1, mercatores: -1 },
-        victoryPoints: 2,
+        victoryPoints: 20,
       },
       failureOutcome: {
         axisEffects: { militarism: -1 },
@@ -1190,9 +1190,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Report every denarius. Rome deserves to know the true wealth of her provinces.',
           axisEffects: { commerce: 1 },
           factionPowerEffects: { provinciales: -1, pontifices: -1, mercatores: 1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
         {
           key: 'quiet_settlement',
@@ -1200,9 +1200,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Negotiate privately. Provincial goodwill is worth more than a few extra talents of silver.',
           axisEffects: { expansion: 1 },
           factionPowerEffects: { mercatores: -2, provinciales: 1, pontifices: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
       ],
     },
@@ -1249,7 +1249,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       "Without regulation, Rome does not even know what the provinces are worth. Grain fields, silver mines, timber forests, fishing fleets — all taxed by guesswork and bribery. A massive census expedition is proposed: surveyors, scribes, and engineers fanning out across every province to catalog Rome's true wealth. The publicani will fight it, the provinces will hide what they can, and the whole enterprise may collapse under its own ambition. But if it succeeds, Rome will finally understand what she rules.",
     endeavourConfig: {
       difficultyPercent: 0.55,
-      firstPlaceReward: 3,
+      firstPlaceReward: 30,
       successOutcome: {
         axisEffects: { expansion: 1, commerce: 1 },
         factionPowerEffects: { provinciales: -1, pontifices: -1, fabri: 1 },
@@ -1307,7 +1307,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { militarism: 1 },
         factionPowerEffects: { agricolae: 1, servi: -1, nautae: 1 },
-        victoryPoints: 2.5,
+        victoryPoints: 25,
       },
       failureOutcome: {
         axisEffects: { tradition: 1 },
@@ -1336,10 +1336,10 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Stand with the farmers. Their cause is just, even if their methods are desperate.',
           axisEffects: { patrician: -1, militarism: -1 },
           factionPowerEffects: { agricolae: 1, servi: 1, nautae: -1 },
-          supportVP: 2.3,
-          betrayVP: 1.2,
-          allBetrayVP: 0.5,
-          betrayedVP: -0.5,
+          supportVP: 23,
+          betrayVP: 12,
+          allBetrayVP: 5,
+          betrayedVP: -5,
         },
         {
           key: 'support_landowners',
@@ -1347,10 +1347,10 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Property rights are the foundation of the Republic. Without order, there is nothing.',
           axisEffects: { tradition: 1, patrician: 1 },
           factionPowerEffects: { servi: -1, nautae: 1, agricolae: -1 },
-          supportVP: 2.3,
-          betrayVP: 1.2,
-          allBetrayVP: 0.5,
-          betrayedVP: -0.5,
+          supportVP: 23,
+          betrayVP: 12,
+          allBetrayVP: 5,
+          betrayedVP: -5,
         },
       ],
     },
@@ -1370,7 +1370,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { expansion: 1 },
         factionPowerEffects: { milites: 1, legiones: -1, fabri: -1 },
-        victoryPoints: 2.5,
+        victoryPoints: 25,
       },
       failureOutcome: {
         axisEffects: { tradition: 1 },
@@ -1399,9 +1399,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Pull back to fewer, stronger positions. The overextended line is bleeding us dry.',
           axisEffects: { commerce: 1 },
           factionPowerEffects: { fabri: 1, milites: -1, mercatores: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
         {
           key: 'hold_every_fort',
@@ -1409,9 +1409,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Abandoning any position invites attack. Hold the line, no matter the cost.',
           axisEffects: { militarism: 1 },
           factionPowerEffects: { legiones: 1, servi: -1, fabri: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
       ],
     },
@@ -1463,7 +1463,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { militarism: 1 },
         factionPowerEffects: { servi: -1, milites: 1, legiones: -1 },
-        victoryPoints: 2.5,
+        victoryPoints: 25,
       },
       failureOutcome: {
         axisEffects: { tradition: -1 },
@@ -1486,7 +1486,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       "The conditional reforms have been decreed, but someone must actually build the bureaucracy of freedom. Every manumission needs witnesses, records, and legal standing. The old slave markets resist. The freedmen's associations demand speed. And the treasury wonders who is paying for all these clerks.",
     endeavourConfig: {
       difficultyPercent: 0.50,
-      firstPlaceReward: 2.5,
+      firstPlaceReward: 25,
       successOutcome: {
         axisEffects: { commerce: 1 },
         factionPowerEffects: { servi: 1, fabri: 1, mercatores: -1 },
@@ -1546,9 +1546,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'The treasury needs every denarius. Strip the temples bare.',
           axisEffects: { commerce: -1 },
           factionPowerEffects: { pontifices: -1, milites: 1, fabri: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
         {
           key: 'seal_and_forget',
@@ -1556,9 +1556,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Board them up. The gods — any gods — are not to be robbed. Let the shrines rot in peace.',
           axisEffects: { tradition: 1 },
           factionPowerEffects: { agricolae: 1, plebeii: -1, milites: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
       ],
     },
@@ -1573,7 +1573,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       "Regulated tolerance sounds reasonable in a Senate speech. In practice, it means creating a bureaucracy to decide which gods are acceptable and which are not. The priests want veto power. The merchants want their eastern business contacts left alone. And the foreign communities want to know: who licenses the licensers?",
     endeavourConfig: {
       difficultyPercent: 0.60,
-      firstPlaceReward: 3.5,
+      firstPlaceReward: 35,
       successOutcome: {
         axisEffects: { tradition: -1 },
         factionPowerEffects: { fabri: 1, servi: -1, provinciales: -1 },
@@ -1633,9 +1633,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Exile, confiscation, and public disgrace. Let every governor know the price of corruption.',
           axisEffects: { expansion: -1 },
           factionPowerEffects: { legiones: -1, provinciales: -1, milites: 1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
         {
           key: 'public_reparations',
@@ -1643,9 +1643,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Force him to fund the rebuilding of what he destroyed. Let the province heal, not just Rome.',
           axisEffects: { commerce: 1 },
           factionPowerEffects: { mercatores: -1, agricolae: 1, provinciales: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
       ],
     },
@@ -1660,7 +1660,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       "The Senate has decided to handle the governor's case internally — but now demands structural reform to prevent a repeat. Someone must draft new oversight rules, create provincial inspectorates, and convince the provinces that Rome is serious this time. The optimates resist any limit on senatorial prerogative. The provinces have heard promises before.",
     endeavourConfig: {
       difficultyPercent: 0.55,
-      firstPlaceReward: 3,
+      firstPlaceReward: 30,
       successOutcome: {
         axisEffects: { tradition: -1 },
         factionPowerEffects: { fabri: -1, provinciales: 1, milites: -1 },
@@ -1685,7 +1685,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { patrician: -1 },
         factionPowerEffects: { legiones: -1, milites: -1, provinciales: -1 },
-        victoryPoints: 2.5,
+        victoryPoints: 25,
       },
       failureOutcome: {
         axisEffects: { commerce: -1 },
@@ -1713,7 +1713,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { militarism: 1 },
         factionPowerEffects: { pontifices: 1, legiones: 1, fabri: -1 },
-        victoryPoints: 2.5,
+        victoryPoints: 25,
       },
       failureOutcome: {
         axisEffects: { centralization: -1 },
@@ -1736,7 +1736,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       "The new pontifex, chosen for merit rather than birth, has surveyed Rome's temples and found half of them crumbling. He proposes a vast restoration program — not just repairs, but a statement that the Republic still honors its gods. The project requires architects, laborers, and enormous quantities of marble. If it succeeds, the restored temples will stand for centuries. If it fails, Rome will have half-finished scaffolding and a pontifex who promised more than he could deliver.",
     endeavourConfig: {
       difficultyPercent: 0.55,
-      firstPlaceReward: 3,
+      firstPlaceReward: 30,
       successOutcome: {
         axisEffects: { centralization: 1 },
         factionPowerEffects: { fabri: 1, pontifices: 1, servi: -1 },
@@ -1763,9 +1763,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Generals take their own auspices. The gods speak to men of action, not men of ritual.',
           axisEffects: { militarism: 1 },
           factionPowerEffects: { legiones: 1, pontifices: -1, fabri: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
         {
           key: 'civic_authority',
@@ -1773,9 +1773,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'The augurs must approve all major undertakings. The gods will not be rushed or ignored.',
           axisEffects: { centralization: 1 },
           factionPowerEffects: { optimates: 1, pontifices: 1, plebeii: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
       ],
     },
@@ -1795,7 +1795,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { expansion: 1 },
         factionPowerEffects: { legiones: 1, fabri: 1, milites: -1 },
-        victoryPoints: 3,
+        victoryPoints: 30,
       },
       failureOutcome: {
         axisEffects: { militarism: -1, expansion: -1 },
@@ -1818,7 +1818,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       "Economic pressure requires infrastructure — and Rome's is lacking. The Senate has authorized a chain of fortified watchtowers along the African coast, supply depots on Sicily, and patrol fleets to intercept Carthaginian shipping. It is the largest engineering project outside Italy in Roman history. The craftsmen and legionaries must work together in hostile territory, racing to complete the network before Carthage finds a way around it.",
     endeavourConfig: {
       difficultyPercent: 0.60,
-      firstPlaceReward: 3,
+      firstPlaceReward: 30,
       successOutcome: {
         axisEffects: { expansion: 1 },
         factionPowerEffects: { fabri: 1, legiones: 1, servi: -1 },
@@ -1845,9 +1845,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Disarm them, tax them, take their colonies. They started this — Rome finishes it.',
           axisEffects: { militarism: 1 },
           factionPowerEffects: { legiones: 1, pontifices: 1, optimates: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
         {
           key: 'generous_peace',
@@ -1855,9 +1855,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'A fair peace lasts longer than a forced one. Leave them their dignity and their walls.',
           axisEffects: { centralization: -1 },
           factionPowerEffects: { pontifices: 1, fabri: 1, legiones: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
       ],
     },
@@ -1877,7 +1877,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { expansion: 1 },
         factionPowerEffects: { nautae: 1, milites: -1, provinciales: -1 },
-        victoryPoints: 2.5,
+        victoryPoints: 25,
       },
       failureOutcome: {
         axisEffects: { commerce: -1 },
@@ -1900,7 +1900,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       "The client king's Egyptian sailors know a secret: the winds of the Indian Ocean reverse with the seasons. Catch the monsoon right and a fleet can reach India in weeks. Miss it and you wait six months or die trying. The Senate has authorized the construction of a trade fleet — but the ships must be built, crews trained, and the whole venture launched before the winds turn. Fortunes will be made or drowned.",
     endeavourConfig: {
       difficultyPercent: 0.55,
-      firstPlaceReward: 3,
+      firstPlaceReward: 30,
       successOutcome: {
         axisEffects: { commerce: 1 },
         factionPowerEffects: { mercatores: 1, nautae: 1, fabri: -1 },
@@ -1927,9 +1927,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'No citizen should rival the state. Tax the eastern profits before they buy the Republic.',
           axisEffects: { patrician: -1 },
           factionPowerEffects: { mercatores: -1, plebeii: 1, fabri: 1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
         {
           key: 'let_them_invest',
@@ -1937,9 +1937,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Their wealth flows through the whole economy. Tax them and you tax everyone.',
           axisEffects: { commerce: 1 },
           factionPowerEffects: { mercatores: 1, agricolae: -1, servi: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
       ],
     },
@@ -1993,7 +1993,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { expansion: 1 },
         factionPowerEffects: { milites: 1, mercatores: -1, nautae: -1 },
-        victoryPoints: 2.5,
+        victoryPoints: 25,
       },
       failureOutcome: {
         axisEffects: { centralization: -1 },
@@ -2016,7 +2016,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       'With the alliance rejected, Rome must secure its eastern frontier alone. A chain of fortified trading posts could anchor Roman presence — but building them in hostile territory will cost dearly in gold and lives.',
     endeavourConfig: {
       difficultyPercent: 0.55,
-      firstPlaceReward: 3,
+      firstPlaceReward: 30,
       successOutcome: {
         axisEffects: { commerce: -1 },
         factionPowerEffects: { agricolae: 1, mercatores: 1, provinciales: -1 },
@@ -2072,7 +2072,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       'The interest caps have created a patchwork of enforcement. Provincial courts interpret the rules differently, lenders find creative loopholes, and debtors still suffer. A unified debt court system could bring order — if anyone can agree on the rules.',
     endeavourConfig: {
       difficultyPercent: 0.50,
-      firstPlaceReward: 2.5,
+      firstPlaceReward: 25,
       successOutcome: {
         axisEffects: { tradition: 1 },
         factionPowerEffects: { servi: 1, pontifices: 1, nautae: -1 },
@@ -2099,9 +2099,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Join the debtors. Their cause is just, and their numbers are a political weapon.',
           axisEffects: { tradition: -1 },
           factionPowerEffects: { milites: 1, plebeii: 1, nautae: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
         {
           key: 'respect_the_courts',
@@ -2109,9 +2109,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'The law must hold. If mobs can override the courts, no contract is safe.',
           axisEffects: { expansion: 1 },
           factionPowerEffects: { agricolae: 1, servi: -1, milites: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
       ],
     },
@@ -2167,9 +2167,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'A modest tariff protects Roman craftsmen and fills the treasury. The merchants will adapt.',
           axisEffects: { commerce: -1 },
           factionPowerEffects: { nautae: -1, provinciales: 1, fabri: 1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
         {
           key: 'open_markets',
@@ -2177,9 +2177,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Tariffs breed corruption and smuggling. Let the market decide what Rome needs.',
           axisEffects: { expansion: 1 },
           factionPowerEffects: { mercatores: 1, provinciales: -1, plebeii: 1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
       ],
     },
@@ -2198,7 +2198,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { patrician: 1 },
         factionPowerEffects: { milites: 1, servi: 1, pontifices: -1 },
-        victoryPoints: 2.5,
+        victoryPoints: 25,
       },
       failureOutcome: {
         axisEffects: { expansion: -1 },
@@ -2228,7 +2228,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { centralization: 1 },
         factionPowerEffects: { milites: 1, agricolae: -1, plebeii: -1 },
-        victoryPoints: 2.5,
+        victoryPoints: 25,
       },
       failureOutcome: {
         axisEffects: { militarism: -1 },
@@ -2251,7 +2251,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       'The reformed assemblies exist on paper, but implementing them requires new voting procedures, redrawn tribal boundaries, and a massive administrative effort. Traditional interests resist every change while reformers demand faster progress. Building democracy is harder than declaring it.',
     endeavourConfig: {
       difficultyPercent: 0.60,
-      firstPlaceReward: 3,
+      firstPlaceReward: 30,
       successOutcome: {
         axisEffects: { patrician: -1 },
         factionPowerEffects: { optimates: 1, pontifices: 1, milites: -1 },
@@ -2278,9 +2278,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'A united tribunate can initiate legislation, not just block it. True reform requires offense.',
           axisEffects: { centralization: -1 },
           factionPowerEffects: { agricolae: -1, pontifices: -1, milites: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
         {
           key: 'hold_the_line',
@@ -2288,9 +2288,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'The veto is a shield, not a sword. Expanding power invites the same abuse we fought against.',
           axisEffects: { militarism: 1 },
           factionPowerEffects: { optimates: -1, mercatores: -1, provinciales: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
       ],
     },
@@ -2308,7 +2308,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       'The anti-corruption laws exist on paper, but enforcing them requires an independent inspectorate — recruitment, training, jurisdiction. Every powerful family in Rome has reason to see it fail.',
     endeavourConfig: {
       difficultyPercent: 0.55,
-      firstPlaceReward: 3,
+      firstPlaceReward: 30,
       successOutcome: {
         axisEffects: { centralization: 1 },
         factionPowerEffects: { provinciales: 1, optimates: -1, agricolae: 1 },
@@ -2333,7 +2333,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { expansion: -1 },
         factionPowerEffects: { legiones: -1, nautae: 1, fabri: 1 },
-        victoryPoints: 2.5,
+        victoryPoints: 25,
       },
       failureOutcome: {
         axisEffects: { centralization: -1 },
@@ -2362,9 +2362,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Patronage is how Rome works. Formalize it, regulate it, and at least make it predictable.',
           axisEffects: { tradition: 1 },
           factionPowerEffects: { agricolae: -1, optimates: -1, provinciales: 1, nautae: 1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
         {
           key: 'expose_networks',
@@ -2372,9 +2372,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Publish the patron lists. Let every citizen see who owns whom. Sunlight is the best disinfectant.',
           axisEffects: { tradition: -1 },
           factionPowerEffects: { legiones: 1, nautae: -1, provinciales: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
       ],
     },
@@ -2396,7 +2396,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { patrician: 1 },
         factionPowerEffects: { agricolae: 1, nautae: -1, pontifices: 1 },
-        victoryPoints: 2.5,
+        victoryPoints: 25,
       },
       failureOutcome: {
         axisEffects: { patrician: -1 },
@@ -2419,7 +2419,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       'A commission tasked with updating Roman moral standards for a cosmopolitan age. They must navigate between preserving Roman identity and embracing what the empire has become — without satisfying anyone completely.',
     endeavourConfig: {
       difficultyPercent: 0.50,
-      firstPlaceReward: 2.5,
+      firstPlaceReward: 25,
       successOutcome: {
         axisEffects: { commerce: -1 },
         factionPowerEffects: { legiones: 1, provinciales: -1, servi: 1 },
@@ -2446,9 +2446,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'Use the scandals to destroy political enemies. The censors handed us a weapon — it would be foolish not to swing it.',
           axisEffects: { militarism: -1 },
           factionPowerEffects: { legiones: -1, nautae: -1, provinciales: 1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
         {
           key: 'defend_senate',
@@ -2456,9 +2456,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'The Senate is flawed, but it is ours. Rally around the institution before the mob tears it apart.',
           axisEffects: { tradition: 1 },
           factionPowerEffects: { plebeii: -1, mercatores: -1, pontifices: 1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
       ],
     },
@@ -2476,7 +2476,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       "The Sibylline prescription demands the greatest sacred festival in living memory: sacrifices at every gate, games in the Circus, and — most controversially — the importation of a foreign goddess. The logistics are staggering, the expense ruinous, and the priests are fighting over every detail.",
     endeavourConfig: {
       difficultyPercent: 0.55,
-      firstPlaceReward: 3,
+      firstPlaceReward: 30,
       successOutcome: {
         axisEffects: { tradition: -1 },
         factionPowerEffects: { legiones: -1, agricolae: -1, nautae: 1 },
@@ -2503,9 +2503,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'The Books are sacred text, not poetry. Their words are commands, and commands must be obeyed to the letter.',
           axisEffects: { patrician: -1 },
           factionPowerEffects: { legiones: 1, fabri: 1, pontifices: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
         {
           key: 'symbolic_reform',
@@ -2513,9 +2513,9 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
           description: 'The gods speak in metaphor. A flexible interpretation serves Rome better than rigid obedience to ancient riddles.',
           axisEffects: { centralization: -1 },
           factionPowerEffects: { milites: -1, servi: 1, optimates: -1 },
-          supportVP: 2,
-          betrayVP: 1,
-          allBetrayVP: 0.5,
+          supportVP: 20,
+          betrayVP: 10,
+          allBetrayVP: 5,
         },
       ],
     },
@@ -2534,7 +2534,7 @@ export const FOLLOW_UP_CONTROVERSIES: Controversy[] = [
       successOutcome: {
         axisEffects: { commerce: 1 },
         factionPowerEffects: { mercatores: 1, provinciales: -1, legiones: -1 },
-        victoryPoints: 2.5,
+        victoryPoints: 25,
       },
       failureOutcome: {
         axisEffects: { commerce: -1 },

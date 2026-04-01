@@ -165,13 +165,6 @@ Deno.serve(async (req) => {
           p_amount: reward.vpAwarded,
         });
       }
-      if (reward.influenceAwarded > 0) {
-        await adminClient.rpc('increment_influence', {
-          p_game_id: game_id,
-          p_player_id: reward.playerId,
-          p_amount: reward.influenceAwarded,
-        });
-      }
     }
 
     // Resolve outsider bets
@@ -190,22 +183,12 @@ Deno.serve(async (req) => {
     const betResults = resolveSchismBets(bets, result.wasSabotaged);
 
     for (const br of betResults) {
-      if (br.won) {
-        // Return 2× stake as VP + influence (stake was already deducted by SQL RPC)
-        if (br.vpAwarded > 0) {
-          await adminClient.rpc('increment_victory_points', {
-            p_game_id: game_id,
-            p_player_id: br.playerId,
-            p_amount: br.vpAwarded,
-          });
-        }
-        if (br.influenceAwarded > 0) {
-          await adminClient.rpc('increment_influence', {
-            p_game_id: game_id,
-            p_player_id: br.playerId,
-            p_amount: br.influenceAwarded,
-          });
-        }
+      if (br.won && br.vpAwarded > 0) {
+        await adminClient.rpc('increment_victory_points', {
+          p_game_id: game_id,
+          p_player_id: br.playerId,
+          p_amount: br.vpAwarded,
+        });
       }
       // If lost: influence already deducted, nothing to do
     }

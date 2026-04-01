@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { submitEndeavourInvestment } from '../lib/game-actions';
 import { CONTROVERSY_MAP } from '../lib/game-engine/controversies';
 import type { EndeavourControversy } from '../lib/game-engine/controversies';
-import { computeRankRewards, VP_TO_INFLUENCE_RATE } from '../lib/game-engine/endeavour';
+import { computeRankRewards } from '../lib/game-engine/endeavour';
 import { AxisEffectSlider, PowerEffectRow } from './ControversyCard';
 import ControversyHeader from './ControversyHeader';
 import type { PlayerAgendaInfo } from './AgendaDots';
@@ -186,7 +186,6 @@ export default function EndeavourVoting({
                   <Text style={styles.rankPlayer}>{player?.player_name ?? 'Unknown'}</Text>
                   <Text style={styles.rankInvested}>{r.invested} influence</Text>
                   {r.vpAwarded > 0 && <Text style={styles.rankVP}>+{r.vpAwarded} VP</Text>}
-                  {r.influenceAwarded > 0 && <Text style={styles.rankInfluence}>+{r.influenceAwarded} influence</Text>}
                 </View>
               );
             })}
@@ -281,10 +280,7 @@ export default function EndeavourVoting({
                     <View key={i} style={styles.rewardRow}>
                       <Text style={styles.rewardRank}>#{r.rank}</Text>
                       <Text style={styles.rewardValue}>
-                        {r.vpAwarded > 0 ? `${r.vpAwarded} VP` : ''}
-                        {r.vpAwarded > 0 && r.influenceAwarded > 0 ? ' + ' : ''}
-                        {r.influenceAwarded > 0 ? `${r.influenceAwarded} influence` : ''}
-                        {r.vpAwarded === 0 && r.influenceAwarded === 0 ? '—' : ''}
+                        {r.vpAwarded > 0 ? `${r.vpAwarded} VP` : '—'}
                       </Text>
                     </View>
                   ))}

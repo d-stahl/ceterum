@@ -140,22 +140,6 @@ Deno.serve(async (req) => {
             p_amount: ranking.vpAwarded,
           });
         }
-        if (ranking.influenceAwarded > 0) {
-          // Increment influence (not set)
-          const { data: ps } = await adminClient
-            .from('game_player_state')
-            .select('influence')
-            .eq('game_id', game_id)
-            .eq('player_id', ranking.playerId)
-            .single();
-          if (ps) {
-            await adminClient
-              .from('game_player_state')
-              .update({ influence: ps.influence + ranking.influenceAwarded })
-              .eq('game_id', game_id)
-              .eq('player_id', ranking.playerId);
-          }
-        }
       }
     }
 

@@ -1,5 +1,4 @@
 import { resolveSchism, resolveSchismBets, schismTeamSize } from '../schism.ts';
-import { VP_TO_INFLUENCE_RATE } from '../constants.ts';
 import type { SchismConfig } from '../controversies.ts';
 
 const config: SchismConfig = {
@@ -10,9 +9,9 @@ const config: SchismConfig = {
       description: 'First option',
       axisEffects: { commerce: 1, militarism: -1 },
       factionPowerEffects: { nautae: 1 },
-      supportVP: 2,
-      betrayVP: 1,
-      allBetrayVP: 0.5,
+      supportVP: 20,
+      betrayVP: 10,
+      allBetrayVP: 5,
     },
     {
       key: 'side_b',
@@ -20,9 +19,9 @@ const config: SchismConfig = {
       description: 'Second option',
       axisEffects: { militarism: 1, commerce: -1 },
       factionPowerEffects: { milites: 1 },
-      supportVP: 3,
-      betrayVP: 2,
-      allBetrayVP: 1,
+      supportVP: 30,
+      betrayVP: 20,
+      allBetrayVP: 10,
     },
   ],
 };
@@ -59,10 +58,10 @@ describe('resolveSchism — PD payoffs', () => {
     expect(result.wasSabotaged).toBe(false);
     expect(result.winningSideKey).toBe('side_a');
     expect(result.axisEffects).toEqual({ commerce: 1, militarism: -1 });
-    // All support → each gets side_a.supportVP = 2
+    // All support → each gets side_a.supportVP = 20
     expect(result.rewards).toEqual([
-      { playerId: 'alice', vpAwarded: 2, influenceAwarded: 0 },
-      { playerId: 'bob', vpAwarded: 2, influenceAwarded: 0 },
+      { playerId: 'alice', vpAwarded: 20 },
+      { playerId: 'bob', vpAwarded: 20 },
     ]);
   });
 
@@ -79,13 +78,13 @@ describe('resolveSchism — PD payoffs', () => {
 
     expect(result.wasSabotaged).toBe(true);
     expect(result.winningSideKey).toBe('side_b');
-    // Mixed → bob (saboteur) gets side_a.betrayVP = 1, alice gets 0
+    // Mixed → bob (saboteur) gets side_a.betrayVP = 10, alice gets 0
     expect(result.rewards).toEqual([
-      { playerId: 'bob', vpAwarded: 1, influenceAwarded: 0 },
+      { playerId: 'bob', vpAwarded: 10 },
     ]);
   });
 
-  it('all sabotage: each saboteur gets allBetrayVP with fractional conversion', () => {
+  it('all sabotage: each saboteur gets allBetrayVP', () => {
     const result = resolveSchism(
       [
         { playerId: 'alice', supports: false },
@@ -98,10 +97,10 @@ describe('resolveSchism — PD payoffs', () => {
 
     expect(result.wasSabotaged).toBe(true);
     expect(result.winningSideKey).toBe('side_b');
-    // All betray → each gets side_a.allBetrayVP = 0.5 → 0 VP + 10 influence
+    // All betray → each gets side_a.allBetrayVP = 5
     expect(result.rewards).toEqual([
-      { playerId: 'alice', vpAwarded: 0, influenceAwarded: 10 },
-      { playerId: 'bob', vpAwarded: 0, influenceAwarded: 10 },
+      { playerId: 'alice', vpAwarded: 5 },
+      { playerId: 'bob', vpAwarded: 5 },
     ]);
   });
 
@@ -118,10 +117,10 @@ describe('resolveSchism — PD payoffs', () => {
 
     expect(result.wasSabotaged).toBe(false);
     expect(result.winningSideKey).toBe('side_b');
-    // All support → side_b.supportVP = 3
+    // All support → side_b.supportVP = 30
     expect(result.rewards).toEqual([
-      { playerId: 'alice', vpAwarded: 3, influenceAwarded: 0 },
-      { playerId: 'bob', vpAwarded: 3, influenceAwarded: 0 },
+      { playerId: 'alice', vpAwarded: 30 },
+      { playerId: 'bob', vpAwarded: 30 },
     ]);
   });
 
@@ -138,9 +137,9 @@ describe('resolveSchism — PD payoffs', () => {
 
     expect(result.wasSabotaged).toBe(true);
     expect(result.winningSideKey).toBe('side_a');
-    // Mixed → alice (saboteur) gets side_b.betrayVP = 2
+    // Mixed → alice (saboteur) gets side_b.betrayVP = 20
     expect(result.rewards).toEqual([
-      { playerId: 'alice', vpAwarded: 2, influenceAwarded: 0 },
+      { playerId: 'alice', vpAwarded: 20 },
     ]);
   });
 
@@ -153,10 +152,10 @@ describe('resolveSchism — PD payoffs', () => {
           description: 'High stakes side A',
           axisEffects: { commerce: 1 },
           factionPowerEffects: { nautae: 1 },
-          supportVP: 2.5,
-          betrayVP: 1.5,
-          allBetrayVP: 0.5,
-          betrayedVP: -1,
+          supportVP: 25,
+          betrayVP: 15,
+          allBetrayVP: 5,
+          betrayedVP: -10,
         },
         {
           key: 'high_b',
@@ -164,10 +163,10 @@ describe('resolveSchism — PD payoffs', () => {
           description: 'High stakes side B',
           axisEffects: { militarism: 1 },
           factionPowerEffects: { milites: 1 },
-          supportVP: 2.5,
-          betrayVP: 1.5,
-          allBetrayVP: 0.5,
-          betrayedVP: -1,
+          supportVP: 25,
+          betrayVP: 15,
+          allBetrayVP: 5,
+          betrayedVP: -10,
         },
       ],
     };
@@ -183,10 +182,10 @@ describe('resolveSchism — PD payoffs', () => {
     );
 
     expect(result.wasSabotaged).toBe(true);
-    // bob (saboteur) gets 1.5 VP, alice (betrayed) loses 1 VP
+    // bob (saboteur) gets 15 VP, alice (betrayed) loses 10 VP
     expect(result.rewards).toEqual([
-      { playerId: 'bob', vpAwarded: 1, influenceAwarded: 10 },
-      { playerId: 'alice', vpAwarded: -1, influenceAwarded: 0 },
+      { playerId: 'bob', vpAwarded: 15 },
+      { playerId: 'alice', vpAwarded: -10 },
     ]);
   });
 
@@ -209,27 +208,25 @@ describe('resolveSchism — PD payoffs', () => {
 });
 
 describe('resolveSchismBets', () => {
-  it('correct bet on support: 2× stake converted to VP + influence', () => {
+  it('correct bet on support: 1 VP per influence staked', () => {
     const results = resolveSchismBets(
       [{ playerId: 'charlie', predictsSupport: true, stakeInfluence: 20 }],
       false, // wasSabotaged = false → support succeeded
     );
 
-    // 20 stake × 2 = 40 payout. 40/20 = 2 VP, 0 influence remainder
     expect(results).toEqual([
-      { playerId: 'charlie', won: true, stakeInfluence: 20, vpAwarded: 2, influenceAwarded: 0 },
+      { playerId: 'charlie', won: true, stakeInfluence: 20, vpAwarded: 20 },
     ]);
   });
 
-  it('correct bet on sabotage: 2× stake converted to VP + influence', () => {
+  it('correct bet on sabotage: 1 VP per influence staked', () => {
     const results = resolveSchismBets(
       [{ playerId: 'charlie', predictsSupport: false, stakeInfluence: 12 }],
       true, // wasSabotaged = true → sabotage happened
     );
 
-    // 12 × 2 = 24. 24/20 = 1.2 → 1 VP + round(0.2×20) = 4 influence
     expect(results).toEqual([
-      { playerId: 'charlie', won: true, stakeInfluence: 12, vpAwarded: 1, influenceAwarded: 4 },
+      { playerId: 'charlie', won: true, stakeInfluence: 12, vpAwarded: 12 },
     ]);
   });
 
@@ -240,7 +237,7 @@ describe('resolveSchismBets', () => {
     );
 
     expect(results).toEqual([
-      { playerId: 'charlie', won: false, stakeInfluence: 15, vpAwarded: 0, influenceAwarded: 0 },
+      { playerId: 'charlie', won: false, stakeInfluence: 15, vpAwarded: 0 },
     ]);
   });
 
@@ -257,11 +254,10 @@ describe('resolveSchismBets', () => {
       true, // sabotage happened
     );
 
-    // charlie: correct. 10×2=20 → 1 VP + 0 inf
-    // dave: wrong. loses 5.
+    // charlie: correct → 10 VP. dave: wrong → loses 5.
     expect(results).toEqual([
-      { playerId: 'charlie', won: true, stakeInfluence: 10, vpAwarded: 1, influenceAwarded: 0 },
-      { playerId: 'dave', won: false, stakeInfluence: 5, vpAwarded: 0, influenceAwarded: 0 },
+      { playerId: 'charlie', won: true, stakeInfluence: 10, vpAwarded: 10 },
+      { playerId: 'dave', won: false, stakeInfluence: 5, vpAwarded: 0 },
     ]);
   });
 });

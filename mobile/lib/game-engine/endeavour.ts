@@ -1,9 +1,6 @@
 import { AxisKey } from './axes.ts';
 import { EndeavourConfig } from './controversies.ts';
 
-import { VP_TO_INFLUENCE_RATE } from './constants.ts';
-export { VP_TO_INFLUENCE_RATE };
-
 export interface EndeavourSubmission {
   playerId: string;
   influenceInvested: number;
@@ -13,9 +10,8 @@ export interface EndeavourRankReward {
   playerId: string;
   invested: number;
   rank: number;        // 1-based
-  rawReward: number;   // unrounded VP equivalent
+  rawReward: number;   // unrounded VP
   vpAwarded: number;
-  influenceAwarded: number;
 }
 
 export interface EndeavourResult {
@@ -33,8 +29,7 @@ export interface EndeavourResult {
  * Formula (linear scale from firstPlaceReward down to 0):
  *   step = firstPlaceReward / (totalPlayers - 1)
  *   rank_reward(i) = firstPlaceReward - i * step    (i=0 for 1st)
- *   vp = floor(rank_reward)
- *   influence = round((rank_reward - vp) * VP_TO_INFLUENCE_RATE)
+ *   vpAwarded = round(rank_reward)
  *
  * Last place (reward = 0) is excluded from the returned list.
  */
@@ -53,15 +48,13 @@ export function computeRankRewards(
   for (let i = 0; i < n; i++) {
     const rawReward = Math.max(0, firstPlaceReward - i * step);
     if (rawReward <= 0) break;
-    const vpAwarded = Math.floor(rawReward);
-    const influenceAwarded = Math.round((rawReward - vpAwarded) * VP_TO_INFLUENCE_RATE);
+    const vpAwarded = Math.round(rawReward);
     rewards.push({
       playerId: rankedPlayerIds[i],
       invested: rankedInvestments[i],
       rank: i + 1,
       rawReward,
       vpAwarded,
-      influenceAwarded,
     });
   }
   return rewards;
@@ -107,8 +100,7 @@ export function resolveEndeavour(
 
       const rawReward = Math.max(0, config.firstPlaceReward - rankIndex * step);
       if (rawReward <= 0) break;
-      const vpAwarded = Math.floor(rawReward);
-      const influenceAwarded = Math.round((rawReward - vpAwarded) * VP_TO_INFLUENCE_RATE);
+      const vpAwarded = Math.round(rawReward);
 
       rankings.push({
         playerId: investors[i].playerId,
@@ -116,7 +108,6 @@ export function resolveEndeavour(
         rank: rankIndex + 1,
         rawReward,
         vpAwarded,
-        influenceAwarded,
       });
     }
   }

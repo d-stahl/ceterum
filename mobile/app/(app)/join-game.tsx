@@ -35,7 +35,7 @@ export default function JoinGameScreen() {
       <Text style={styles.heading}>Join Game</Text>
 
       <TextInput
-        style={styles.input}
+        style={[styles.input, code.length > 0 && { letterSpacing: 8 }]}
         placeholder="ABCDEF"
         placeholderTextColor={parchmentBg(0.3)}
         value={code}
@@ -84,7 +84,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: C.parchment,
     textAlign: 'center',
-    letterSpacing: 8,
     borderBottomWidth: 2,
     borderBottomColor: C.parchment,
     paddingVertical: 12,

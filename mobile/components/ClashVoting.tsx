@@ -5,7 +5,6 @@ import { declareControversyOpen, submitClashAction } from '../lib/game-actions';
 import { CONTROVERSY_MAP } from '../lib/game-engine/controversies';
 import type { ClashControversy } from '../lib/game-engine/controversies';
 import { bidStrength } from '../lib/game-engine/clash';
-import { VP_TO_INFLUENCE_RATE } from '../lib/game-engine/constants';
 import { AxisEffectSlider, PowerEffectRow } from './ControversyCard';
 import ControversyHeader from './ControversyHeader';
 import type { PlayerAgendaInfo } from './AgendaDots';
@@ -46,14 +45,6 @@ type ControversyStateRow = {
   static_data: { clashThreshold?: number; totalAmplifiedPower?: number } | null;
 };
 
-function formatReward(rawVP: number): string {
-  const vp = Math.floor(rawVP);
-  const inf = Math.round((rawVP - vp) * VP_TO_INFLUENCE_RATE);
-  if (vp > 0 && inf > 0) return `${vp} VP + ${inf} Inf`;
-  if (vp > 0) return `${vp} VP`;
-  if (inf > 0) return `${inf} Inf`;
-  return '0';
-}
 
 export default function ClashVoting({
   gameId,
@@ -520,7 +511,7 @@ export default function ClashVoting({
             {pe ? (
               <>
                 <Text style={styles.quadrantSubhead}>On Success</Text>
-                <Text style={styles.quadrantEffect}>+{formatReward(config.successOutcome.victoryPoints)}</Text>
+                <Text style={styles.quadrantEffect}>+{config.successOutcome.victoryPoints} VP</Text>
                 {pe.commitSuccess.affinityBonus !== 0 && (
                   <Text style={styles.quadrantEffect}>Affinity +{pe.commitSuccess.affinityBonus} with your factions</Text>
                 )}
@@ -536,7 +527,7 @@ export default function ClashVoting({
             ) : (
               <>
                 <Text style={styles.quadrantSubhead}>On Success</Text>
-                <Text style={styles.quadrantEffect}>+{formatReward(config.successOutcome.victoryPoints)}</Text>
+                <Text style={styles.quadrantEffect}>+{config.successOutcome.victoryPoints} VP</Text>
                 <View style={styles.quadrantDivider} />
                 <Text style={styles.quadrantSubhead}>On Failure</Text>
                 <Text style={styles.quadrantEffectNeutral}>No VP</Text>
