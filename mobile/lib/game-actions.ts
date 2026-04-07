@@ -3,12 +3,18 @@ import { supabase } from './supabase';
 import { WorkerType, OratorRole } from './game-engine/workers';
 import { WorkerEffect } from './game-engine/demagogery';
 
-async function invokeEdgeFunction(name: string, body: Record<string, unknown>): Promise<any> {
+async function invokeEdgeFunction(name: string, body: Record<string, unknown>, _retried = false): Promise<any> {
   const { data, error } = await supabase.functions.invoke(name, { body });
   if (error) {
     if (error instanceof FunctionsHttpError) {
       const responseBody = await error.context.json().catch(() => null);
-      throw new Error(responseBody?.error ?? responseBody?.message ?? error.message);
+      const msg = responseBody?.error ?? responseBody?.message ?? error.message;
+      // Retry once after refreshing session on auth errors
+      if (!_retried && (msg === 'Invalid JWT' || msg === 'Unauthorized')) {
+        await supabase.auth.refreshSession();
+        return invokeEdgeFunction(name, body, true);
+      }
+      throw new Error(msg);
     }
     throw error;
   }
@@ -193,14 +199,6 @@ export async function passSchismBet(
       controversy_key: controversyKey,
       action: 'pass',
     },
-  });
-  if (error) throw error;
-  return data;
-}
-
-export async function proceedFromOverview(gameId: string): Promise<any> {
-  const { data, error } = await supabase.functions.invoke('proceed-overview', {
-    body: { game_id: gameId },
   });
   if (error) throw error;
   return data;

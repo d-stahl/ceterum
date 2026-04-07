@@ -231,10 +231,10 @@ export default function LobbyScreen() {
           const isMe = p.id === currentUserId;
           const isHost = p.id === creatorId;
           const card = (
-            <View style={styles.playerCard}>
+            <View style={[styles.playerCard, isMe && styles.playerCardMe]}>
               <View style={[styles.playerColorDot, { backgroundColor: getColorHex(p.color) }]} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.playerName} numberOfLines={1}>{p.display_name}{isMe && <Text style={styles.youTag}> (you)</Text>}</Text>
+                <Text style={styles.playerName} numberOfLines={1}>{p.display_name}</Text>
                 {isMe && <Text style={styles.changeColorHint}>Tap to change color</Text>}
                 {!isMe && isHost && <Text style={styles.changeColorHint}>Game host</Text>}
               </View>
@@ -403,10 +403,9 @@ const styles = StyleSheet.create({
     color: C.parchment,
     fontSize: 16,
   },
-  youTag: {
-    color: C.parchment,
-    opacity: 0.4,
-    fontSize: 14,
+  playerCardMe: {
+    borderWidth: 1,
+    borderColor: parchmentBg(0.4),
   },
   changeColorHint: {
     color: C.parchment,

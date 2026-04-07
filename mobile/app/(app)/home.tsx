@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { UserProfileIcon, NotificationBellIcon } from '../../lib/icons';
 import { getUnreadCount } from '../../lib/events';
 import { C, parchmentBg, navyBg } from '../../lib/theme';
+import { BUILD_VERSION } from '../../lib/build-version';
 
 const homeBg = require('../../assets/images/home-bg.png');
 
@@ -96,6 +97,7 @@ export default function HomeScreen() {
             </Pressable>
           </View>
         </View>
+        <Text style={styles.versionTag}>{BUILD_VERSION}</Text>
       </View>
     </ImageBackground>
   );
@@ -168,5 +170,12 @@ const styles = StyleSheet.create({
     color: C.parchment,
     fontSize: 18,
     fontWeight: '600',
+  },
+  versionTag: {
+    color: C.parchment,
+    opacity: 0.3,
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 24,
   },
 });

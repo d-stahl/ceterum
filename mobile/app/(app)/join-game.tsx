@@ -35,12 +35,17 @@ export default function JoinGameScreen() {
       <Text style={styles.heading}>Join Game</Text>
 
       <TextInput
-        style={[styles.input, code.length > 0 && { letterSpacing: 8 }]}
+        style={styles.input}
         placeholder="ABCDEF"
         placeholderTextColor={parchmentBg(0.3)}
         value={code}
-        onChangeText={(text) => setCode(text.toUpperCase())}
-        maxLength={6}
+        onChangeText={(text) => {
+          const cleaned = text.replace(/\u200B/g, '').toUpperCase();
+          setCode(cleaned || '\u200B');
+        }}
+        onFocus={() => { if (!code) setCode('\u200B'); }}
+        onBlur={() => { if (code === '\u200B') setCode(''); }}
+        maxLength={7}
         autoCapitalize="characters"
         autoCorrect={false}
       />
@@ -84,6 +89,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: C.parchment,
     textAlign: 'center',
+    letterSpacing: 8,
     borderBottomWidth: 2,
     borderBottomColor: C.parchment,
     paddingVertical: 12,

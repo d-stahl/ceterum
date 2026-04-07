@@ -278,7 +278,7 @@ export default function SchismVoting({
     const wasSabotaged = td.wasSabotaged;
 
     const axisEffects: Record<string, number> = {};
-    const outcomeAxisValues: Record<string, number> = {};
+    const outcomeAxisValues: Record<string, number> = { ...(axisValues ?? {}) };
     for (const [axis, vals] of Object.entries(outcome.axis_outcomes as Record<string, { before: number; after: number }>)) {
       axisEffects[axis] = vals.after - vals.before;
       outcomeAxisValues[axis] = vals.before;

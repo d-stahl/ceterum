@@ -229,7 +229,9 @@ export default function ControversyVoting({
     });
 
     const axisEffects: Record<string, number> = {};
-    const outcomeAxisValues: Record<string, number> = {};
+    // Start with the prop baseline (round start + prior controversy effects),
+    // then override with this outcome's stored before-values for affected axes.
+    const outcomeAxisValues: Record<string, number> = { ...(axisValues ?? {}) };
     for (const [axis, vals] of Object.entries(outcome.axis_outcomes as Record<string, { before: number; after: number }>)) {
       axisEffects[axis] = vals.after - vals.before;
       outcomeAxisValues[axis] = vals.before;
@@ -237,6 +239,9 @@ export default function ControversyVoting({
 
     const factionPowerEffects: Record<string, number> = {};
     const factionPowerBefore: Record<string, number> = {};
+    for (const [fkey, info] of Object.entries(factionInfoMap)) {
+      factionPowerBefore[fkey] = info.power;
+    }
     for (const [fkey, vals] of Object.entries(outcome.faction_power_outcomes as Record<string, { before: number; after: number }>)) {
       factionPowerEffects[fkey] = vals.after - vals.before;
       factionPowerBefore[fkey] = vals.before;

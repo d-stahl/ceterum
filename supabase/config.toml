@@ -117,6 +117,14 @@ verify_jwt = false
 verify_jwt = false
 [functions.preview-effects]
 verify_jwt = false
+[functions.proceed-overview]
+verify_jwt = false
+[functions.submit-clash]
+verify_jwt = false
+[functions.submit-schism]
+verify_jwt = false
+[functions.submit-endeavour]
+verify_jwt = false
 
 [storage]
 enabled = true

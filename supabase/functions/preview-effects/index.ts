@@ -32,8 +32,8 @@ Deno.serve(async (req) => {
       .single();
     if (roundError) return errorResponse('Round not found', 404);
 
-    // During overview/resolved, all placements are revealed — no visibility filter
-    const allRevealed = round.phase === 'demagogery_overview' || round.phase === 'demagogery_resolved';
+    // Once past demagogery, all placements are revealed — no visibility filter
+    const allRevealed = round.phase !== 'demagogery';
 
     // Fetch placements, factions, affinities in parallel
     let placementsQuery = adminClient

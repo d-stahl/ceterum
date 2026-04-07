@@ -8,7 +8,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../../lib/supabase';
-import { submitPlacement, proceedFromOverview, advanceRound, fetchPreviewEffects, PreliminaryPlacementRequest } from '../../../lib/game-actions';
+import { submitPlacement, advanceRound, fetchPreviewEffects, PreliminaryPlacementRequest } from '../../../lib/game-actions';
 import { getColorHex } from '../../../lib/player-colors';
 import { getSenatorIcon, getSaboteurIcon, getPromoterIcon } from '../../../lib/worker-icons';
 import { WorkerType, OratorRole } from '../../../lib/game-engine/workers';
@@ -36,6 +36,7 @@ import ResolvedControversySummary from '../../../components/ResolvedControversyS
 import RoundHeader from '../../../components/RoundHeader';
 import { CONTROVERSY_MAP, isVoteControversy } from '../../../lib/game-engine/controversies';
 import { AXIS_KEYS, AXIS_LABELS, AxisKey, computeAxisScore } from '../../../lib/game-engine/axes';
+import { loadCheckpoint, saveCheckpoint, clearCheckpoint, CheckpointScreen } from '../../../lib/game-checkpoint';
 const gameBg = require('../../../assets/images/demagogery-bg.png');
 const leaderElectionBg = require('../../../assets/images/leader-election-bg.png');
 const rulingBg = require('../../../assets/images/ruling-bg.png');
@@ -65,8 +66,9 @@ type Round = {
   upcoming_pool: string[];
   initial_faction_powers: Record<string, number> | null;
   initial_influence: Record<string, number> | null;
+  pre_demagogery_influence: Record<string, number> | null;
   end_of_round_influence: Record<string, number> | null;
-  overview_ready: string[];
+  initial_axis_values: Record<string, number> | null;
 };
 
 type PlayerInfo = {
@@ -148,26 +150,35 @@ function GameScreenInner() {
   const [submitting, setSubmitting] = useState(false);
   const [hasSubmittedThisSubRound, setHasSubmittedThisSubRound] = useState(false);
   const [resolving, setResolving] = useState(false);
-  const [hasProceededOverview, setHasProceededOverview] = useState(false);
-  const [showResults, setShowResults] = useState(false);
+  const [checkpoint, setCheckpoint] = useState<{
+    roundId: string;
+    screen: CheckpointScreen;
+    controversiesSeen: string[];
+  } | null>(null);
+  const checkpointLoadedRef = useRef(false);
   const [resultInfluence, setResultInfluence] = useState<Record<string, number>>({});
   const [gameStatus, setGameStatus] = useState('in_progress');
   const [onTheHorizonVisible, setOnTheHorizonVisible] = useState(false);
   const [playersVisible, setPlayersVisible] = useState(false);
   const [factionsVisible, setFactionsVisible] = useState(false);
   const [showElectionResults, setShowElectionResults] = useState(false);
-  const [showRoundEnd, setShowRoundEnd] = useState(false);
+  const [showRoundEnd, _setShowRoundEnd] = useState(false);
+  const showRoundEndRef = useRef(false);
+  const setShowRoundEnd = (v: boolean) => { showRoundEndRef.current = v; _setShowRoundEnd(v); };
   const [roundEndSnapshot, setRoundEndSnapshot] = useState<{
     roundId: string;
     roundNumber: number;
     controversyStates: ControversyStateRow[];
     initialFactionPowers: Record<string, number>;
+    initialAxisValues: Record<string, number>;
     endOfRoundInfluence: Record<string, number> | null;
     playerStates: typeof playerStates;
     axes: typeof axes;
     factions: typeof factions;
+    outcomes: OutcomeRow[];
   } | null>(null);
   const [allOutcomes, setAllOutcomes] = useState<OutcomeRow[]>([]);
+  const [roundOutcomes, setRoundOutcomes] = useState<OutcomeRow[]>([]);
   const [showResolutions, setShowResolutions] = useState(false);
   const [showPolicyDetail, setShowPolicyDetail] = useState(false);
   const [tooltipData, setTooltipData] = useState<{
@@ -197,7 +208,6 @@ function GameScreenInner() {
   const prevRoundRef = useRef<{ roundNumber: number; subRound: number; phase: string } | null>(null);
   const placementsRoundIdRef = useRef<string | null>(null);
   const showElectionResultsRef = useRef(false);
-  const preResolutionInfluenceRef = useRef<Record<string, number> | null>(null);
   const workerEffectsRef = useRef<WorkerEffect[]>([]);
   const previewFetchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchGenerationRef = useRef(0);
@@ -264,6 +274,14 @@ function GameScreenInner() {
     };
   });
 
+  // Derive player states with influence computed from immutable snapshots,
+  // so the Players panel never leaks in-flight spending by other players.
+  const influenceBaseline = getInfluenceBaseline();
+  const derivedPlayerStates = playerStates.map((ps) => ({
+    ...ps,
+    influence: influenceBaseline[ps.player_id] ?? ps.influence,
+  }));
+
   // Intercept hardware back button — lobby uses router.replace so the back
   // stack has Create Game behind Game; send users to home instead.
   useEffect(() => {
@@ -310,7 +328,7 @@ function GameScreenInner() {
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'game_controversy_outcomes',
         filter: `game_id=eq.${gameId}`,
-      }, () => { loadAllResolvedControversies(); })
+      }, () => { loadAllResolvedControversies(); loadRoundOutcomes(); })
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'games',
         filter: `id=eq.${gameId}`,
@@ -335,36 +353,21 @@ function GameScreenInner() {
 
       if (subRoundAdvanced || roundAdvanced) {
         setHasSubmittedThisSubRound(false);
-        setHasProceededOverview(false);
         drag.clearPreliminary();
         setTooltipData(null);
-        workerEffectsRef.current = []; // wipe stale tooltip cache
-      }
-
-      // Entering overview → wipe stale partial cache so full effects are fetched
-      if (prev.phase === 'demagogery' && round.phase === 'demagogery_overview') {
         workerEffectsRef.current = [];
       }
 
-      // Demagogery just resolved → show demagogery results before ruling phase
-      if (prev.phase === 'demagogery_overview' && round.phase !== 'demagogery_overview' && round.phase !== 'demagogery') {
+      if (prev.phase === 'demagogery' && round.phase !== 'demagogery') {
+        workerEffectsRef.current = [];
         setTooltipData(null);
-        handleShowResolutionResults();
       }
 
-      // New round started → clear stale state
       if (roundAdvanced) {
         placementsRoundIdRef.current = null;
-        setPlacements([]);  // Clear stale placements from previous round
-        // Only clear dismissed keys if we're not still showing round-end outcomes
+        setPlacements([]);
         if (!showRoundEnd) setDismissedResolvedKeys(new Set());
         setOnTheHorizonVisible(true);
-      }
-    } else {
-      // Initial load (e.g. player rejoining) — show election results if they missed the transition
-      if (round.phase === 'ruling_pool' && round.senate_leader_id) {
-        showElectionResultsRef.current = true;
-        setShowElectionResults(true);
       }
     }
     prevRoundRef.current = {
@@ -374,15 +377,118 @@ function GameScreenInner() {
     };
   }, [round]);
 
+  // On initial load, apply persisted checkpoint to in-memory state.
+  // This restores election results visibility and controversy dismiss state
+  // so the player resumes exactly where they left off.
+  const checkpointAppliedRef = useRef(false);
+  useEffect(() => {
+    if (checkpointAppliedRef.current || !checkpointLoadedRef.current || !round?.id) return;
+    checkpointAppliedRef.current = true;
+
+    const cp = checkpoint;
+    if (!cp || cp.roundId !== round.id) return;
+
+    const idx = SCREEN_ORDER.indexOf(cp.screen);
+
+    // If past election, suppress election results screen on mount
+    if (idx >= 2) {
+      showElectionResultsRef.current = false;
+      setShowElectionResults(false);
+    }
+
+    // If past round_summary, suppress round-end screen on mount
+    if (idx >= 4) {
+      setShowRoundEnd(false);
+    }
+  }, [checkpoint, round?.id]);
+
+  // Separate effect for controversy dismiss — needs controversyStates to be loaded
+  const controversyCheckpointAppliedRef = useRef(false);
+  useEffect(() => {
+    if (controversyCheckpointAppliedRef.current || !checkpointLoadedRef.current || !round?.id) return;
+    if (controversyStates.length === 0) return; // not loaded yet
+    controversyCheckpointAppliedRef.current = true;
+
+    const cp = checkpoint;
+    if (!cp || cp.roundId !== round.id) return;
+    const idx = SCREEN_ORDER.indexOf(cp.screen);
+
+    if (idx >= 3 && cp.controversiesSeen.length > 0) {
+      setDismissedResolvedKeys(new Set(cp.controversiesSeen));
+    }
+  }, [checkpoint, round?.id, controversyStates]);
+
+  // When the checkpoint is for a previous round that wasn't fully completed,
+  // load that round's data from DB so the player can finish the round-end screens.
+  const prevRoundLoadedRef = useRef(false);
+  useEffect(() => {
+    if (prevRoundLoadedRef.current || !checkpointLoadedRef.current || !round?.id) return;
+    const cp = checkpoint;
+    if (!cp || cp.roundId === round.id) return;
+    prevRoundLoadedRef.current = true;
+
+    (async () => {
+      const [roundRes, statesRes, axesRes, factionsRes, outcomesRes] = await Promise.all([
+        supabase.from('game_rounds')
+          .select('id, round_number, initial_faction_powers, initial_axis_values, end_of_round_influence, initial_influence')
+          .eq('id', cp.roundId)
+          .single(),
+        supabase.from('game_controversy_state')
+          .select('controversy_key, status')
+          .eq('round_id', cp.roundId),
+        supabase.from('game_axes')
+          .select('axis_key, current_value')
+          .eq('game_id', gameId),
+        supabase.from('game_factions')
+          .select('id, faction_key, display_name, power_level')
+          .eq('game_id', gameId),
+        supabase.from('game_controversy_outcomes')
+          .select('controversy_key, controversy_type, axis_outcomes, faction_power_outcomes, type_data, resolved_at')
+          .eq('round_id', cp.roundId)
+          .order('resolved_at', { ascending: true }),
+      ]);
+
+      if (!roundRes.data) {
+        setCheckpoint(null);
+        return;
+      }
+
+      const prevRoundData = roundRes.data;
+      const prevStates = (statesRes.data as ControversyStateRow[]) ?? [];
+
+      setRoundEndSnapshot({
+        roundId: prevRoundData.id,
+        roundNumber: prevRoundData.round_number,
+        controversyStates: prevStates,
+        initialFactionPowers: prevRoundData.initial_faction_powers ?? {},
+        initialAxisValues: prevRoundData.initial_axis_values ?? {},
+        endOfRoundInfluence: prevRoundData.end_of_round_influence ?? null,
+        playerStates: [...playerStates],
+        axes: (axesRes.data as typeof axes) ?? axes,
+        factions: (factionsRes.data as typeof factions) ?? factions,
+        outcomes: (outcomesRes.data as OutcomeRow[]) ?? [],
+      });
+      setControversyStates(prevStates);
+
+      // Pre-dismiss already-seen controversies
+      if (cp.controversiesSeen.length > 0) {
+        setDismissedResolvedKeys(new Set(cp.controversiesSeen));
+      }
+
+      setShowRoundEnd(true);
+    })();
+  }, [checkpoint, round?.id]);
+
   // Close On the Horizon when phase changes (players can reopen manually)
   useEffect(() => {
     setOnTheHorizonVisible(false);
   }, [round?.phase]);
 
-  // Reload controversy states when round or phase changes
+  // Reload controversy states and outcomes when round or phase changes
   useEffect(() => {
     if (round?.id) {
       loadControversyStates();
+      loadRoundOutcomes();
     }
   }, [round?.id, round?.phase]);
 
@@ -396,16 +502,6 @@ function GameScreenInner() {
     if (alreadySubmitted) setHasSubmittedThisSubRound(true);
   }, [placements, round, currentUserId]);
 
-  // Snapshot influence on first render in demagogery phase — used for results delta.
-  // Only capture once (when ref is null) to avoid overwriting with post-resolution values
-  // that arrive before the phase change propagates via realtime.
-  useEffect(() => {
-    if (round?.phase === 'demagogery' && !preResolutionInfluenceRef.current && playerStates.length > 0) {
-      const snapshot: Record<string, number> = {};
-      playerStates.forEach((ps) => { snapshot[ps.player_id] = ps.influence; });
-      preResolutionInfluenceRef.current = snapshot;
-    }
-  }, [playerStates, round?.phase]);
 
   const fetchAndCacheEffects = useCallback(async (preliminary?: PreliminaryPlacementRequest) => {
     const myGeneration = ++fetchGenerationRef.current;
@@ -443,7 +539,7 @@ function GameScreenInner() {
   // Debounced re-fetch of preview effects when preliminary placement changes
   useEffect(() => {
     const phase = round?.phase;
-    if (phase !== 'demagogery' && phase !== 'demagogery_overview') return;
+    if (phase !== 'demagogery' && phase !== 'demagogery_resolved' && phase !== 'leader_election') return;
 
     if (previewFetchDebounceRef.current) {
       clearTimeout(previewFetchDebounceRef.current);
@@ -460,7 +556,7 @@ function GameScreenInner() {
         });
       }, 300);
     } else {
-      // In overview: always fetch without preliminary (all placements revealed)
+      // Past demagogery (overview/results): fetch all revealed placements
       // In demagogery without preliminary: fetch baseline effects
       fetchAndCacheEffects();
     }
@@ -488,15 +584,20 @@ function GameScreenInner() {
         if (game.status === 'finished') loadAllResolvedControversies();
       }
 
-      await Promise.all([
-        loadFactions(),
-        loadRound(),
-        loadPlayers(),
-        loadPlacements(),
-        loadPlayerStates(),
-        loadAffinities(),
-        loadAxes(),
+      const [, savedCheckpoint] = await Promise.all([
+        Promise.all([
+          loadFactions(),
+          loadRound(),
+          loadPlayers(),
+          loadPlacements(),
+          loadPlayerStates(),
+          loadAffinities(),
+          loadAxes(),
+        ]),
+        loadCheckpoint(gameId!),
       ]);
+      if (savedCheckpoint) setCheckpoint(savedCheckpoint);
+      checkpointLoadedRef.current = true;
     } finally {
       setLoading(false);
     }
@@ -514,7 +615,7 @@ function GameScreenInner() {
   async function loadRound() {
     const { data } = await supabase
       .from('game_rounds')
-      .select('id, round_number, phase, sub_round, senate_leader_id, controversy_pool, controversies_resolved, upcoming_pool, initial_faction_powers, initial_influence, end_of_round_influence, overview_ready')
+      .select('id, round_number, phase, sub_round, senate_leader_id, controversy_pool, controversies_resolved, upcoming_pool, initial_faction_powers, initial_influence, pre_demagogery_influence, end_of_round_influence, initial_axis_values')
       .eq('game_id', gameId)
       .order('round_number', { ascending: false })
       .limit(1)
@@ -531,10 +632,13 @@ function GameScreenInner() {
       // Fetch controversy states fresh — React state may be stale due to race with Realtime.
       if ((!prev || prev.phase !== 'round_end') && data.phase === 'round_end') {
         // Fetch fresh data — React state may be stale due to race with Realtime
-        const [freshStatesRes, freshAxesRes, freshFactionsRes] = await Promise.all([
+        const [freshStatesRes, freshAxesRes, freshFactionsRes, freshOutcomesRes] = await Promise.all([
           supabase.from('game_controversy_state').select('controversy_key, status').eq('round_id', data.id),
           supabase.from('game_axes').select('axis_key, current_value').eq('game_id', gameId),
           supabase.from('game_factions').select('id, faction_key, display_name, power_level').eq('game_id', gameId),
+          supabase.from('game_controversy_outcomes')
+            .select('controversy_key, controversy_type, axis_outcomes, faction_power_outcomes, type_data, resolved_at')
+            .eq('round_id', data.id).order('resolved_at', { ascending: true }),
         ]);
         const snappedStates = (freshStatesRes.data as ControversyStateRow[]) ?? controversyStates;
         setControversyStates(snappedStates);
@@ -543,13 +647,21 @@ function GameScreenInner() {
           roundNumber: data.round_number,
           controversyStates: snappedStates,
           initialFactionPowers: data.initial_faction_powers ?? {},
+          initialAxisValues: data.initial_axis_values ?? {},
           endOfRoundInfluence: data.end_of_round_influence ?? null,
           playerStates: [...playerStates],
           axes: (freshAxesRes.data as typeof axes) ?? axes,
           factions: (freshFactionsRes.data as typeof factions) ?? factions,
+          outcomes: (freshOutcomesRes.data as OutcomeRow[]) ?? [],
         });
         setShowRoundEnd(true);
       }
+      // If the player is still viewing round-end screens (controversies / round summary)
+      // and another player has already advanced to a new round, don't update round state.
+      // The player will load the new round when they dismiss the round-end screen.
+      const isNewRound = prev && data.round_number > prev.roundNumber;
+      if (isNewRound && showRoundEndRef.current) return;
+
       setRound(data as Round);
     }
   }
@@ -633,6 +745,71 @@ function GameScreenInner() {
     if (data) setAllOutcomes(data as OutcomeRow[]);
   }
 
+  async function loadRoundOutcomes() {
+    if (!round?.id) return;
+    const { data } = await supabase
+      .from('game_controversy_outcomes')
+      .select('controversy_key, controversy_type, axis_outcomes, faction_power_outcomes, type_data, resolved_at')
+      .eq('round_id', round.id)
+      .order('resolved_at', { ascending: true });
+    if (data) setRoundOutcomes(data as OutcomeRow[]);
+  }
+
+  /** Compute axis values just before a given controversy, starting from round start
+   *  and accumulating effects of all prior resolved controversies in the round. */
+  function getAxisBaselineForControversy(controversyKey: string, outcomes?: OutcomeRow[], initialAxes?: Record<string, number>): Record<string, number> {
+    const baseline = { ...(initialAxes ?? round?.initial_axis_values ?? {}) };
+    for (const oc of (outcomes ?? roundOutcomes)) {
+      if (oc.controversy_key === controversyKey) break; // stop before this one
+      for (const [axis, vals] of Object.entries(oc.axis_outcomes)) {
+        baseline[axis] = vals.after;
+      }
+    }
+    return baseline;
+  }
+
+  /**
+   * Compute per-player influence at a given point in the round, based on
+   * immutable snapshots rather than mutable game_player_state.
+   * initial_influence (post-demagogery) minus influence spent in each resolved
+   * controversy up to (but not including) the given controversy key.
+   * If no key is provided, includes all resolved controversies.
+   */
+  function getInfluenceBaseline(upToControversyKey?: string, outcomes?: OutcomeRow[], initialInf?: Record<string, number>): Record<string, number> {
+    const baseline: Record<string, number> = { ...(initialInf ?? round?.initial_influence ?? {}) };
+    for (const oc of (outcomes ?? roundOutcomes)) {
+      if (upToControversyKey && oc.controversy_key === upToControversyKey) break;
+      const td = oc.type_data;
+      if (oc.controversy_type === 'vote' && td?.votes) {
+        for (const v of td.votes) {
+          if (v.playerId && v.influenceSpent) {
+            baseline[v.playerId] = (baseline[v.playerId] ?? 0) - v.influenceSpent;
+          }
+        }
+      } else if (oc.controversy_type === 'endeavour' && td?.rankings) {
+        for (const r of td.rankings) {
+          if (r.playerId && r.invested) {
+            baseline[r.playerId] = (baseline[r.playerId] ?? 0) - r.invested;
+          }
+        }
+      } else if (oc.controversy_type === 'clash' && td?.personalEffects) {
+        for (const [playerId, effect] of Object.entries(td.personalEffects)) {
+          const loss = (effect as any).influenceLoss ?? 0;
+          if (loss > 0) {
+            baseline[playerId] = (baseline[playerId] ?? 0) - loss;
+          }
+        }
+      } else if (oc.controversy_type === 'schism' && td?.betResults) {
+        for (const br of td.betResults) {
+          if (br.playerId && br.stakeInfluence) {
+            baseline[br.playerId] = (baseline[br.playerId] ?? 0) - br.stakeInfluence;
+          }
+        }
+      }
+    }
+    return baseline;
+  }
+
   // Submit the preliminary placement
   async function handleSubmitMove() {
     const prelim = drag.preliminaryPlacement;
@@ -659,12 +836,16 @@ function GameScreenInner() {
     }
   }
 
+  function updateCheckpoint(screen: CheckpointScreen, controversiesSeen: string[] = [], overrideRoundId?: string) {
+    const roundId = overrideRoundId ?? round?.id ?? '';
+    setCheckpoint({ roundId, screen, controversiesSeen });
+    saveCheckpoint(gameId!, roundId, screen, controversiesSeen).catch(() => {});
+  }
+
   async function handleShowResolutionResults() {
-    setShowResults(true);
     setResolving(true);
     try {
-      const preInfluence = preResolutionInfluenceRef.current ?? {};
-      preResolutionInfluenceRef.current = null;
+      const preInfluence = round?.pre_demagogery_influence ?? round?.initial_influence ?? {};
 
       const { data: postStates } = await supabase
         .from('game_player_state')
@@ -679,7 +860,6 @@ function GameScreenInner() {
         deltas[ps.player_id] = ps.influence - (preInfluence[ps.player_id] ?? 0);
       });
       setResultInfluence(deltas);
-      setShowResults(true);
     } catch {
       await loadRound();
       await loadPlayerStates();
@@ -689,7 +869,7 @@ function GameScreenInner() {
   }
 
   function handleContinue() {
-    setShowResults(false);
+    updateCheckpoint('results');
     setHasSubmittedThisSubRound(false);
     drag.clearPreliminary();
     loadPlacements();
@@ -742,7 +922,7 @@ function GameScreenInner() {
     if (effect) {
       setTooltipData({ ...baseTooltip, effect });
     } else {
-      // Cache miss — show loading state and fire immediate fetch
+      // Cache miss — show loading state
       setTooltipData({
         ...baseTooltip,
         loading: true,
@@ -752,16 +932,15 @@ function GameScreenInner() {
         pendingOratorRole: fp.oratorRole as OratorRole | undefined,
       });
 
-      const prelim = drag.preliminaryPlacement;
-      fetchAndCacheEffects(
-        prelim ? {
-          factionKey: prelim.factionKey,
-          workerType: prelim.workerType,
-          oratorRole: prelim.oratorRole,
-        } : undefined,
-      );
+      // Only fire a separate fetch if there's no preliminary placement.
+      // When a preliminary exists, the debounce effect is already handling
+      // the fetch — a competing call here would increment the generation
+      // counter and cause the debounce's in-flight response to be discarded.
+      if (!drag.preliminaryPlacement) {
+        fetchAndCacheEffects();
+      }
     }
-  }, [factions, fetchAndCacheEffects]);
+  }, [factions, fetchAndCacheEffects, drag.preliminaryPlacement]);
 
   const dragOverlayStyle = useAnimatedStyle(() => ({
     position: 'absolute' as const,
@@ -902,7 +1081,9 @@ function GameScreenInner() {
       lockTurnsLeft: p.is_locked ? 1 : (p.orator_role === 'demagog' ? 2 : undefined),
     }));
 
-  // Block orator slots at factions where the player already has an orator
+  // Block orator slots at factions where the player already has an orator.
+  // When dragging, don't count the preliminary placement — the player is
+  // relocating it, so its original faction should remain available.
   useEffect(() => {
     const myOratorFactionKeys = new Set<string>();
     for (const p of placements) {
@@ -911,9 +1092,9 @@ function GameScreenInner() {
         if (faction) myOratorFactionKeys.add(faction.faction_key);
       }
     }
-    // Also count preliminary placement
+    // Count preliminary placement only when not actively dragging
     const prelim = drag.preliminaryPlacement;
-    if (prelim?.workerType === 'orator') {
+    if (prelim?.workerType === 'orator' && !drag.isDragging) {
       myOratorFactionKeys.add(prelim.factionKey);
     }
     const blocked = new Set<string>();
@@ -923,13 +1104,36 @@ function GameScreenInner() {
       blocked.add(`faction:${fk}:agitator`);
     }
     drag.setBlockedTargets(blocked);
-  }, [placements, currentUserId, factions, drag.preliminaryPlacement]);
+  }, [placements, currentUserId, factions, drag.preliminaryPlacement, drag.isDragging]);
 
 
   const hasPreliminary = !!drag.preliminaryPlacement;
 
   // Sit-out logic: must be above early returns so hooks are always called.
   const phase = round?.phase ?? 'demagogery';
+
+  // Checkpoint-based catch-up screen logic.
+  // The checkpoint tracks the last screen the player viewed for the current round.
+  // Screens are ordered: overview → results → election → controversy → round_summary.
+  const SCREEN_ORDER: CheckpointScreen[] = ['overview', 'results', 'election', 'controversy', 'round_summary'];
+  const checkpointForThisRound = checkpoint?.roundId === round?.id ? checkpoint : null;
+  const lastSeenIndex = checkpointForThisRound
+    ? SCREEN_ORDER.indexOf(checkpointForThisRound.screen)
+    : -1;
+
+  // The checkpoint tracks the client's position in the game narrative.
+  // If the checkpoint is for a previous round, the client needs to finish
+  // that round's screens before catching up with the current round.
+  const checkpointBehind = checkpointLoadedRef.current && checkpoint != null
+    && round?.id != null && checkpoint.roundId !== round.id;
+
+  const pastDemagogery = phase !== 'demagogery';
+  const pastElection = pastDemagogery && phase !== 'demagogery_resolved' && phase !== 'leader_election';
+  // Catch-up screens for the current round — only relevant if checkpoint is for THIS round
+  const needsOverview = !checkpointBehind && pastDemagogery && round?.id != null && checkpointLoadedRef.current && lastSeenIndex < 0;
+  const needsResults = !checkpointBehind && pastDemagogery && round?.id != null && checkpointLoadedRef.current && lastSeenIndex === 0;
+  const needsElectionResults = !checkpointBehind && pastElection && round?.id != null && checkpointLoadedRef.current
+    && lastSeenIndex >= 0 && lastSeenIndex < 2 && !!senateLeaderId;
   const myTotalPlacements = placements.filter((p) => p.player_id === currentUserId).length;
   // Only treat as sitting out when placements belong to the current round
   const placementsAreCurrentRound = !!round?.id && placementsRoundIdRef.current === round.id;
@@ -950,7 +1154,7 @@ function GameScreenInner() {
     sitOutSubmittedRef.current = false;
   }, [round?.id]);
 
-  if (loading) {
+  if (loading || (checkpointBehind && !showRoundEnd)) {
     return (
       <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
         <View style={styles.loadingContainer}>
@@ -1183,7 +1387,17 @@ function GameScreenInner() {
   }
 
   // Demagogery resolution results overlay
-  if (showResults) {
+  if (needsResults) {
+    if (resolving) {
+      return (
+        <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={C.gold} />
+            <Text style={{ color: C.parchment, marginTop: 12 }}>Tallying influence...</Text>
+          </View>
+        </ImageBackground>
+      );
+    }
     return (
       <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
         <View style={[styles.container, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
@@ -1214,6 +1428,84 @@ function GameScreenInner() {
             <Text style={styles.actionButtonText}>Continue to Leader Election</Text>
           </Pressable>
         </View>
+      </ImageBackground>
+    );
+  }
+
+  // Demagogery overview — shown after demagogery ends, before leader election.
+  // Each player proceeds at their own pace; the game has already moved on server-side.
+  if (needsOverview) {
+    return (
+      <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
+        <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: 0 }]}>
+          <RoundHeader
+            phaseTitle="DEMAGOGERY"
+            roundInfo={`Round ${round?.round_number ?? '?'} / Overview`}
+            influence={myInfluence}
+            onHome={() => router.replace('/(app)/home')}
+            helpNode={
+              <GestureDetector gesture={helpIconGesture}>
+                <Animated.View style={styles.helpButton}>
+                  <HelpIcon size={22} color={C.parchment} />
+                </Animated.View>
+              </GestureDetector>
+            }
+          />
+          <View style={styles.statusBar}>
+            <Text style={styles.statusText}>
+              All placements revealed. Tap workers to see effects.
+            </Text>
+          </View>
+          <FlatList
+            data={factions}
+            keyExtractor={(f) => f.id}
+            contentContainerStyle={styles.factionList}
+            renderItem={({ item: faction }) => (
+              <FactionCard
+                factionKey={faction.faction_key}
+                displayName={faction.display_name}
+                powerLevel={faction.power_level}
+                placements={getFactionPlacements(faction.id)}
+                expanded={expandedFactions.has(faction.faction_key)}
+                onToggle={() => setExpandedFactions((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(faction.faction_key)) {
+                    next.delete(faction.faction_key);
+                  } else {
+                    next.add(faction.faction_key);
+                  }
+                  return next;
+                })}
+                currentPlayerId={currentUserId}
+                playerColor={playerColor}
+                allPlayerAffinities={getAllPlayerAffinities(faction.id)}
+                factionPreferences={getFactionPreferences(faction)}
+                playerAgendas={playerAgendas}
+                onWorkerTap={handleWorkerTap}
+              />
+            )}
+          />
+          <Pressable
+            style={[styles.submitButton, { marginBottom: 8 + insets.bottom }]}
+            onPress={() => {
+              updateCheckpoint('overview');
+              handleShowResolutionResults();
+            }}
+          >
+            <Text style={styles.submitButtonText}>Proceed</Text>
+          </Pressable>
+        </View>
+        {tooltipData && (
+          <WorkerTooltip
+            effect={tooltipData.effect}
+            loading={tooltipData.loading}
+            playerName={tooltipData.playerName}
+            playerColor={tooltipData.playerColor}
+            factionName={tooltipData.factionName}
+            position={tooltipData.position}
+            onDismiss={() => setTooltipData(null)}
+          />
+        )}
       </ImageBackground>
     );
   }
@@ -1276,7 +1568,7 @@ function GameScreenInner() {
       />
       <PlayersPanel
         players={players}
-        playerStates={playerStates}
+        playerStates={derivedPlayerStates}
         playerAgendas={playerAgendas}
         axes={axisValuesMap}
         currentUserId={currentUserId}
@@ -1298,7 +1590,7 @@ function GameScreenInner() {
     </>
   );
 
-  if (phase === 'leader_election' || showElectionResults || showElectionResultsRef.current) {
+  if (phase === 'leader_election' || showElectionResults || showElectionResultsRef.current || needsElectionResults) {
     return (
       <ImageBackground source={leaderElectionBg} style={styles.background} resizeMode="cover">
         <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]}>
@@ -1320,7 +1612,7 @@ function GameScreenInner() {
             players={players}
             playerStates={playerStates}
             senateLeaderId={senateLeaderId || null}
-            onLeaderSelected={() => { showElectionResultsRef.current = false; setShowElectionResults(false); loadRound(); }}
+            onLeaderSelected={() => { showElectionResultsRef.current = false; setShowElectionResults(false); updateCheckpoint('election'); loadRound(); }}
           />
           {sidePanels}
           <HelpModal helpId={help?.activeHelpId ?? null} onDismiss={() => help?.dismissHelp()} />
@@ -1429,7 +1721,7 @@ function GameScreenInner() {
               players={players}
               activeFactionKeys={activeFactionKeys}
               factionInfoMap={factionInfoMap}
-              axisValues={axisValuesMap}
+              axisValues={getAxisBaselineForControversy(activeControversyKey)}
               playerAgendas={playerAgendas}
               totalInitialInfluence={
                 round?.initial_influence
@@ -1492,7 +1784,11 @@ function GameScreenInner() {
               players={players}
               activeFactionKeys={activeFactionKeys}
               factionInfoMap={factionInfoMap}
-              axisValues={axisValuesMap}
+              axisValues={getAxisBaselineForControversy(
+                undismissedResolved.controversy_key,
+                roundEndSnapshot?.outcomes,
+                roundEndSnapshot?.initialAxisValues,
+              )}
               playerAgendas={playerAgendas}
               totalInitialInfluence={
                 round?.initial_influence
@@ -1508,7 +1804,11 @@ function GameScreenInner() {
                 return result;
               })()}
               onContinue={() => {
-                setDismissedResolvedKeys((prev) => new Set(prev).add(undismissedResolved.controversy_key));
+                setDismissedResolvedKeys((prev) => {
+                  const next = new Set(prev).add(undismissedResolved.controversy_key);
+                  updateCheckpoint('controversy', [...next], roundEndSnapshot?.roundId);
+                  return next;
+                });
               }}
             />
           </View>
@@ -1551,14 +1851,17 @@ function GameScreenInner() {
               } catch {
                 // Already advanced by another player — that's fine
               }
-              // Load new round data BEFORE dismissing, so placements
-              // (including locked demagogs) are ready for sit-out detection.
-              await Promise.all([loadRound(), loadPlacements(), loadPlayerStates(), loadFactions(), loadAffinities()]);
+              // Clear checkpoint and dismiss round-end BEFORE loading,
+              // so neither the checkpoint catch-up effect nor loadRound's
+              // guard interfere with the transition to the new round.
+              setCheckpoint(null);
+              clearCheckpoint(gameId!).catch(() => {});
               setShowRoundEnd(false);
               setRoundEndSnapshot(null);
               setDismissedResolvedKeys(new Set());
               setHasSubmittedThisSubRound(false);
               setOnTheHorizonVisible(true);
+              await Promise.all([loadRound(), loadPlacements(), loadPlayerStates(), loadFactions(), loadAffinities(), loadControversyStates()]);
             }}
           />
         </View>
@@ -1567,18 +1870,12 @@ function GameScreenInner() {
   }
 
   // --- Demagogery view (default) ---
-  const isOverview = phase === 'demagogery_overview';
-  const overviewReadyCount = round?.overview_ready?.length ?? 0;
-  const overviewWaitingCount = players.length - overviewReadyCount;
-
   return (
     <ImageBackground source={gameBg} style={styles.background} resizeMode="cover">
       <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: 0 }]}>
         <RoundHeader
           phaseTitle="DEMAGOGERY"
-          roundInfo={isOverview
-            ? `Round ${round?.round_number ?? '?'} / Overview`
-            : `Round ${round?.round_number ?? '?'} / Demagogery Step ${round?.sub_round ?? '?'}`}
+          roundInfo={`Round ${round?.round_number ?? '?'} / Demagogery Step ${round?.sub_round ?? '?'}`}
           influence={myInfluence}
           onHome={() => router.replace('/(app)/home')}
           helpNode={
@@ -1589,19 +1886,6 @@ function GameScreenInner() {
             </GestureDetector>
           }
         />
-
-        {/* Status bar — overview phase */}
-        {isOverview && (
-          <View style={styles.statusBar}>
-            <Text style={styles.statusText}>
-              {hasProceededOverview
-                ? overviewWaitingCount > 0
-                  ? `Ready. Waiting for ${overviewWaitingCount} player${overviewWaitingCount === 1 ? '' : 's'}...`
-                  : 'All ready!'
-                : 'All placements revealed. Tap workers to see effects.'}
-            </Text>
-          </View>
-        )}
 
         {/* Status bar — active placement */}
         {(hasSubmittedThisSubRound || isSittingOut) && phase === 'demagogery' && (
@@ -1617,11 +1901,6 @@ function GameScreenInner() {
           </View>
         )}
 
-        {phase === 'demagogery_resolved' && !resolving && (
-          <View style={styles.statusBar}>
-            <Text style={styles.statusText}>All placements in. Resolving...</Text>
-          </View>
-        )}
 
         {/* Faction list */}
         <FlatList
@@ -1652,37 +1931,13 @@ function GameScreenInner() {
               allPlayerAffinities={getAllPlayerAffinities(faction.id)}
               factionPreferences={getFactionPreferences(faction)}
               playerAgendas={playerAgendas}
-              onDragStart={isOverview ? undefined : handleDragStart}
-              onDragMove={isOverview ? undefined : handleDragMove}
-              onDragEnd={isOverview ? undefined : handleDragEnd}
+              onDragStart={handleDragStart}
+              onDragMove={handleDragMove}
+              onDragEnd={handleDragEnd}
               onWorkerTap={handleWorkerTap}
             />
           )}
         />
-
-        {/* Proceed button — overview phase */}
-        {isOverview && !hasProceededOverview && (
-          <Pressable
-            style={[styles.submitButton, { marginBottom: 8 + insets.bottom }, submitting && styles.submitButtonDisabled]}
-            onPress={async () => {
-              if (submitting) return;
-              setSubmitting(true);
-              try {
-                await proceedFromOverview(gameId);
-                setHasProceededOverview(true);
-              } catch (e: any) {
-                console.error('[overview] proceed error:', e);
-              } finally {
-                setSubmitting(false);
-              }
-            }}
-            disabled={submitting}
-          >
-            <Text style={styles.submitButtonText}>
-              {submitting ? 'Proceeding...' : 'Proceed'}
-            </Text>
-          </Pressable>
-        )}
 
         {/* Submit Move button */}
         {hasPreliminary && !hasSubmittedThisSubRound && !isSittingOut && phase === 'demagogery' && (
