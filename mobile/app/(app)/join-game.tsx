@@ -1,8 +1,9 @@
-import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, ImageBackground } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ImageBackground } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { joinGame } from '../../lib/games';
-import { C, parchmentBg, navyBg } from '../../lib/theme';
+import { CodeEntry } from '../../components/CodeEntry';
+import { C, navyBg } from '../../lib/theme';
 
 const joinGameBg = require('../../assets/images/join-game-bg.png');
 
@@ -13,14 +14,15 @@ export default function JoinGameScreen() {
   const [error, setError] = useState<string | null>(null);
 
   async function handleJoin() {
-    if (code.length !== 6) {
+    const cleaned = code.replace(/\u200B/g, '');
+    if (cleaned.length !== 6) {
       setError('Code must be 6 characters');
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const gameId = await joinGame(code);
+      const gameId = await joinGame(cleaned);
       router.replace(`/(app)/lobby/${gameId}`);
     } catch (e: any) {
       setError(e.message);
@@ -31,39 +33,22 @@ export default function JoinGameScreen() {
 
   return (
     <ImageBackground source={joinGameBg} style={styles.background} resizeMode="cover">
-    <View style={styles.container}>
-      <Text style={styles.heading}>Join Game</Text>
+      <View style={styles.container}>
+        <Text style={styles.heading}>Join Game</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="ABCDEF"
-        placeholderTextColor={parchmentBg(0.3)}
-        value={code}
-        onChangeText={(text) => {
-          const cleaned = text.replace(/\u200B/g, '').toUpperCase();
-          setCode(cleaned || '\u200B');
-        }}
-        onFocus={() => { if (!code) setCode('\u200B'); }}
-        onBlur={() => { if (code === '\u200B') setCode(''); }}
-        maxLength={7}
-        autoCapitalize="characters"
-        autoCorrect={false}
-      />
+        <CodeEntry
+          value={code}
+          onChangeText={setCode}
+          onSubmit={handleJoin}
+          buttonLabel="Join"
+          submitting={loading}
+          error={error}
+        />
 
-      {loading ? (
-        <ActivityIndicator size="large" color={C.parchment} />
-      ) : (
-        <Pressable style={styles.button} onPress={handleJoin}>
-          <Text style={styles.buttonText}>Join</Text>
+        <Pressable style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backText}>Back</Text>
         </Pressable>
-      )}
-
-      {error && <Text style={styles.error}>{error}</Text>}
-
-      <Pressable style={styles.backButton} onPress={() => router.back()}>
-        <Text style={styles.backText}>Back</Text>
-      </Pressable>
-    </View>
+      </View>
     </ImageBackground>
   );
 }
@@ -82,36 +67,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: C.parchment,
     marginBottom: 32,
-  },
-  input: {
-    width: '100%',
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: C.parchment,
-    textAlign: 'center',
-    letterSpacing: 8,
-    borderBottomWidth: 2,
-    borderBottomColor: C.parchment,
-    paddingVertical: 12,
-    marginBottom: 32,
-  },
-  button: {
-    backgroundColor: parchmentBg(0.15),
-    borderWidth: 1,
-    borderColor: C.parchment,
-    borderRadius: 8,
-    paddingVertical: 16,
-    paddingHorizontal: 48,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: C.parchment,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  error: {
-    color: C.error,
-    marginTop: 16,
   },
   backButton: {
     marginTop: 32,
