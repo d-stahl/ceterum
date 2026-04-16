@@ -40,7 +40,7 @@ export function EmailOtpModal({ visible, email, mode, onCancel, onSuccess }: Pro
         await verifyEmailUpdate(email, cleaned);
       }
       onSuccess();
-    } catch (e: any) {
+    } catch {
       setError('Invalid code');
     } finally {
       setSubmitting(false);
