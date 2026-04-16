@@ -10,6 +10,7 @@ const homeBg = require('../assets/images/home-bg.png');
 export default function LandingScreen() {
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
+  const [sentToEmail, setSentToEmail] = useState('');
   const [creating, setCreating] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -38,6 +39,7 @@ export default function LandingScreen() {
     setError(null);
     try {
       await signInWithEmail(trimmed);
+      setSentToEmail(trimmed);
       setModalVisible(true);
     } catch (e: any) {
       setError(e.message ?? 'Could not send code');
@@ -92,7 +94,7 @@ export default function LandingScreen() {
 
         <EmailOtpModal
           visible={modalVisible}
-          email={email.trim()}
+          email={sentToEmail}
           mode="signin"
           onCancel={() => setModalVisible(false)}
           onSuccess={handleOtpSuccess}
