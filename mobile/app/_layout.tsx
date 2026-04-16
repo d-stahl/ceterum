@@ -5,7 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { ensureAuthenticated } from '../lib/auth';
+import { getCurrentSession } from '../lib/auth';
 import { C } from '../lib/theme';
 
 export default function RootLayout() {
@@ -16,10 +16,8 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
-    ensureAuthenticated()
-      .then((s) => {
-        setSession(s);
-      })
+    getCurrentSession()
+      .then((s) => setSession(s))
       .catch((e) => {
         console.error('Auth error:', e);
         setError(String(e?.message ?? e));
@@ -27,14 +25,9 @@ export default function RootLayout() {
       .finally(() => setLoading(false));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === 'TOKEN_REFRESHED' && !session) {
-          // Stale refresh token — silently re-authenticate
-          ensureAuthenticated()
-            .then((s) => setSession(s))
-            .catch(() => {});
-          return;
-        }
+      (_event, session) => {
+        // If TOKEN_REFRESHED yields null, the refresh token is gone.
+        // Do NOT silently re-auth — let the user land on the choice screen.
         setSession(session);
       }
     );
