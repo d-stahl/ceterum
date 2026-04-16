@@ -169,7 +169,10 @@ export default function ProfileScreen() {
                   value={email}
                   editable={false}
                 />
-                <Pressable style={styles.emailButton} onPress={() => setEditingEmail(true)}>
+                <Pressable
+                  style={styles.emailButton}
+                  onPress={() => { setEditingEmail(true); setEmailError(null); }}
+                >
                   <Text style={styles.emailButtonText}>Change Email</Text>
                 </Pressable>
               </>
