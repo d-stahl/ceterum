@@ -34,14 +34,14 @@ export default function ProfileScreen() {
     if (user) {
       const { data } = await supabase
         .from('profiles')
-        .select('display_name, email')
+        .select('display_name')
         .eq('id', user.id)
         .single();
       if (data) {
         setDisplayName(data.display_name);
         setOriginalName(data.display_name);
-        setEmail(data.email ?? '');
       }
+      setEmail(user.email ?? '');
     }
     setLoading(false);
   }

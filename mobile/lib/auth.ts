@@ -54,6 +54,7 @@ export async function signInWithEmail(email: string): Promise<void> {
   const swallowable =
     isAuthApiError(error) &&
     (error.code === 'user_not_found' ||
+      error.code === 'otp_disabled' ||
       error.code === 'signup_disabled' ||
       error.code === 'over_email_send_rate_limit' ||
       error.code === 'over_request_rate_limit');
@@ -85,9 +86,8 @@ export async function requestEmailUpdate(email: string): Promise<void> {
 }
 
 /**
- * Complete email-attach / change flow. After success we mirror the email
- * onto the profiles row so the rest of the app can read it via the profiles
- * table (which is what Profile screen queries).
+ * Complete email-attach / change flow. auth.users.email is the source of
+ * truth; the Profile screen reads it via supabase.auth.getUser().
  */
 export async function verifyEmailUpdate(email: string, token: string): Promise<void> {
   const { error } = await supabase.auth.verifyOtp({
@@ -96,14 +96,6 @@ export async function verifyEmailUpdate(email: string, token: string): Promise<v
     type: 'email_change',
   });
   if (error) throw error;
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    await supabase
-      .from('profiles')
-      .update({ email })
-      .eq('id', user.id);
-  }
 }
 
 /**
