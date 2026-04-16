@@ -1,9 +1,9 @@
-import { View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator, ImageBackground } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator, ImageBackground, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
-import { requestEmailUpdate } from '../../lib/auth';
+import { requestEmailUpdate, signOut } from '../../lib/auth';
 import { EmailOtpModal } from '../../components/EmailOtpModal';
 import { C, parchmentBg, navyBg } from '../../lib/theme';
 
@@ -85,6 +85,30 @@ export default function ProfileScreen() {
       setEmailError(e.message ?? 'Could not send code');
     } finally {
       setSendingOtp(false);
+    }
+  }
+
+  async function handleSignOut() {
+    const proceed = async () => {
+      try {
+        await signOut();
+        // onAuthStateChange in _layout routes to /.
+      } catch (e: any) {
+        Alert.alert('Sign Out Failed', e.message ?? 'Could not sign out');
+      }
+    };
+
+    if (hasLinkedEmail) {
+      await proceed();
+    } else {
+      Alert.alert(
+        'Sign out?',
+        'This profile has no email linked. Signing out will lose access to ongoing games.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign Out', style: 'destructive', onPress: proceed },
+        ],
+      );
     }
   }
 
@@ -194,6 +218,10 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        <Pressable style={styles.signOutButton} onPress={handleSignOut}>
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </Pressable>
+
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backText}>Back</Text>
         </Pressable>
@@ -300,6 +328,19 @@ const styles = StyleSheet.create({
   },
   saveButtonTextDisabled: {
     opacity: 0.3,
+  },
+  signOutButton: {
+    marginTop: 24,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: C.error,
+    borderRadius: 8,
+  },
+  signOutText: {
+    color: C.error,
+    fontSize: 16,
+    fontWeight: '600',
   },
   backButton: {
     marginTop: 32,
