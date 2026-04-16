@@ -4,9 +4,10 @@ import { supabase } from './supabase';
 import { generateUniqueName } from './name-generator';
 
 /**
- * Return the cached session without a network probe.
- * Used by root layout at startup — lenient cache: we trust the session
- * until a real API call proves it invalid via onAuthStateChange.
+ * Return the cached session. Used by root layout at startup — lenient cache:
+ * we trust the session until a real API call proves it invalid. This may
+ * refresh an expired access token silently, but never creates a new user;
+ * if no refresh token is present or refresh fails, returns null.
  */
 export async function getCurrentSession(): Promise<Session | null> {
   const { data: { session } } = await supabase.auth.getSession();
