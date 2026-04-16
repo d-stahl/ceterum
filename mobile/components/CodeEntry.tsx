@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, KeyboardTypeOptions } from 'react-native';
 import { C, parchmentBg } from '../lib/theme';
 
 type Props = {
@@ -9,6 +9,7 @@ type Props = {
   submitting?: boolean;
   error?: string | null;
   autoCapitalize?: 'characters' | 'none';
+  keyboardType?: KeyboardTypeOptions;
 };
 
 export function CodeEntry({
@@ -19,6 +20,7 @@ export function CodeEntry({
   submitting = false,
   error = null,
   autoCapitalize = 'characters',
+  keyboardType = 'default',
 }: Props) {
   return (
     <View style={styles.container}>
@@ -35,7 +37,9 @@ export function CodeEntry({
         onBlur={() => { if (value === '\u200B') onChangeText(''); }}
         maxLength={7}
         autoCapitalize={autoCapitalize}
+        keyboardType={keyboardType}
         autoCorrect={false}
+        editable={!submitting}
       />
 
       {submitting ? (
