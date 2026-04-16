@@ -1,4 +1,5 @@
 import { Session } from '@supabase/supabase-js';
+import { isAuthApiError } from '@supabase/auth-js';
 import { supabase } from './supabase';
 import { generateUniqueName } from './name-generator';
 
@@ -46,11 +47,16 @@ export async function signInWithEmail(email: string): Promise<void> {
     email,
     options: { shouldCreateUser: false },
   });
-  // Intentionally swallow user-not-found / rate-limit errors: non-enumeration.
-  // Real programmer errors (malformed URL etc.) are rare and noisy.
-  if (error && !/user not found|signups not allowed|rate limit/i.test(error.message)) {
-    throw error;
-  }
+  if (!error) return;
+  // Swallow non-enumeration-sensitive errors so the UI can show the same
+  // "if the mail exists…" message regardless of whether an OTP was issued.
+  const swallowable =
+    isAuthApiError(error) &&
+    (error.code === 'user_not_found' ||
+      error.code === 'signup_disabled' ||
+      error.code === 'over_email_send_rate_limit' ||
+      error.code === 'over_request_rate_limit');
+  if (!swallowable) throw error;
 }
 
 /**
