@@ -57,6 +57,25 @@ export default function LeaderElection({
   const totalPlayers = players.length;
   const waitingCount = hasSubmitted ? totalPlayers - 1 : 0; // approximate
 
+  // Hydrate submitted state on mount — component has no persistent state of
+  // its own, so a remount (app restart, phase re-entry) would otherwise show
+  // the vote button after the user has already pledged.
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('game_support_pledges')
+        .select('candidate_id')
+        .eq('round_id', roundId)
+        .eq('pledger_id', currentUserId)
+        .eq('pledge_round', 1)
+        .maybeSingle();
+      if (data) {
+        setSelectedCandidate(data.candidate_id);
+        setHasSubmitted(true);
+      }
+    })();
+  }, [roundId, currentUserId]);
+
   // When senateLeaderId appears, fetch vote results and show them
   useEffect(() => {
     if (!senateLeaderId) return;
