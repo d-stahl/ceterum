@@ -5,6 +5,14 @@ changes. Update it when you make architectural decisions.
 
 ---
 
+## Workflow
+
+**Work directly on `main`.** No feature branches, no worktrees. Commit and push directly. Any skill
+or workflow that prescribes branching (subagent-driven-development's per-branch isolation, the
+using-git-worktrees skill, etc.) is overridden for this project.
+
+---
+
 ## Project Structure
 
 ```
