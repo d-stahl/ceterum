@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator } from 'react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
 import { C, goldBg, whiteBg, CONTROVERSY_TYPE_COLORS, CONTROVERSY_TYPE_LABELS } from '../lib/theme';
 import { AxisEffectSlider, PowerEffectRow, getFactionStances } from './ControversyCard';
 import { PlayerAgendaInfo } from './AgendaDots';
@@ -30,6 +31,9 @@ type Props = {
   factionInfoMap: Record<string, FactionInfo>;
   axisValues?: Record<string, number>;
   playerAgendas?: PlayerAgendaInfo[];
+  roundId: string;
+  controversyKey: string;
+  currentUserId: string;
   onSubmit: (resolutionKey: string, influenceSpent: number) => Promise<void>;
 };
 
@@ -42,6 +46,9 @@ export default function VoteControls({
   factionInfoMap,
   axisValues,
   playerAgendas,
+  roundId,
+  controversyKey,
+  currentUserId,
   onSubmit,
 }: Props) {
   const [selectedKey, setSelectedKey] = useState<string>(
@@ -51,6 +58,21 @@ export default function VoteControls({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('game_controversy_votes')
+        .select('player_id')
+        .eq('round_id', roundId)
+        .eq('controversy_key', controversyKey)
+        .eq('player_id', currentUserId)
+        .maybeSingle();
+      if (!cancelled && data) setSubmitted(true);
+    })();
+    return () => { cancelled = true; };
+  }, [roundId, controversyKey, currentUserId]);
 
   const parsedInfluence = parseInt(influenceInput, 10);
   const isValidInfluence = influenceInput.trim() !== '' && !isNaN(parsedInfluence) && parsedInfluence >= 0 && parsedInfluence <= currentInfluence;

@@ -84,20 +84,22 @@ export default function LeaderElection({
     (async () => {
       const { data: pledges } = await supabase
         .from('game_support_pledges')
-        .select('pledger_id, candidate_id')
+        .select('pledger_id, candidate_id, pledger_influence')
         .eq('round_id', roundId)
         .eq('pledge_round', 1);
 
       if (!pledges) return;
 
-      // Build results grouped by candidate
+      // Build results grouped by candidate. Use the influence snapshot taken
+      // at pledge time so weights reflect each voter's influence when they
+      // actually voted, not whatever it is now.
       const candidateMap = new Map<string, { playerId: string; color: string; weight: number }[]>();
       for (const p of pledges) {
         const segments = candidateMap.get(p.candidate_id) ?? [];
         segments.push({
           playerId: p.pledger_id,
           color: playerColorId(p.pledger_id),
-          weight: playerInfluence(p.pledger_id),
+          weight: p.pledger_influence ?? playerInfluence(p.pledger_id),
         });
         candidateMap.set(p.candidate_id, segments);
       }

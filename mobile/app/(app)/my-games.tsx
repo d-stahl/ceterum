@@ -3,7 +3,8 @@ import { useRouter } from 'expo-router';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getMyGames } from '../../lib/games';
+import { Ionicons } from '@expo/vector-icons';
+import { getMyGames, setGameHidden } from '../../lib/games';
 import { C, parchmentBg, navyBg } from '../../lib/theme';
 
 const myGamesBg = require('../../assets/images/my-games-bg.png');
@@ -14,6 +15,7 @@ type Game = {
   invite_code: string;
   status: string;
   created_at: string;
+  hidden: boolean;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -41,6 +43,7 @@ export default function MyGamesScreen() {
   const insets = useSafeAreaInsets();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showHidden, setShowHidden] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -60,24 +63,52 @@ export default function MyGamesScreen() {
     }
   }
 
+  async function toggleHidden(game: Game) {
+    const nextHidden = !game.hidden;
+    setGames((prev) => prev.map((g) => (g.id === game.id ? { ...g, hidden: nextHidden } : g)));
+    try {
+      await setGameHidden(game.id, nextHidden);
+    } catch (e) {
+      console.error(e);
+      setGames((prev) => prev.map((g) => (g.id === game.id ? { ...g, hidden: game.hidden } : g)));
+    }
+  }
+
+  const visibleGames = showHidden ? games : games.filter((g) => !g.hidden);
+  const hiddenCount = games.filter((g) => g.hidden).length;
+
   function renderGame({ item }: { item: Game }) {
     return (
-      <Pressable
-        style={styles.gameCard}
-        onPress={() => {
-          if (item.status === 'in_progress' || item.status === 'finished') {
-            router.push(`/(app)/game/${item.id}` as any);
-          } else {
-            router.push(`/(app)/lobby/${item.id}`);
-          }
-        }}
-      >
-        <Text style={styles.gameName}>{item.name}</Text>
-        <View style={styles.gameInfo}>
-          <Text style={styles.gameStatus}>{STATUS_LABELS[item.status] ?? item.status}</Text>
-          <Text style={styles.gameCode}>{item.invite_code}</Text>
-        </View>
-      </Pressable>
+      <View style={styles.gameRow}>
+        <Pressable
+          style={[styles.gameCard, item.hidden && styles.gameCardHidden]}
+          onPress={() => {
+            if (item.status === 'in_progress' || item.status === 'finished') {
+              router.push(`/(app)/game/${item.id}` as any);
+            } else {
+              router.push(`/(app)/lobby/${item.id}`);
+            }
+          }}
+        >
+          <Text style={styles.gameName}>{item.name}</Text>
+          <View style={styles.gameInfo}>
+            <Text style={styles.gameStatus}>{STATUS_LABELS[item.status] ?? item.status}</Text>
+            <Text style={styles.gameCode}>{item.invite_code}</Text>
+          </View>
+        </Pressable>
+        <Pressable
+          style={styles.hideButton}
+          onPress={() => toggleHidden(item)}
+          hitSlop={8}
+        >
+          <Ionicons
+            name={item.hidden ? 'eye-outline' : 'eye-off-outline'}
+            size={22}
+            color={C.parchment}
+            style={{ opacity: item.hidden ? 0.9 : 0.5 }}
+          />
+        </Pressable>
+      </View>
     );
   }
 
@@ -90,9 +121,13 @@ export default function MyGamesScreen() {
         <ActivityIndicator size="large" color={C.parchment} />
       ) : games.length === 0 ? (
         <Text style={styles.empty}>No games yet. Create or join one!</Text>
+      ) : visibleGames.length === 0 ? (
+        <Text style={styles.empty}>
+          {hiddenCount > 0 ? 'All your games are hidden.' : 'No games yet. Create or join one!'}
+        </Text>
       ) : (
         <FlatList
-          data={games}
+          data={visibleGames}
           keyExtractor={(item) => item.id}
           renderItem={renderGame}
           style={styles.list}
@@ -100,9 +135,18 @@ export default function MyGamesScreen() {
         />
       )}
 
-      <Pressable style={styles.backButton} onPress={() => router.back()}>
-        <Text style={styles.backText}>Back</Text>
-      </Pressable>
+      <View style={styles.footer}>
+        <Pressable style={styles.footerButton} onPress={() => router.back()}>
+          <Text style={styles.footerText}>Back</Text>
+        </Pressable>
+        {hiddenCount > 0 && (
+          <Pressable style={styles.footerButton} onPress={() => setShowHidden((s) => !s)}>
+            <Text style={styles.footerText}>
+              {showHidden ? 'Hide hidden games' : `Show hidden games (${hiddenCount})`}
+            </Text>
+          </Pressable>
+        )}
+      </View>
     </View>
     </ImageBackground>
   );
@@ -129,12 +173,30 @@ const styles = StyleSheet.create({
   listContent: {
     gap: 12,
   },
+  gameRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 8,
+  },
   gameCard: {
+    flex: 1,
     backgroundColor: parchmentBg(0.1),
     borderWidth: 1,
     borderColor: parchmentBg(0.3),
     borderRadius: 8,
     padding: 16,
+  },
+  gameCardHidden: {
+    opacity: 0.5,
+  },
+  hideButton: {
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: parchmentBg(0.3),
+    borderRadius: 8,
+    backgroundColor: parchmentBg(0.05),
   },
   gameName: {
     color: C.parchment,
@@ -166,11 +228,17 @@ const styles = StyleSheet.create({
     marginTop: 48,
     fontSize: 16,
   },
-  backButton: {
-    paddingVertical: 24,
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 24,
   },
-  backText: {
+  footerButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+  },
+  footerText: {
     color: C.parchment,
     opacity: 0.6,
     fontSize: 16,

@@ -176,6 +176,7 @@ export async function getMyGames() {
     .from('game_players')
     .select(`
       game_id,
+      hidden,
       games (
         id,
         name,
@@ -187,7 +188,15 @@ export async function getMyGames() {
     .eq('player_id', user.id);
 
   if (error) throw error;
-  return (data ?? []).map((row: any) => row.games);
+  return (data ?? []).map((row: any) => ({ ...row.games, hidden: !!row.hidden }));
+}
+
+export async function setGameHidden(gameId: string, hidden: boolean): Promise<void> {
+  const { error } = await supabase.rpc('set_game_hidden', {
+    p_game_id: gameId,
+    p_hidden: hidden,
+  });
+  if (error) throw error;
 }
 
 export async function launchGame(gameId: string): Promise<void> {

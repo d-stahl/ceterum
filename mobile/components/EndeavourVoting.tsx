@@ -88,6 +88,27 @@ export default function EndeavourVoting({
     if (data) setOutcome(data);
   }, [roundId, controversyKey]);
 
+  // Hydrate submitted state on mount — without this, leaving and rejoining
+  // mid-vote shows the input form again, and re-submitting hits the unique
+  // constraint on (round_id, controversy_key, player_id).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('game_endeavour_submissions')
+        .select('influence_invested')
+        .eq('round_id', roundId)
+        .eq('controversy_key', controversyKey)
+        .eq('player_id', currentUserId)
+        .maybeSingle();
+      if (!cancelled && data) {
+        setSubmitted(true);
+        setInfluenceInput(String(data.influence_invested));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [roundId, controversyKey, currentUserId]);
+
   useEffect(() => {
     fetchState();
     const sub = supabase

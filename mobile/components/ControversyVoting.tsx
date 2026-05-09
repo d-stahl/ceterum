@@ -451,6 +451,9 @@ export default function ControversyVoting({
         factionInfoMap={factionInfoMap}
         axisValues={axisValues}
         playerAgendas={playerAgendas}
+        roundId={roundId}
+        controversyKey={controversyKey}
+        currentUserId={currentUserId}
         onSubmit={(resKey, inf) => submitControversyVote(gameId, controversyKey, resKey, inf)}
       />
     </ScrollView>
